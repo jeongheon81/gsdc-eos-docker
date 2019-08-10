@@ -1,0 +1,146 @@
+---
+- name: Uninstall old versions.
+  package:
+    name:
+    - docker
+    - docker-client
+    - docker-client-latest
+    - docker-common
+    - docker-latest
+    - docker-latest-logrotate
+    - docker-logrotate
+    - docker-engine
+    state: absent
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Enable extras repository.
+  yum:
+    enablerepo:
+    - extras
+
+- name: Install required packages.
+  package:
+    name:
+    - yum-utils
+    - device-mapper-persistent-data
+    - lvm2
+    - python2-pip
+    state: latest
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: check Docker repository before
+  stat: path=/etc/yum.repos.d/docker-ce.repo
+  register: before_docker_repository_stat
+
+- name: Add Docker repository.
+  command: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  changed_when: false
+
+- name: check Docker repository after
+  stat: path=/etc/yum.repos.d/docker-ce.repo
+  register: after_docker_repository_stat
+  changed_when: before_docker_repository_stat.stat.checksum is defined and before_docker_repository_stat.stat.checksum != after_docker_repository_stat.stat.checksum
+
+- name: Add Docker GPG key.
+  rpm_key:
+    key: https://download.docker.com/linux/centos/gpg
+    state: present
+
+- name: Install Docker Engine.
+  package:
+    name:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    state: latest
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Start and enable Docker.
+  service: name=docker state=started enabled=true
+
+- name: Create work around directory for systemd version 220
+  file:
+    path: "/etc/systemd/network"
+    state: directory
+    mode: 0755
+
+- name: Create work around file for systemd version 220
+  template: src=80-container-host0.network.j2 dest=/etc/systemd/network/80-container-host0.network mode=0644
+
+- name: Set ip forwarding
+  sysctl:
+    name: "{{ item }}"
+    value: "1"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+  - net.ipv4.ip_forward
+  - net.ipv4.conf.all.forwarding
+
+- name: Install Python packages
+  pip:
+    name: "{{ item }}"
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+  loop:
+  - docker
+
+- name: Add user(s) to "docker" group
+  user:
+    name: "{{ item }}"
+    groups: "docker"
+    append: true
+  loop: "{{ docker_users }}"
+
+- block:
+  - name: Start default route monitoring
+    shell: touch /tmp/DEFAULT_ROUTE_MONITORING; while [ -e /tmp/DEFAULT_ROUTE_MONITORING ] ; do if route -n | grep '^0\.0\.0\.0' &>/dev/null ; then sleep 1 ; else sleep 5; systemctl restart network &>/dev/null ; fi ; done
+    args:
+      warn: no
+    async: 1000
+    poll: 0
+    register: default_route_monitor_job
+    changed_when: false
+
+  - name: Create Docker network
+    docker_network:
+      name: "{{ item.name }}"
+      attachable: yes
+      ipam_config:
+      - gateway: "{{ item.gateway }}"
+        subnet: "{{ item.subnet }}"
+      driver: bridge
+      driver_options:
+        com.docker.network.bridge.name: "{{ item.bridge_name }}"
+        com.docker.network.bridge.enable_ip_masquerade: "{{ item.masquerade }}"
+    loop: "{{ container_network }}"
+
+  - name: Stop default route monitoring
+    file:
+      path: /tmp/DEFAULT_ROUTE_MONITORING
+      state: absent
+    changed_when: false
+
+  - name: Check on async task
+    async_status:
+      jid: "{{ default_route_monitor_job.ansible_job_id }}"
+    register: job_result
+    until: job_result.finished
+    retries: 30
+    changed_when: false
+
+  when: container_network is defined
+
+# https://github.com/nickjj/ansible-docker

@@ -1,0 +1,15 @@
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        ({%- for id in cockpit_admin_groups -%} subject.isInGroup("{{ id }}") {%- if not loop.last %} || {% endif -%} {%- endfor -%})) {
+        return polkit.Result.AUTH_ADMIN;
+    }
+});
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        ({%- for id in cockpit_admin_groups -%} subject.isInGroup("{{ id }}") {%- if not loop.last %} || {% endif -%} {%- endfor -%})) {
+        return polkit.Result.YES;
+    }
+});
+polkit.addAdminRule(function(action, subject) {
+    return [{%- for id in cockpit_admin_groups -%} "{{ id }}" {%- if not loop.last -%} , {% endif -%} {%- endfor -%}];
+});

@@ -1,0 +1,429 @@
+# docker diff eos-qdb-test1
+C /tmp
+A /tmp/xrootd.qdb.env
+A /tmp/qdb
+A /tmp/qdb/.xrd
+A /tmp/qdb/.xrd/=
+A /tmp/qdb/.xrd/=/conf
+A /tmp/qdb/.xrd/=/conf/xrootd.cf
+A /tmp/qdb/.xrd/=/core
+A /tmp/qdb/.xrd/=/core/xrootd
+A /tmp/qdb/.xrd/=/logs
+A /tmp/qdb/.xrd/=/logs/xrootd
+A /tmp/qdb/.xrd/=/proc
+A /tmp/qdb/.xrd/=/proc/xrootd
+A /tmp/qdb/.xrootd
+A /tmp/qdb/.xrootd/admin
+A /tmp/qdb/ofsEvents
+A /tmp/qdb/xrootd.pid
+A /tmp/qdb/.ofs
+A /tmp/qdb/.ofs/posc.log
+C /var
+C /var/log
+C /var/log/eos
+A /var/log/eos/qdb
+A /var/log/eos/qdb/.lock
+A /var/log/eos/qdb/xrdlog.qdb
+C /var/lib
+A /var/lib/quarkdb
+A /var/lib/quarkdb/node-01
+A /var/lib/quarkdb/node-01/RESILVERING-HISTORY
+A /var/lib/quarkdb/node-01/SHARD-ID
+A /var/lib/quarkdb/node-01/current
+A /var/lib/quarkdb/node-01/current/raft-journal
+A /var/lib/quarkdb/node-01/current/raft-journal/CURRENT
+A /var/lib/quarkdb/node-01/current/raft-journal/MANIFEST-000005
+A /var/lib/quarkdb/node-01/current/raft-journal/000006.log
+A /var/lib/quarkdb/node-01/current/raft-journal/IDENTITY
+A /var/lib/quarkdb/node-01/current/raft-journal/LOCK
+A /var/lib/quarkdb/node-01/current/raft-journal/LOG
+A /var/lib/quarkdb/node-01/current/raft-journal/LOG.old.1565315556566456
+A /var/lib/quarkdb/node-01/current/raft-journal/OPTIONS-000005
+A /var/lib/quarkdb/node-01/current/raft-journal/OPTIONS-000008
+A /var/lib/quarkdb/node-01/current/raft-journal/000004.sst
+A /var/lib/quarkdb/node-01/current/state-machine
+A /var/lib/quarkdb/node-01/current/state-machine/000003.log
+A /var/lib/quarkdb/node-01/current/state-machine/CURRENT
+A /var/lib/quarkdb/node-01/current/state-machine/IDENTITY
+A /var/lib/quarkdb/node-01/current/state-machine/LOCK
+A /var/lib/quarkdb/node-01/current/state-machine/LOG
+A /var/lib/quarkdb/node-01/current/state-machine/MANIFEST-000001
+A /var/lib/quarkdb/node-01/current/state-machine/OPTIONS-000005
+C /etc
+C /etc/xrd.cf.quarkdb
+
+
+/tmp/xrootd.qdb.env
+/tmp/qdb
+/tmp/qdb/.xrd
+/tmp/qdb/.xrd/=
+/tmp/qdb/.xrd/=/conf
+/tmp/qdb/.xrd/=/conf/xrootd.cf
+/tmp/qdb/.xrd/=/core
+/tmp/qdb/.xrd/=/core/xrootd
+/tmp/qdb/.xrd/=/logs
+/tmp/qdb/.xrd/=/logs/xrootd
+/tmp/qdb/.xrd/=/proc
+/tmp/qdb/.xrd/=/proc/xrootd
+/tmp/qdb/.xrootd
+/tmp/qdb/.xrootd/admin
+/tmp/qdb/ofsEvents
+/tmp/qdb/xrootd.pid
+/tmp/qdb/.ofs
+/tmp/qdb/.ofs/posc.log
+
+/var/log/eos/qdb
+/var/log/eos/qdb/.lock
+/var/log/eos/qdb/xrdlog.qdb
+
+/var/lib/quarkdb
+/var/lib/quarkdb/node-01
+/var/lib/quarkdb/node-01/RESILVERING-HISTORY
+/var/lib/quarkdb/node-01/SHARD-ID
+/var/lib/quarkdb/node-01/current
+/var/lib/quarkdb/node-01/current/raft-journal
+/var/lib/quarkdb/node-01/current/raft-journal/CURRENT
+/var/lib/quarkdb/node-01/current/raft-journal/MANIFEST-000005
+/var/lib/quarkdb/node-01/current/raft-journal/000006.log
+/var/lib/quarkdb/node-01/current/raft-journal/IDENTITY
+/var/lib/quarkdb/node-01/current/raft-journal/LOCK
+/var/lib/quarkdb/node-01/current/raft-journal/LOG
+/var/lib/quarkdb/node-01/current/raft-journal/LOG.old.1565315556566456
+/var/lib/quarkdb/node-01/current/raft-journal/OPTIONS-000005
+/var/lib/quarkdb/node-01/current/raft-journal/OPTIONS-000008
+/var/lib/quarkdb/node-01/current/raft-journal/000004.sst
+/var/lib/quarkdb/node-01/current/state-machine
+/var/lib/quarkdb/node-01/current/state-machine/000003.log
+/var/lib/quarkdb/node-01/current/state-machine/CURRENT
+/var/lib/quarkdb/node-01/current/state-machine/IDENTITY
+/var/lib/quarkdb/node-01/current/state-machine/LOCK
+/var/lib/quarkdb/node-01/current/state-machine/LOG
+/var/lib/quarkdb/node-01/current/state-machine/MANIFEST-000001
+/var/lib/quarkdb/node-01/current/state-machine/OPTIONS-000005
+
+/etc/xrd.cf.quarkdb
+
+
+# docker diff eos-mq-test
+C /var
+C /var/log
+C /var/log/eos
+A /var/log/eos/mq
+A /var/log/eos/mq/.lock
+A /var/log/eos/mq/proc
+A /var/log/eos/mq/xrdlog.mq
+C /tmp
+A /tmp/xrootd.mq.env
+A /tmp/mq
+A /tmp/mq/.xrd
+A /tmp/mq/.xrd/=
+A /tmp/mq/.xrd/=/core
+A /tmp/mq/.xrd/=/core/xrootd
+A /tmp/mq/.xrd/=/logs
+A /tmp/mq/.xrd/=/logs/xrootd
+A /tmp/mq/.xrd/=/proc
+A /tmp/mq/.xrd/=/proc/xrootd
+A /tmp/mq/.xrd/=/conf
+A /tmp/mq/.xrd/=/conf/xrootd.cf
+A /tmp/mq/.xrootd
+A /tmp/mq/.xrootd/admin
+A /tmp/mq/xrootd.pid
+
+/var/log/eos/mq
+/var/log/eos/mq/.lock
+/var/log/eos/mq/proc
+/var/log/eos/mq/xrdlog.mq
+
+/tmp/xrootd.mq.env
+/tmp/mq
+/tmp/mq/.xrd
+/tmp/mq/.xrd/=
+/tmp/mq/.xrd/=/core
+/tmp/mq/.xrd/=/core/xrootd
+/tmp/mq/.xrd/=/logs
+/tmp/mq/.xrd/=/logs/xrootd
+/tmp/mq/.xrd/=/proc
+/tmp/mq/.xrd/=/proc/xrootd
+/tmp/mq/.xrd/=/conf
+/tmp/mq/.xrd/=/conf/xrootd.cf
+/tmp/mq/.xrootd
+/tmp/mq/.xrootd/admin
+/tmp/mq/xrootd.pid
+
+
+# docker diff eos-mgm-test       
+C /var                                                                       
+C /var/eos                                                                
+A /var/eos/auth                                                        
+A /var/eos/eos.mgm.rw                                                 
+C /var/eos/md                                                                     
+C /var/eos/md/fstfmd.dict                                                          
+A /var/eos/md/iostat.eos-mgm-test.eoscluster.cern.ch:1094.dump                     
+A /var/eos/md/so.mgm.dump.eos-mgm-test.eoscluster.cern.ch:1094 
+C /var/eos/ns-queue            
+A /var/eos/ns-queue/eosdockertest:1094_md
+A /var/eos/ns-queue/eosdockertest:1094_md/000003.log
+A /var/eos/ns-queue/eosdockertest:1094_md/CURRENT
+A /var/eos/ns-queue/eosdockertest:1094_md/IDENTITY
+A /var/eos/ns-queue/eosdockertest:1094_md/LOCK
+A /var/eos/ns-queue/eosdockertest:1094_md/LOG
+A /var/eos/ns-queue/eosdockertest:1094_md/MANIFEST-000001
+A /var/eos/ns-queue/eosdockertest:1094_md/OPTIONS-000005
+A /var/eos/ns-queue/eosdockertest:1094_quota
+A /var/eos/ns-queue/eosdockertest:1094_quota/OPTIONS-000005
+A /var/eos/ns-queue/eosdockertest:1094_quota/000003.log
+A /var/eos/ns-queue/eosdockertest:1094_quota/CURRENT
+A /var/eos/ns-queue/eosdockertest:1094_quota/IDENTITY
+A /var/eos/ns-queue/eosdockertest:1094_quota/LOCK
+A /var/eos/ns-queue/eosdockertest:1094_quota/LOG
+A /var/eos/ns-queue/eosdockertest:1094_quota/MANIFEST-000001
+A /var/eos/report                   
+A /var/eos/config          
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/000003.log
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/CURRENT
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/LOCK
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/LOG
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/MANIFEST-000002
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/default.autosave.1565317974.eoscf
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/default.autosave.1565317975.eoscf
+A /var/eos/config/eos-mgm-test.eoscluster.cern.ch/default.eoscf
+A /var/eos/tx                  
+A /var/eos/tx/transfers.sql    
+C /var/spool                  
+C /var/spool/mail            
+A /var/spool/mail/admin1
+C /var/log              
+C /var/log/eos       
+C /var/log/eos/tx    
+A /var/log/eos/tx/transfer-archive.log
+A /var/log/eos/mgm
+A /var/log/eos/mgm/ReplicationTracker.log                  
+A /var/log/eos/mgm/Converter.log                       
+A /var/log/eos/mgm/LRU.log                          
+A /var/log/eos/mgm/ZMQ.log                           
+A /var/log/eos/mgm/eosxd-stacktraces.log         
+A /var/log/eos/mgm/GeoTreeEngine.log            
+A /var/log/eos/mgm/MetadataFlusher.log                      
+A /var/log/eos/mgm/GroupBalancer.log
+A /var/log/eos/mgm/Http.log
+A /var/log/eos/mgm/WFE.log                       
+A /var/log/eos/mgm/WFE::Job.log                                   
+A /var/log/eos/mgm/Clients.log                                               
+A /var/log/eos/mgm/FileInspector.log                                      
+A /var/log/eos/mgm/GeoBalancer.log                                     
+A /var/log/eos/mgm/Grpc.log                                           
+A /var/log/eos/mgm/Master.log                                                     
+A /var/log/eos/mgm/Recycle.log                                                     
+A /var/log/eos/mgm/eosxd-logtraces.log                                             
+A /var/log/eos/mgm/error.log                                   
+A /var/log/eos/mgm/Balancer.log
+A /var/log/eos/mgm/DrainJob.log
+A /var/log/eos/mgm/logbook.log
+A /var/log/eos/mgm/xrdlog.mgm
+C /var/log/lastlog      
+C /etc                  
+C /etc/shadow        
+C /etc/group         
+C /etc/gshadow                        
+C /etc/shadow-  
+C /etc/group-                                              
+C /etc/gshadow-                                        
+C /etc/passwd                                       
+A /etc/eos.krb5.keytab                               
+C /etc/passwd-                                   
+C /etc/xrd.cf.mgm                               
+C /home                                                     
+A /home/admin1                      
+A /home/admin1/.bash_logout
+A /home/admin1/.bash_profile                     
+A /home/admin1/.bashrc                                            
+C /tmp                                                                       
+A /tmp/mgm                                                                
+A /tmp/mgm/.xrd                                                        
+A /tmp/mgm/.xrd/=                                                     
+A /tmp/mgm/.xrd/=/proc                                                            
+A /tmp/mgm/.xrd/=/proc/xrootd                                                      
+A /tmp/mgm/.xrd/=/conf                                                             
+A /tmp/mgm/.xrd/=/conf/xrootd.cf                               
+A /tmp/mgm/.xrd/=/core         
+A /tmp/mgm/.xrd/=/core/xrootd  
+A /tmp/mgm/.xrd/=/logs        
+A /tmp/mgm/.xrd/=/logs/xrootd
+A /tmp/mgm/.xrootd      
+A /tmp/mgm/.xrootd/admin
+A /tmp/mgm/xrootd.pid
+A /tmp/xrootd.mgm.env
+A /tmp/eos.mgm 
+
+
+/var/eos/auth                                                        
+/var/eos/eos.mgm.rw    
+
+/var/eos/md/iostat.eos-mgm-test.eoscluster.cern.ch:1094.dump                     
+/var/eos/md/so.mgm.dump.eos-mgm-test.eoscluster.cern.ch:1094 
+/var/eos/ns-queue/eosdockertest:1094_md
+/var/eos/ns-queue/eosdockertest:1094_md/000003.log
+/var/eos/ns-queue/eosdockertest:1094_md/CURRENT
+/var/eos/ns-queue/eosdockertest:1094_md/IDENTITY
+/var/eos/ns-queue/eosdockertest:1094_md/LOCK
+/var/eos/ns-queue/eosdockertest:1094_md/LOG
+/var/eos/ns-queue/eosdockertest:1094_md/MANIFEST-000001
+/var/eos/ns-queue/eosdockertest:1094_md/OPTIONS-000005
+/var/eos/ns-queue/eosdockertest:1094_quota
+/var/eos/ns-queue/eosdockertest:1094_quota/OPTIONS-000005
+/var/eos/ns-queue/eosdockertest:1094_quota/000003.log
+/var/eos/ns-queue/eosdockertest:1094_quota/CURRENT
+/var/eos/ns-queue/eosdockertest:1094_quota/IDENTITY
+/var/eos/ns-queue/eosdockertest:1094_quota/LOCK
+/var/eos/ns-queue/eosdockertest:1094_quota/LOG
+/var/eos/ns-queue/eosdockertest:1094_quota/MANIFEST-000001
+
+/var/eos/report                   
+
+/var/eos/config          
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/000003.log
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/CURRENT
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/LOCK
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/LOG
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/config.changelog/MANIFEST-000002
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/default.autosave.1565317974.eoscf
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/default.autosave.1565317975.eoscf
+/var/eos/config/eos-mgm-test.eoscluster.cern.ch/default.eoscf
+
+/var/eos/tx                  
+/var/eos/tx/transfers.sql    
+
+/var/spool/mail/admin1
+
+/var/log/eos/tx/transfer-archive.log
+/var/log/eos/mgm
+/var/log/eos/mgm/ReplicationTracker.log                  
+/var/log/eos/mgm/Converter.log                       
+/var/log/eos/mgm/LRU.log                          
+/var/log/eos/mgm/ZMQ.log                           
+/var/log/eos/mgm/eosxd-stacktraces.log         
+/var/log/eos/mgm/GeoTreeEngine.log            
+/var/log/eos/mgm/MetadataFlusher.log                      
+/var/log/eos/mgm/GroupBalancer.log
+/var/log/eos/mgm/Http.log
+/var/log/eos/mgm/WFE.log                       
+/var/log/eos/mgm/WFE::Job.log                                   
+/var/log/eos/mgm/Clients.log                                               
+/var/log/eos/mgm/FileInspector.log                                      
+/var/log/eos/mgm/GeoBalancer.log                                     
+/var/log/eos/mgm/Grpc.log                                           
+/var/log/eos/mgm/Master.log                                                     
+/var/log/eos/mgm/Recycle.log                                                     
+/var/log/eos/mgm/eosxd-logtraces.log                                             
+/var/log/eos/mgm/error.log                                   
+/var/log/eos/mgm/Balancer.log
+/var/log/eos/mgm/DrainJob.log
+/var/log/eos/mgm/logbook.log
+/var/log/eos/mgm/xrdlog.mgm
+
+/etc/eos.krb5.keytab
+
+/home/admin1                      
+/home/admin1/.bash_logout
+/home/admin1/.bash_profile                     
+/home/admin1/.bashrc     
+
+/tmp/mgm                                                                
+/tmp/mgm/.xrd                                                        
+/tmp/mgm/.xrd/=                                                     
+/tmp/mgm/.xrd/=/proc                                                            
+/tmp/mgm/.xrd/=/proc/xrootd                                                      
+/tmp/mgm/.xrd/=/conf                                                             
+/tmp/mgm/.xrd/=/conf/xrootd.cf                               
+/tmp/mgm/.xrd/=/core         
+/tmp/mgm/.xrd/=/core/xrootd  
+/tmp/mgm/.xrd/=/logs        
+/tmp/mgm/.xrd/=/logs/xrootd
+/tmp/mgm/.xrootd      
+/tmp/mgm/.xrootd/admin
+/tmp/mgm/xrootd.pid
+/tmp/xrootd.mgm.env
+/tmp/eos.mgm 
+
+
+# docker diff eos-fst-test1
+C /tmp
+A /tmp/fst1
+A /tmp/fst1/.xrootd
+A /tmp/fst1/.xrootd/admin
+A /tmp/fst1/ofsEvents
+A /tmp/fst1/xrootd.pid
+A /tmp/fst1/.xrd
+A /tmp/fst1/.xrd/=
+A /tmp/fst1/.xrd/=/conf
+A /tmp/fst1/.xrd/=/conf/xrootd.cf
+A /tmp/fst1/.xrd/=/core
+A /tmp/fst1/.xrd/=/core/xrootd
+A /tmp/fst1/.xrd/=/logs
+A /tmp/fst1/.xrd/=/logs/xrootd
+A /tmp/fst1/.xrd/=/proc
+A /tmp/fst1/.xrd/=/proc/xrootd
+A /tmp/xrootd.fst1.env
+A /tmp/fst.publish.c8t2jt
+C /data
+A /data/disk1
+C /var
+C /var/log
+C /var/log/eos
+A /var/log/eos/fst1
+A /var/log/eos/fst1/.lock
+A /var/log/eos/fst1/xrdlog.fst
+C /var/eos
+A /var/eos/auth
+C /var/eos/md
+A /var/eos/md/fmd.0001.LevelDB
+A /var/eos/md/fmd.0001.LevelDB/000005.log
+A /var/eos/md/fmd.0001.LevelDB/CURRENT
+A /var/eos/md/fmd.0001.LevelDB/LOCK
+A /var/eos/md/fmd.0001.LevelDB/LOG
+A /var/eos/md/fmd.0001.LevelDB/LOG.old
+A /var/eos/md/fmd.0001.LevelDB/MANIFEST-000004
+C /var/eos/md/fstfmd.dict
+A /var/eos/md/so.fst.dump.eos-fst-test1.eoscluster.cern.ch:1095
+
+
+
+/tmp/fst1
+/tmp/fst1/.xrootd
+/tmp/fst1/.xrootd/admin
+/tmp/fst1/ofsEvents
+/tmp/fst1/xrootd.pid
+/tmp/fst1/.xrd
+/tmp/fst1/.xrd/=
+/tmp/fst1/.xrd/=/conf
+/tmp/fst1/.xrd/=/conf/xrootd.cf
+/tmp/fst1/.xrd/=/core
+/tmp/fst1/.xrd/=/core/xrootd
+/tmp/fst1/.xrd/=/logs
+/tmp/fst1/.xrd/=/logs/xrootd
+/tmp/fst1/.xrd/=/proc
+/tmp/fst1/.xrd/=/proc/xrootd
+/tmp/xrootd.fst1.env
+/tmp/fst.publish.c8t2jt
+
+/data/disk1
+
+/var/log/eos/fst1
+/var/log/eos/fst1/.lock
+/var/log/eos/fst1/xrdlog.fst
+
+/var/eos/auth
+
+/var/eos/md/fmd.0001.LevelDB
+/var/eos/md/fmd.0001.LevelDB/000005.log
+/var/eos/md/fmd.0001.LevelDB/CURRENT
+/var/eos/md/fmd.0001.LevelDB/LOCK
+/var/eos/md/fmd.0001.LevelDB/LOG
+/var/eos/md/fmd.0001.LevelDB/LOG.old
+/var/eos/md/fmd.0001.LevelDB/MANIFEST-000004
+
+/var/eos/md/so.fst.dump.eos-fst-test1.eoscluster.cern.ch:1095

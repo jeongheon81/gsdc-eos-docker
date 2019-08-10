@@ -1,0 +1,6 @@
+[libdefaults]
+ default_realm = {{ eos_realm }}
+[realms]
+  {{ eos_realm }} = {
+   kdc={{ eos_krb_server }}
+  }

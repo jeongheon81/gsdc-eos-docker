@@ -1,0 +1,18 @@
+stages:
+  - build
+
+eos_docker_utils:
+  stage: build
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y make rpm-build rsync sssd-client sudo createrepo
+    - cd projects/eos/
+    - ./maketar.sh
+    - rpmbuild -tb --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.tar.gz
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/citrine-depend/el-7/noarch
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f build/RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
+  tags:
+    - docker-fc_rawhide
+  when: manual

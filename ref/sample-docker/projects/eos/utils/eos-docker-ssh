@@ -1,0 +1,164 @@
+#!/bin/bash
+
+export ED_ROOT_DIR=${ED_ROOT_DIR-"/root/eos"}
+export ED_EOS_VAR_DIR=${ED_EOS_VAR_DIR-"$ED_ROOT_DIR/var"}
+export ED_CONFIG_FILE_DEFAULT=${ED_CONFIG_FILE_DEFAULT-"/etc/eos-docker/eos-docker.cf.default"}
+export ED_CONFIG_FILE=${ED_CONFIG_FILE-"eos-docker.cf"}
+export ED_FST_HOSTS=${ED_FST_HOSTS-"eos-docker-fst.cf"}
+
+function help() {
+    echo "Usage: $0 {start|stop|restart|check|clean|update} <host>" >&2
+    exit 1
+}
+
+function eosDockerSyncEtcBinDir() {
+  echo "Synchronizing EOS etc and bin directories ..."
+  [ -d $ED_ROOT_DIR/bin ] || mkdir -p $ED_ROOT_DIR/bin
+  if [ ! -f $ED_ROOT_DIR/bin/eos-docker ];then
+    cp -f /usr/bin/eos-docker $ED_ROOT_DIR/bin/
+  elif [ $(stat -c %s /usr/bin/eos-docker) -ne $(stat -c %s $ED_ROOT_DIR/bin/eos-docker) ]; then 
+    cp -f /usr/bin/eos-docker $ED_ROOT_DIR/bin/
+  fi
+  
+  echo "Packing eos-docker tarball ..."
+  ED_TGZ_FILE=eos-docker.tar.gz
+  cd $ED_ROOT_DIR
+  cp $ED_CONFIG_FILE_DEFAULT $ED_CONFIG_FILE.default
+  tar cfz $ED_ROOT_DIR/$ED_TGZ_FILE etc bin $ED_CONFIG_FILE.default $ED_CONFIG_FILE $(basename $(readlink -f $ED_CONFIG_FILE)) || { echo "Error : Packing file '$ED_TGZ_FILE' !!! "; exit 1; }
+  rm  -f $ED_CONFIG_FILE.default
+  cd - > /dev/null 2>&1
+
+  echo "Cleaning scripts on FSTs ..."
+  $ED_PSSH_CMD "[ -d $ED_ROOT_DIR ] && { rm -f $ED_ROOT_DIR/eos-docker.tar.gz; rm -rf $ED_ROOT_DIR/etc ; rm -rf $ED_ROOT_DIR/bin; rm -rf $ED_ROOT_DIR/*.cf; } || { mkdir -p $ED_ROOT_DIR; }"
+
+  echo "Copying eos-docker tarball on FSTs ..."
+  $ED_PSCP_CMD $ED_ROOT_DIR/$ED_TGZ_FILE $ED_ROOT_DIR
+
+  echo "Unpacking tarball on FSTs ..."
+  $ED_PSSH_CMD "tar xfz $ED_ROOT_DIR/$ED_TGZ_FILE -C $ED_ROOT_DIR && echo \"export export ED_NODE_TYPE=fst\" >> $ED_ROOT_DIR/$ED_CONFIG_FILE"
+}
+
+function eosDockerSSHSetHosts() {
+  if [ -z "$2" -o "$2" == "all" ];then
+    export ED_PSSH_HOSTS="-h $ED_ROOT_DIR/$ED_FST_HOSTS"
+    for h in $(cat $ED_ROOT_DIR/$ED_FST_HOSTS);do
+      [ "${h:0:1}" == "#" ] && continue
+      echo "Checking host '$h' ..."
+      ping -c 1 -W 1 "$h" > /dev/null 2>&1 || { echo "Error : Host '$h' is unreachable !!!"; exit 1; }
+    done
+  else
+    ping -c 1 -W 1 "$2" > /dev/null 2>&1 || { echo "Error : Host '$2' is unreachable !!!"; exit 1; }
+    export ED_PSSH_HOSTS="-H $2"
+  fi
+}
+
+function eosDockerSSHStart() {
+  echo "Starting eos docker ..."
+  $ED_PSSH_CMD $ED_PSSH_N $ED_ROOT_DIR/bin/eos-docker start _single
+}
+
+function eosDockerSSHStop() {
+  echo "Stoping eos docker ..."
+  $ED_PSSH_CMD $ED_PSSH_N $ED_ROOT_DIR/bin/eos-docker stop _single
+}
+
+function eosDockerSSHRestart() {
+  echo "Restarting eos docker ..."
+  $ED_PSSH_CMD $ED_PSSH_N $ED_ROOT_DIR/bin/eos-docker restart _single
+}
+
+function eosDockerSSHClean() {
+  echo "Cleaning eos docker ..."
+  $ED_PSSH_CMD $ED_PSSH_N $ED_ROOT_DIR/bin/eos-docker clean _single
+}
+
+function eosDockerSSHUpdate() {
+  echo "Updating eos docker ..."
+  $ED_PSSH_CMD $ED_PSSH_N $ED_ROOT_DIR/bin/eos-docker update _single
+}
+
+function eosDockerSSHPull() {
+  echo "Pulling eos docker ..."
+  $ED_PSSH_CMD $ED_ROOT_DIR/bin/eos-docker pull _single
+}
+
+function eosDockerSSHFstDiskSync() {
+  echo "Doing disk-sync ..."
+  $ED_PSSH_CMD $ED_PSSH_N $ED_ROOT_DIR/bin/eos-docker disk-sync _single
+}
+
+function eosDockerSSHCheck() {
+  echo "Checking ssh connections ..."
+  $ED_PSSH_CMD $ED_ROOT_DIR/bin/eos-docker check _single
+}
+
+function eosDockerSSHFirewallAdd() {
+  $ED_PSSH_CMD $ED_ROOT_DIR/bin/eos-docker firewall-add _single
+}
+
+function eosDockerSSHFirewallRemove() {
+  $ED_PSSH_CMD $ED_ROOT_DIR/bin/eos-docker firewall-remove _single
+}
+
+function eosDockerSSHFirewallPrint() {
+  $ED_PSSH_CMD $ED_ROOT_DIR/bin/eos-docker firewall-print _single
+}
+
+
+if [ -f $ED_ROOT_DIR/$ED_CONFIG_FILE ];then
+  source $ED_ROOT_DIR/$ED_CONFIG_FILE
+else
+  echo "Error: $ED_ROOT_DIR/$ED_CONFIG_FILE was not found !!!"
+  exit 1
+fi
+
+eosDockerSSHSetHosts $*
+
+ED_PSSH_N=""
+[ -n $ED_DOCKER_SSH_N ] && ED_PSSH_N="-p $ED_DOCKER_SSH_N"
+
+ED_PSSH_CMD="pssh $ED_PSSH_HOSTS -i -t 0 -o $ED_ROOT_DIR/out/pssh -O StrictHostKeyChecking=no"
+ED_RSYNC_CMD="prsync $ED_PSSH_HOSTS -o $ED_ROOT_DIR/out/prsync -O StrictHostKeyChecking=no -a --recursive"
+ED_PSCP_CMD="pscp.pssh $ED_PSSH_HOSTS -r -t 0 -o $ED_ROOT_DIR/out/pscp -O StrictHostKeyChecking=no"
+
+
+eosDockerSyncEtcBinDir
+
+case "$1" in
+  start)
+    eosDockerSSHStart
+    ;;
+  stop)
+    eosDockerSSHStop
+    ;;
+  restart)
+    eosDockerSSHRestart
+    ;;
+  clean)
+    eosDockerSSHClean
+    ;;
+  check)
+    eosDockerSSHCheck
+    ;;
+  update)
+    eosDockerSSHUpdate
+    ;;
+  pull)
+    eosDockerSSHPull
+    ;;
+  disk-sync)
+    eosDockerSSHFstDiskSync
+    ;;
+  firewall-add)
+    eosDockerSSHFirewallAdd
+    ;;
+  firewall-remove)
+    eosDockerSSHFirewallRemove
+    ;;
+  firewall-print)
+    eosDockerSSHFirewallPrint
+    ;;
+  *)
+    help
+    ;;
+esac

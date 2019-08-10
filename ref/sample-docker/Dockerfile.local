@@ -1,0 +1,33 @@
+#
+# Simple EOS Docker file
+#
+# Version 0.2
+
+FROM centos:7
+MAINTAINER Elvin Sindrilaru, esindril@cern.ch, CERN 2017
+
+# Add required repositories
+ADD *.repo /etc/yum.repos.d/
+
+# Add helper scripts
+ADD image_scripts/*.sh /
+
+# Add configuration files
+ADD eos.sysconfig /etc/sysconfig/eos
+ADD xrd.cf.* krb5.conf /etc/
+
+# Install XRootD
+ENV XRD_VERSION 4.5.0
+RUN yum -y --nogpg update; \
+    yum -y --nogpg install \
+    initscripts less heimdal-server heimdal-workstation krb5-workstation \
+    xrootd-$XRD_VERSION \
+    xrootd-client-$XRD_VERSION \
+    xrootd-client-libs-$XRD_VERSION \
+    xrootd-libs-$XRD_VERSION \
+    xrootd-server-devel-$XRD_VERSION \
+    xrootd-server-libs-$XRD_VERSION \
+    eos-server eos-testkeytab quarkdb; \
+    yum clean all
+
+ENTRYPOINT ["/bin/bash"]

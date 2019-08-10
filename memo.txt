@@ -1,0 +1,35 @@
+
+
+
+docker rm -f eos-proxy-kisti &
+docker rm -f eos-qdb-kisti01 &
+docker rm -f eos-qdb-kisti02 &
+docker rm -f eos-qdb-kisti03 &
+docker rm -f eos-mq-kisti01 &
+docker rm -f eos-krb-kisti &
+docker rm -f eos-mgm-kisti01 &
+docker rm -f eos-mgm-kisti02 &
+docker rm -f eos-fst-kisti01 &
+docker rm -f eos-fst-kisti02 &
+docker rm -f eos-fst-kisti03 &
+
+rm -rf /etc/eos-docker/
+
+docker volume prune
+docker container prune
+
+docker volume rm eos-fst-kisti01_data
+docker volume rm eos-fst-kisti02_data
+docker volume rm eos-fst-kisti03_data
+docker volume rm eos-qdb-kisti01_qdb
+docker volume rm eos-qdb-kisti02_qdb
+docker volume rm eos-qdb-kisti03_qdb
+
+
+docker exec -i eos-mgm-kisti01 /eos_mgm_fs_setup.sh 2
+
+
+docker rm -f eos-mgm-kisti01 &
+docker rm -f eos-mgm-kisti02 &
+docker rm -f eos-mq-kisti01 &
+rm -rf /etc/eos-docker/eos-m*

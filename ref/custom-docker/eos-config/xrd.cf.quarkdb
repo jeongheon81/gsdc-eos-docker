@@ -1,0 +1,7 @@
+if exec xrootd
+  xrd.port 7777
+  xrd.protocol redis:7777 /usr/lib64/libXrdQuarkDB.so
+  redis.mode raft
+  redis.database {{ redis_database }}
+  redis.myself {{ redis_myself }}
+fi

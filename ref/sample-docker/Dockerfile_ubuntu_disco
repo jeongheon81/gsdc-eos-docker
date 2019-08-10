@@ -1,0 +1,53 @@
+#
+# Simple EOS Docker file
+#
+# Version 0.1
+
+FROM ubuntu:disco
+MAINTAINER Mihai Patrascoiu, mihai.patrascoiu@cern.ch, CERN 2019
+
+RUN apt-get update
+
+# Add helper scripts
+ADD eos-docker/image_scripts/*.sh /
+
+# Add configuration files for EOS instance
+ADD eos-docker/eos.sysconfig /etc/sysconfig/eos
+ADD eos-docker/xrd.cf.* eos-docker/krb5.conf /etc/
+ADD eos-docker/fuse.conf /etc/eos/fuse.conf
+ADD eos-docker/fstfmd.dict /var/eos/md/
+
+RUN mkdir /var/tmp/eosxd-cache/ /var/tmp/eosxd-journal/
+RUN useradd eos-user
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get install -y software-properties-common
+RUN apt-get install -y --no-install-recommends apt-utils
+RUN apt-get install -y build-essential git gdebi-core \
+      heimdal-servers krb5-kdc krb5-admin-server \
+      krb5-user libpam-krb5 libpam-ccreds libtool \
+      nano vim parallel gcc gdb g++ fort77 gfortran-8 perl \
+      bzip2 automake autoconf wget curl \
+      cmake createrepo cpio sqlite3 rsync at
+
+# Add XRootd repo
+RUN curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add - && apt-get update
+RUN echo "deb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd disco master\n# deb-src http://storage-ci.web.cern.ch/storage-ci/debian/xrootd disco master" >> /etc/apt/sources.list
+RUN add-apt-repository 'deb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd disco master'
+
+# Create local repo from eos artifacts
+ENV EOSREPODIR="/debs/eos/"
+ADD disco_artifacts ${EOSREPODIR}
+
+RUN cd ${EOSREPODIR}; \
+    dpkg-scanpackages . > Packages; \
+    gzip --keep -9 Packages 
+RUN echo "deb [trusted=yes] file:${EOSREPODIR} ./\n" >> /etc/apt/sources.list
+
+RUN apt-get clean && apt-get update
+RUN apt-get install -y eos-client eos-fuse eos-fusex eos-test eos-testkeytab
+
+# Change persmissions for keytab
+RUN chown daemon:daemon /etc/eos.keytab; \
+    chmod 600 /etc/eos.keytab
+
+ENTRYPOINT ["/bin/bash"]

@@ -1,0 +1,58 @@
+---
+- hosts: localhost
+  become: no
+  gather_facts: no
+  tasks:
+    - name: check for Ansible version
+      become: no
+      when: ansible_version["string"] is version("2.7", "<")
+      fail:
+        msg: |
+          We need Ansible 2.7.
+    - name: bug patch nmcli module
+      become: yes
+      block:
+      - name: check nmcli.py
+        stat: path=/usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py
+        register: nmcli_stat
+      - name: check nmcli.py.backup
+        stat: path=/usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py.backup
+        register: nmcli_backup_stat
+      - name: backup nmcli.py
+        command: mv /usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py /usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py.backup
+        when: not nmcli_backup_stat.stat.exists and nmcli_stat.stat.exists
+      - name: download patched nmcli.py
+        get_url:
+          url: https://raw.githubusercontent.com/marcin-sucharski/ansible/fix/module-nmcli-argument-conversion/lib/ansible/modules/net_tools/nmcli.py
+          dest: /usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py
+          mode: '0644'
+        when: not nmcli_backup_stat.stat.exists and nmcli_stat.stat.exists
+      when: ansible_version["string"] is version("2.8.3", "<")
+
+- hosts: all
+  gather_facts: yes
+  tasks:
+    - debug: var=qdb_redis_myself
+    - name: check for CentOS 7.6
+      when: not ( ansible_distribution is match("CentOS") ) or ( ansible_distribution_version is version("7.6", "<") )
+      fail:
+        msg: |
+          We need CentOS 7.6.
+    - name: check for sudoing
+      become: yes
+      command: "/bin/echo 'sudo test'"
+      changed_when: False
+    - name: Get the space available in /var/lib/
+      become: yes
+      shell: "df -BG /var/lib/ | awk '!/^Filesystem/ {print $4}' | sed 's/G//'"
+      changed_when: false
+      register: var_lib_space_available
+    - name: Fail if there is not enough space available in /var/lib/
+      when: (var_lib_space_available.stdout|int) < 8
+      fail:
+        msg: |
+          Not enough space available in /var/lib/.
+          Found {{ var_lib_space_available.stdout }} GB, required 8 GB.
+          Try)
+            lvextend -L 10G $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $1}')
+            xfs_growfs $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $6}')

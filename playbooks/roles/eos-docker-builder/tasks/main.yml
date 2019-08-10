@@ -1,0 +1,31 @@
+---
+- block:
+  - name: Create eos-docker-build directory if it does not exist
+    file:
+      path: "eos-docker-build"
+      state: directory
+      mode: '0755'
+
+  - name: Copy eos docker files
+    copy: src={{ item.src }} dest={{ item.dest }}
+    loop:
+    - { src: "Dockerfile", dest: "eos-docker-build/Dockerfile" }
+    - { src: "repos", dest: "eos-docker-build" }
+    - { src: "configs", dest: "eos-docker-build" }
+    - { src: "image_scripts", dest: "eos-docker-build" }
+    - { src: "dictionary", dest: "eos-docker-build" }
+
+  - name: Changing permissions of "image_scripts/*", adding "+x"
+    file: dest=image_scripts mode=a+x recurse=yes
+
+  - name: Build eos docker image
+    docker_image:
+      name: "{{ eos_container_image_name }}"
+      tag: "{{ eos_container_image_tag|string }}"
+      build:
+        path: eos-docker-build
+        pull: no
+        network: host
+      source: build
+
+  when: containers is defined

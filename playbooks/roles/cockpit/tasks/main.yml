@@ -1,0 +1,75 @@
+---
+- block:
+  - name: Install cockpit
+    package: name={{ item }} state=present
+    register: install_packages
+    until: install_packages is success
+    retries: 5
+    delay: 3
+    loop:
+    - cockpit
+    - cockpit-ws
+    - cockpit-system
+    - cockpit-bridge
+    - "{{ cockpit_plugins }}"
+
+  - name: Get host certification from IPA
+    shell: "if which ipa-getcert && ! ipa-getcert list -i hostcert ; then ipa-getcert request -k /etc/pki/tls/private/{{ ansible_nodename }}.key -f /etc/pki/tls/certs/{{ ansible_nodename }}.pem -I hostcert -r -C 'sed -n w/etc/cockpit/ws-certs.d/50-from-certmonger.cert /etc/pki/tls/certs/{{ ansible_nodename }}.pem /etc/pki/tls/private/{{ ansible_nodename }}.key' && echo changed; else echo skipped; fi"
+    args:
+      executable: /bin/bash
+    register: getcert_command_result
+    until: getcert_command_result is success
+    retries: 10
+    delay: 3
+    changed_when: getcert_command_result.stdout_lines|length > 0 and getcert_command_result.stdout_lines[-1] == 'changed'
+
+  - name: Generate host certification for cockpit with IPA host certification
+    shell: "if [ ! -e /etc/cockpit/ws-certs.d/50-from-certmonger.cert ] || ! diff <(sed {} /etc/pki/tls/certs/{{ ansible_nodename }}.pem /etc/pki/tls/private/{{ ansible_nodename }}.key) /etc/cockpit/ws-certs.d/50-from-certmonger.cert ; then sed -n w/etc/cockpit/ws-certs.d/50-from-certmonger.cert /etc/pki/tls/certs/{{ ansible_nodename }}.pem /etc/pki/tls/private/{{ ansible_nodename }}.key && echo changed; else echo skipped; fi"
+    args:
+      executable: /bin/bash
+    register: cockpit_cert_command_result
+    until: cockpit_cert_command_result is success
+    retries: 10
+    delay: 3
+    changed_when: cockpit_cert_command_result.stdout_lines|length > 0 and cockpit_cert_command_result.stdout_lines[-1] == 'changed'
+    when: getcert_command_result.changed
+
+  - name: Enable certmonger service
+    systemd: name=certmonger state=started enabled=true
+    when: getcert_command_result.changed
+
+  - name: Create config files
+    template: src={{ item.src }} dest={{ item.dest }} owner=root group=root mode=0644
+    loop:
+    - { src: "admins.conf.j2", dest: "/etc/polkit-1/localauthority.conf.d/{{ cockpit_rule_priority_base }}-admins.conf" }
+    - { src: "admins.rules.j2", dest: "/etc/polkit-1/rules.d/{{ cockpit_rule_priority_base }}-admins.rules" }
+    - { src: "clusters.json.j2", dest: "/etc/cockpit/machines.d/{{ cockpit_rule_priority_base }}-clusters.json" }
+
+  - name: Enable pmcd service
+    systemd: name=pmcd state=started enabled=true
+
+  - name: Enable pmlogger service
+    systemd: name=pmlogger state=started enabled=true
+
+  - name: Enable storaged service
+    systemd: name=udisks2 state=started enabled=true
+
+  - name: Enable and start cockpit
+    systemd: name=cockpit.socket state=started enabled=true
+
+  - name: Enable cockpit via firewalld
+    firewalld:
+      service: "{{ item }}"
+      permanent: true
+      immediate: true
+      state: enabled
+      zone: internal
+    with_items:
+    - cockpit
+    - pmcd
+    notify:
+    - reload firewalld
+
+  when: cockpit_enabled|bool
+
+- meta: flush_handlers

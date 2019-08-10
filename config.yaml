@@ -1,0 +1,297 @@
+---
+# https://www.uuidgenerator.net/
+
+bootstrap:
+  ansible_cfg:
+    defaults:
+      stdout_callback: debug
+
+host_default: &host_default
+  ansible_user: root
+  ansible_port: 22
+
+eos_container_default: &eos_container_default
+  domain: eoscluster.sdfarm.kr
+  image: !unsafe "{{ eos_container_image_name }}:{{ eos_container_image_tag }}"
+  network: eoscluster.sdfarm.kr
+
+group_vars_all:
+  ssh_keyscan: true
+  package_upgrade: true
+  firewall_internal_zone_sources:
+  - 134.75.123.0/24
+  - 134.75.124.0/24
+  - 134.75.125.0/24
+  - 134.75.127.0/24
+  - 192.168.123.0/24
+  - 192.168.124.0/24
+  - 192.168.125.0/24
+  - 192.168.127.0/24
+  - 192.168.2.0/24
+  firewall_secured_networks:
+  - { family: "ipv4", address: "134.75.123.0/24" }
+  firewall_direct_rule_priority_base:
+    chrony: 1
+  network_routes:
+  - device: eno2
+    list:
+    - 192.168.123.0/24 via 192.168.125.1
+    - 192.168.124.0/24 via 192.168.125.1
+    - 192.168.125.0/24 via 192.168.125.1
+    - 192.168.127.0/24 via 192.168.125.1
+    - 192.168.2.0/24 via 192.168.125.1
+  - device: bridge-br2
+    list:
+    - 192.168.0.0/16 via 192.168.125.1
+  network_resolv:
+    domain: sdfarm.kr
+    search: ["sdfarm.kr", "private.lo", "bmc.lo"]
+    nameserver: ["134.75.123.233", "134.75.123.231"]
+  ntp_servers: ["0.centos.pool.ntp.org iburst", "1.centos.pool.ntp.org iburst", "2.centos.pool.ntp.org iburst", "3.centos.pool.ntp.org iburst"]
+  ntp_initstep_servers: ["0.centos.pool.ntp.org", "1.centos.pool.ntp.org", "2.centos.pool.ntp.org", "3.centos.pool.ntp.org"]
+  cockpit_enabled: true
+  cockpit_plugins:
+  - cockpit-dashboard
+  - cockpit-docker
+  - cockpit-packagekit
+  - cockpit-pcp
+  - cockpit-storaged
+  cockpit_admin_groups:
+  - unix-group:wheel
+  cockpit_rule_priority_base: 11
+  docker_users:
+  - localadmin
+  eos_container_image_name: eos-kisti
+  eos_container_image_tag: 1
+  eos_instance_name: eostestatcf
+  eos_geotag: kisti::gsdc::d10
+  eos_mgm_masters:
+  - eos-mgm-kisti01.eoscluster.sdfarm.kr
+  - eos-mgm-kisti01.eoscluster.sdfarm.kr
+  eos_mgm_alias: eos-mgm-kisti01.eoscluster.sdfarm.kr
+  eos_mgm_url_regular: !unsafe "root://{{ eos_mgm_alias }}:1094"
+  eos_mgm_url_proxied: !unsafe "root://{{ eos_proxy_server }}:1094//root://{{ eos_mgm_alias }}:1094"
+  eos_mq_alias: eos-mq-kisti.eoscluster.sdfarm.kr
+  eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
+  eos_mail_cc: sahn@kisti.re.kr
+  eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
+  eos_krb_server: eos-krb-kisti.eoscluster.sdfarm.kr
+  eos_realm: SDFARM.EOS
+  eos_admin_user: admin1
+  eos_admin_user_uid: 1001
+  eos_admin_user_gid: 1001
+  eos_use_proxy: yes
+  eos_proxy_server: eos-proxy-kisti.eoscluster.sdfarm.kr
+  eos_default_fs_space_name: default
+  eos_default_fs_insertion_status: rw
+  eos_default_number_of_fst: 3
+  eos_use_qdb: yes
+  qdb_clusters:
+  - eos-qdb-kisti01.eoscluster.sdfarm.kr
+  - eos-qdb-kisti02.eoscluster.sdfarm.kr
+  - eos-qdb-kisti03.eoscluster.sdfarm.kr
+  qdb_port: 7777
+  qdb_cluster_uuid: 689d996e-c5ee-4bdb-a9be-6689e52a4340
+  qdb_redis_databases: 
+  - /var/lib/quarkdb/node-01
+  - /var/lib/quarkdb/node-02
+  - /var/lib/quarkdb/node-03
+  admin:
+    id: !unsafe "{{ vault_admin.id }}"
+    password: !unsafe "{{ vault_admin.password }}"
+  manager:
+    id: !unsafe "{{ vault_manager.id }}"
+    password: !unsafe "{{ vault_manager.password }}"
+
+host_group:
+- name: eos_infra
+  hosts:
+  - name: eos-kisti-01.sdfarm.kr
+    <<: *host_default
+    host_vars:
+      eos_geotag: "kisti::gsdc::d10"
+      network_bridge:
+      - conn_name: bridge-br1
+        ifname: br1
+        stp: no
+        slave_conn_name: uplink-br1
+        slave_ifname: eno1
+        conflict_conn_name: System eno1
+        conflict_type: ethernet
+        ip4: 134.75.125.31/24
+        gw4: 134.75.125.1
+        mtu: 1500
+      - conn_name: bridge-br2
+        ifname: br2
+        stp: no
+        slave_conn_name: uplink-br2
+        slave_ifname: eno2
+        conflict_conn_name: System eno2
+        conflict_type: ethernet
+        ip4: 192.168.125.31/24
+        gw4: ''
+        mtu: 1500
+      container_network:
+      - name: eoscluster.sdfarm.kr
+        gateway: 134.75.125.1
+        subnet: 134.75.125.0/24
+        masquerade: false
+        bridge_name: br1
+      containers:
+        eos_krb:
+        - name: eos-krb-kisti
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.30
+        eos_mq:
+        - name: eos-mq-kisti01
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.24
+          network_aliases:
+          - eos-mq-kisti
+          - eos-mq-kisti.eoscluster.sdfarm.kr
+          xrd_roles:
+          - mq
+        eos_qdb:
+        - name: eos-qdb-kisti01
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.35
+          redis_database: /var/lib/quarkdb/qdb-01
+          nfs_volumes:
+          - name: qdb
+            dest: /var/lib/quarkdb
+            device: :/ifs/service/eos_kisti/qdb01
+            options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
+        - name: eos-qdb-kisti02
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.36
+          redis_database: /var/lib/quarkdb/qdb-02
+          nfs_volumes:
+          - name: qdb
+            dest: /var/lib/quarkdb
+            device: :/ifs/service/eos_kisti/qdb02
+            options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
+        - name: eos-qdb-kisti03
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.37
+          redis_database: /var/lib/quarkdb/qdb-03
+          nfs_volumes:
+          - name: qdb
+            dest: /var/lib/quarkdb
+            device: :/ifs/service/eos_kisti/qdb03
+            options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
+        eos_proxy:
+        - name: eos-proxy-kisti
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.34
+          xrd_roles:
+          - proxy
+        eos_mgm:
+        - name: eos-mgm-kisti01
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.23
+          network_aliases:
+          - eos-mgm-kisti
+          - eos-mgm-kisti.eoscluster.sdfarm.kr
+          xrd_roles:
+          - mq
+          - sync
+          - mgm
+        eos_fst:
+        - name: eos-fst-kisti01
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.38
+          xrd_roles:
+          - fst1
+          data_dir: /data/disk01
+          nfs_volumes:
+          - name: data
+            dest: /data
+            device: :/ifs/service/eos_kisti/fst01
+            options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=3
+          fst_fsid: 1
+          fst_uuid: 627bcd30-1af6-4525-a0c9-8a958a863b91
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+        - name: eos-fst-kisti02
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.39
+          xrd_roles:
+          - fst2
+          data_dir: /data/disk02
+          nfs_volumes:
+          - name: data
+            dest: /data
+            device: :/ifs/service/eos_kisti/fst02
+            options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=3
+          fst_fsid: 2
+          fst_uuid: 7469a2ee-ecbf-4a46-ac42-9d1f1adaa7e3
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+        - name: eos-fst-kisti03
+          <<: *eos_container_default
+          ipv4_address: 134.75.125.40
+          xrd_roles:
+          - fst3
+          data_dir: /data/disk03
+          nfs_volumes:
+          - name: data
+            dest: /data
+            device: :/ifs/service/eos_kisti/fst03
+            options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=3
+          fst_fsid: 3
+          fst_uuid: 7b30fa24-5b9a-426d-9af8-98a62c341e19
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+  - name: eos-kisti-02.sdfarm.kr
+    <<: *host_default
+    host_vars:
+      network_bridge:
+      - conn_name: bridge-br1
+        ifname: br1
+        stp: no
+        slave_conn_name: uplink-br1
+        slave_ifname: eno1
+        conflict_conn_name: System eno1
+        conflict_type: ethernet
+        ip4: 134.75.125.32/24
+        gw4: 134.75.125.1
+        mtu: 1500
+      - conn_name: bridge-br2
+        ifname: br2
+        stp: no
+        slave_conn_name: uplink-br2
+        slave_ifname: eno2
+        conflict_conn_name: System eno2
+        conflict_type: ethernet
+        ip4: 192.168.125.32/24
+        gw4: ''
+        mtu: 1500
+  - name: eos-kisti-03.sdfarm.kr
+    <<: *host_default
+    host_vars:
+      network_bridge:
+      - conn_name: bridge-br1
+        ifname: br1
+        stp: no
+        slave_conn_name: uplink-br1
+        slave_ifname: eno1
+        conflict_conn_name: System eno1
+        conflict_type: ethernet
+        ip4: 134.75.125.33/24
+        gw4: 134.75.125.1
+        mtu: 1500
+      - conn_name: bridge-br2
+        ifname: br2
+        stp: no
+        slave_conn_name: uplink-br2
+        slave_ifname: eno2
+        conflict_conn_name: System eno2
+        conflict_type: ethernet
+        ip4: 192.168.125.33/24
+        gw4: ''
+        mtu: 1500
+  group_vars: {}
+- name: eos
+  children:
+  - name: eos_infra
+  group_vars: {}

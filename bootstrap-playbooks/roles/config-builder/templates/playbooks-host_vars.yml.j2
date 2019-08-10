@@ -1,0 +1,4 @@
+---
+{% if item is defined and item.host_vars is defined -%}
+{{ item.host_vars | to_nice_yaml(indent=2) }}
+{% endif -%}

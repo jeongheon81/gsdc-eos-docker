@@ -1,0 +1,8 @@
+{
+{% for host in groups['all'] %}
+  "{{ host }}": {
+    "address": "{{ hostvars[host]['ansible_fqdn'] }}",
+    "visible": true
+  }{%- if not loop.last -%} , {%- endif -%} {{ "\n" }}
+{% endfor %}
+}

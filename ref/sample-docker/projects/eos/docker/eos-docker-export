@@ -1,0 +1,24 @@
+#!/bin/bash
+
+export ED_ROOT_DIR=${ED_ROOT_DIR-"/root/eos"}
+export ED_CONFIG_FILE=${ED_CONFIG_FILE-"eos-docker.cf"}
+export ED_FST_HOSTS=${ED_FST_HOSTS-"eos-docker-fst.cf"}
+
+function exportEOSConfigs() {
+
+    ED_EOS_MGM_HOST=$(cat /etc/sysconfig/eos_env | grep "EOS_MGM_HOST="| grep -v '#' | head -n 1 | cut -d'=' -f2)
+    mkdir -p $ED_ROOT_DIR/etc/sysconfig
+    cp /etc/sysconfig/eos $ED_ROOT_DIR/etc/sysconfig/eos
+    cp /etc/sysconfig/eos_env $ED_ROOT_DIR/etc/sysconfig/eos_env.mgm
+    sed -i 's/^XRD_ROLES=.*/XRD_ROLES=\"mq mgm sync\"/' $ED_ROOT_DIR/etc/sysconfig/eos_env.mgm
+    cp /etc/sysconfig/eos_env $ED_ROOT_DIR/etc/sysconfig/eos_env.fst
+    sed -i 's/^XRD_ROLES=.*/XRD_ROLES=\"fst\"/' $ED_ROOT_DIR/etc/sysconfig/eos_env.fst
+    sed -i 's/^EOS_BROKER_URL=.*/EOS_BROKER_URL=root:\/\/'$ED_EOS_MGM_HOST':1097\/\/eos\//' $ED_ROOT_DIR/etc/sysconfig/eos_env.fst
+    cp /etc/sysconfig/eos_env $ED_ROOT_DIR/etc/sysconfig/eos_env.mgmfst
+    sed -i 's/^XRD_ROLES=.*/XRD_ROLES=\"mq mgm sync fst\"/' $ED_ROOT_DIR/etc/sysconfig/eos_env.mgmfst
+    cp /etc/eos.keytab $ED_ROOT_DIR/etc/eos.keytab
+    cp /etc/xrd.cf.mgm $ED_ROOT_DIR/etc/xrd.cf.mgm
+    cp /etc/xrd.cf.fst $ED_ROOT_DIR/etc/xrd.cf.fst
+}
+
+exportEOSConfigs

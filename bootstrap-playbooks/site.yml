@@ -1,0 +1,6 @@
+---
+
+- name: build config information
+  hosts: localhost
+  roles:
+  - config-builder

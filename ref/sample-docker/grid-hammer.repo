@@ -1,0 +1,8 @@
+[grid-hammer-cbuild]
+name=grid-hammer continuous builds from master branch
+baseurl=https://storage-ci.web.cern.ch/storage-ci/grid-hammer/master/el7/$basearch
+enabled=1
+gpgcheck=0
+protect=1
+priority=20
+

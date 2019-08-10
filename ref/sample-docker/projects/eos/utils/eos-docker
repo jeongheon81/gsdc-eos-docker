@@ -1,0 +1,678 @@
+#!/bin/bash
+
+export ED_DOCKER_CMD=${ED_DOCKER_CMD-"docker"}
+export ED_DOCKER_PREFIX=${ED_DOCKER_PREFIX-"gitlab-registry.cern.ch/dss/eos"}
+export ED_DOCKER_IMAGE_NAME_VERSION=${ED_DOCKER_IMAGE_NAME_VERSION-"eos-prod:4.2.12"}
+#export ED_DOCKER_PREFIX=${ED_DOCKER_PREFIX-"gitlab-registry.cern.ch/eos/eos-docker"}
+#export ED_DOCKER_IMAGE_NAME_VERSION=${ED_DOCKER_IMAGE_NAME_VERSION-"eos-prod:latest"}
+
+export ED_ROOT_DIR=${ED_ROOT_DIR-"/root/eos"}
+export ED_BACKUP_DIR=${ED_BACKUP_DIR-"$HOME/eos_backup"}
+export ED_EOS_VAR_DIR=${ED_EOS_VAR_DIR-"$ED_ROOT_DIR/var"}
+export ED_CONFIG_FILE_DEFAULT=${ED_CONFIG_FILE_DEFAULT-"/etc/eos-docker/eos-docker.cf.default"}
+export ED_CONFIG_FILE=${ED_CONFIG_FILE-"eos-docker.cf"}
+export ED_FST_HOSTS=${ED_FST_HOSTS-"eos-docker-fst.cf"}
+
+export ED_LOGGER_THEME=${ED_LOGGER_THEME-"light"}
+export ED_TYPE="simple"
+
+export ED_VERSION=""
+
+function help() {
+  [ -z $ED_VERSION ] || { version; echo ""; }
+  echo "Usage:" >&2
+  echo "       $0 {start|stop|restart|clean|update|disk-sync} {all|mgm|fsts|<hostname>}" >&2
+  echo "       $0 {init|cert-update|reconfigure}" >&2
+  echo "       $0 {firewall-add|firewall-remove|firewall-print}" >&2
+  echo "">&2
+  exit 1
+}
+
+function version() {
+  echo "eos-docker $ED_VERSION"
+}
+
+function eosDockerGenerateConfig() {
+  [ -d $ED_ROOT_DIR ] || mkdir -p $ED_ROOT_DIR
+
+cat > $ED_ROOT_DIR/$ED_CONFIG_FILE.simple << EOF
+#!/bin/bash
+# EOS docker generated config $(date)
+
+# EOS DOCKER version
+export ED_DOCKER_IMAGE_NAME_VERSION="$ED_DOCKER_IMAGE_NAME_VERSION"
+
+# EOS
+export ED_EOS_INSTANCE_NAME="test"
+
+# ED_NODE_TYPE
+# Possible values : 
+# 'mgm'    : MGM only on manager node machine 
+# 'mgmfst' : MGM and FST on manager node machine
+export ED_NODE_TYPE="mgm"
+
+# FST data prefix (data disks should be in /var/eos/fs/1 ... /var/eos/fs/N)
+export ED_FST_DATA_PREFIX="/var/eos/fs"
+
+EOF
+
+cat > $ED_ROOT_DIR/$ED_CONFIG_FILE.alice << EOF
+#!/bin/bash
+# EOS docker for ALICE generated config $(date)
+
+# EOS DOCKER version
+export ED_DOCKER_IMAGE_NAME_VERSION="$ED_DOCKER_IMAGE_NAME_VERSION"
+
+# EOS
+export ED_EOS_INSTANCE_NAME="alice.test"
+
+# ED_NODE_TYPE
+# Possible values : 
+# 'mgm'    : MGM only on manager node machine 
+# 'mgmfst' : MGM and FST on manager node machine
+export ED_NODE_TYPE="mgm"
+
+# FST data prefix (data disks should be in /var/eos/fs/1 ... /var/eos/fs/N)
+export ED_FST_DATA_PREFIX="/var/eos/fs"
+
+# ALICE specific parameters (modify accordingly)
+export MONALISAHOST="my-vobox.example.com:8884"
+export APMON_INSTANCE_NAME="ALICE::TEST::EOS"
+# Modfy this variable, if you know what you are doing
+export APMON_STORAGEPATH="\$ED_FST_DATA_PREFIX"
+
+EOF
+
+ln -sfn $ED_ROOT_DIR/$ED_CONFIG_FILE.simple $ED_ROOT_DIR/$ED_CONFIG_FILE
+
+
+cat > $ED_ROOT_DIR/$ED_FST_HOSTS.example << EOF
+eosfst01
+#eosfst02
+eosfst03
+EOF
+
+}
+
+function eosDockerRun() {
+  INFO "Running eos-$ED_NODE_TYPE ..."
+  if [ ! "$($ED_DOCKER_CMD ps -a -q -f name="eos-$ED_NODE_TYPE")" ]; then
+    INFO "Creating eos-$ED_NODE_TYPE ..."
+    ED_DOCKER_ARGS_BEGIN="$ED_DOCKER_ARGS_BEGIN -ti -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v $ED_ROOT_DIR:/root/eos -v $ED_EOS_VAR_DIR/eos:/var/eos -v $ED_EOS_VAR_DIR/log/eos:/var/log/eos"
+    ED_DOCKER_ARGS_END=""
+    [ $ED_MONITORING -eq 1 ] && ED_DOCKER_ARGS_END="$ED_DOCKER_ARGS_END -p 19999:19999"
+
+    DEBUG "ED_DOCKER_ARGS_BEGIN: $ED_DOCKER_ARGS_BEGIN"
+    DEBUG "ED_DOCKER_ARGS_END: $ED_DOCKER_ARGS_END"
+
+    if [ "$ED_NODE_TYPE" == "mgm" ];then
+      INFO "Creating eos-$ED_NODE_TYPE ..."
+    $ED_DOCKER_CMD create --name eos-$ED_NODE_TYPE $ED_DOCKER_ARGS_BEGIN -e ED_NODE_TYPE=mgm -p 1094:1094 -p 1097:1097 $ED_DOCKER_ARGS_END $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION
+    elif [ "$ED_NODE_TYPE" == "fst" ];then
+      INFO "Creating eos-$ED_NODE_TYPE ..."
+      $ED_DOCKER_CMD create --name eos-$ED_NODE_TYPE $ED_DOCKER_ARGS_BEGIN -v /var/eos/fs:/var/eos/fs -e ED_NODE_TYPE=fst -p 1095:1095 $ED_DOCKER_ARGS_END $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION 2>&1
+    elif [ "$ED_NODE_TYPE" == "mgmfst" ];then
+      INFO "Creating eos-$ED_NODE_TYPE ..."
+      $ED_DOCKER_CMD create --name eos-$ED_NODE_TYPE $ED_DOCKER_ARGS_BEGIN -v /var/eos/fs:/var/eos/fs -e ED_NODE_TYPE=mgmfst -p 1094:1094 -p 1095:1095 -p 1097:1097 $ED_DOCKER_ARGS_END $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION
+    fi
+  fi
+
+  if  [[ $ED_NODE_TYPE == mgm* ]];then
+    if [ ! -z $ED_MGM_KRB5 ];then
+      [ -f $ED_ROOT_DIR/etc/krb5.conf ] && { $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/krb5.conf eos-$ED_NODE_TYPE:/etc/krb5.conf || { ERROR "Poblem doing 'docker cp $ED_ROOT_DIR/etc/krb5.conf :eos-$ED_NODE_TYPE:/etc/krb5.conf'"; exit 1; }; }
+      [ -f $ED_ROOT_DIR/etc/krb5.keytab ] && { $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/krb5.keytab eos-$ED_NODE_TYPE:/etc/krb5.keytab || { ERROR "Poblem doing 'docker cp $ED_ROOT_DIR/etc/krb5.keytab eos-$ED_NODE_TYPE:/etc/krb5.keytab'"; exit 1; }; }
+    fi
+  fi
+
+  $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/sysconfig/eos eos-$ED_NODE_TYPE:/etc/sysconfig/eos || { ERROR "Poblem doing 'docker cp eos eos-'$ED_NODE_TYPE':/etc/sysconfig/eos'"; exit 1; }
+  $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/sysconfig/eos_env.$ED_NODE_TYPE eos-$ED_NODE_TYPE:/etc/sysconfig/eos_env || { ERROR "Poblem doing 'docker cp eos_env eos-'$ED_NODE_TYPE':/etc/sysconfig/eos_env'"; exit 1; }
+  $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/xrd.cf.mgm eos-$ED_NODE_TYPE:/etc/xrd.cf.mgm || { ERROR "Poblem doing 'docker cp xrd.cf.mgm eos-'$ED_NODE_TYPE':/etc/xrd.cf.mgm'"; exit 1; }
+  $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/xrd.cf.fst eos-$ED_NODE_TYPE:/etc/xrd.cf.fst || { ERROR "Poblem doing 'docker cp xrd.cf.fst eos-'$ED_NODE_TYPE':/etc/xrd.cf.fst'"; exit 1; }
+  $ED_DOCKER_CMD cp $ED_ROOT_DIR/etc/eos.keytab eos-$ED_NODE_TYPE:/etc/eos.keytab || { ERROR "Poblem doing 'docker cp eos.keytab eos-'$ED_NODE_TYPE':/etc/eos.keytab'"; exit 1; }
+      
+  if [ -f /etc/grid-security/hostcert.pem ];then
+    $ED_DOCKER_CMD cp /etc/grid-security eos-$ED_NODE_TYPE:/etc/grid-security || { ERROR "Poblem doing 'docker cp /etc/grid-security eos-$ED_NODE_TYPE:/etc/grid-security'"; exit 1; }
+    $ED_DOCKER_CMD cp /etc/grid-security/daemon eos-$ED_NODE_TYPE:/etc/grid-security/daemon || { ERROR "Poblem doing 'docker cp /etc/grid-security/daemon eos-$ED_NODE_TYPE:/etc/grid-security/daemon'"; exit 1; }
+  fi
+
+  INFO "Starting eos-$ED_NODE_TYPE ..."
+  $ED_DOCKER_CMD start eos-$ED_NODE_TYPE || { ERROR "Poblem starting '"eos-$ED_NODE_TYPE"' docker"; exit 1; }
+  if [ -f /etc/grid-security/hostcert.pem ];then
+    $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE chown -R daemon:daemon /etc/grid-security/daemon/
+    $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE touch /etc/grid-security/grid-mapfile
+  fi
+  if [ ! -d $ED_EOS_VAR_DIR/log/eos/tx ];then
+    mkdir -p $ED_EOS_VAR_DIR/log/eos/tx
+    chown 2:root $ED_EOS_VAR_DIR/log/eos/tx
+  fi
+  $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE mkdir -p /etc/eos-docker
+  if [[ $ED_NODE_TYPE == mgm* ]];then
+    $ED_DOCKER_CMD cp $ED_CONFIG_FILE_DEFAULT eos-$ED_NODE_TYPE:$ED_CONFIG_FILE_DEFAULT || { ERROR "Poblem doing 'docker cp '$ED_CONFIG_FILE_DEFAULT' eos-'$ED_NODE_TYPE':'$ED_CONFIG_FILE_DEFAULT'"; exit 1; }
+  fi
+  if [[ $ED_NODE_TYPE == fst* ]];then
+    $ED_DOCKER_CMD cp $ED_ROOT_DIR/eos-docker.cf.default eos-$ED_NODE_TYPE:$ED_CONFIG_FILE_DEFAULT || { ERROR "Poblem doing 'docker cp '$ED_ROOT_DIR/eos-docker.cf.default' eos-'$ED_NODE_TYPE':'$ED_CONFIG_FILE_DEFAULT'"; exit 1; }
+  fi
+  sleep 1
+
+  # Add LDAP user info when needed
+  eosDockerLDAP
+
+  $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE systemctl start eos
+  if [[ $ED_EOS_INSTANCE_NAME == alice* ]];then
+    $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE systemctl start eosapmond
+  fi
+
+  [[ $ED_NODE_TYPE == mgm* ]] && [ ! -f $ED_ROOT_DIR/.eos-init-done ] && { $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eos-docker-mgm-init && touch $ED_ROOT_DIR/.eos-init-done; }
+
+  if [[ $ED_NODE_TYPE == fst* ]];then
+    ED_IS_ENTER=$(cat $HOME/.bashrc | grep ed-enter)
+    if [ -z "$ED_IS_ENTER" ];then 
+      echo "alias ed-enter='docker exec -it \$(docker ps --format \"{{.Names}}\" | grep eos-fst | head -n 1) /bin/bash'" >> $HOME/.bashrc
+    fi 
+  fi
+}
+
+
+
+function eosDockerPull() {
+
+  for t in $*;do
+    DEBUG "Pulling $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      INFO "Pulling docker '$ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION' ..."
+      $ED_DOCKER_CMD pull $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION || { ERROR "Poblem doing '$ED_DOCKER_CMD pull $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION' !!! Aborting ..."; exit 1; }
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh pull
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh pull $ED_HOSTS_HOST
+    fi
+  done
+
+  return 0
+}
+
+function eosDockerStart() {
+
+  for t in $*;do
+    DEBUG "Starting $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerCheck
+      eosDockerRun
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh start
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh start $ED_HOSTS_HOST
+    fi
+  done
+
+  return 0
+}
+
+function eosDockerStop() {
+
+  for t in $*;do
+    DEBUG "Stoping $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      INFO "Stoping eos-$ED_NODE_TYPE ..."
+      $ED_DOCKER_CMD stop eos-$ED_NODE_TYPE;
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh stop
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh stop $ED_HOSTS_HOST
+    fi
+  done
+
+  return 0
+}
+
+function eosDockerRestart() {
+
+  for t in $*;do
+    DEBUG "Restarting $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerStop $t
+      eosDockerStart $t
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh restart
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh restart $ED_HOSTS_HOST
+    fi
+  done
+
+  return 0
+}
+
+function eosDockerClean() {
+
+  for t in $*;do
+    DEBUG "Cleaning $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerStop $t
+      $ED_DOCKER_CMD rm eos-$ED_NODE_TYPE
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh clean
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh clean $ED_HOSTS_HOST
+    fi
+  done
+  return 0;
+}
+
+function eosDockerUpdate() {
+
+  for t in $*;do
+    DEBUG "Updating $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerPull $t
+      eosDockerClean $t
+      eosDockerStart $t
+      eosDockerCleanDocker
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh update
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh update $ED_HOSTS_HOST
+    fi
+  done
+  return 0
+}
+
+function eosDockerSetFirewall() {
+
+  MY_PORTS=""
+  if [ "$ED_NODE_TYPE" == "mgm" ];then
+    INFO "Firewall on MGM : '$(hostname -f)' ..."
+    MY_PORTS="1094 1097 1100"
+  elif [ "$ED_NODE_TYPE" == "mgmfst" ];then
+    INFO "Firewall on MGMFST : '$(hostname -f)' ..."
+    MY_PORTS="1094 1095 1097 1100"
+  elif [ "$ED_NODE_TYPE" == "fst" ];then
+    INFO "Firewall on FST : '$(hostname -f)' ..."
+    MY_PORTS="1095"
+  fi
+
+  MY_FW=$1
+  [ "$1" == "print" ] && MY_FW="add"
+  [ "$1" == "print" ] && MY_MSG="Dry run : "
+  for p in $MY_PORTS;do
+    INFO "$MY_MSG Doing 'firewall-cmd --$MY_FW-port=$p/tcp' ..."
+    [ "$1" == "print" ] || firewall-cmd --$MY_FW-port=$p/tcp
+    INFO "$MY_MSG Doing 'firewall-cmd --$MY_FW-port=$p/tcp --permanent' ..."
+    [ "$1" == "print" ] || firewall-cmd --$MY_FW-port=$p/tcp --permanent
+  done
+
+}
+
+function eosDockerFirewallAdd() {
+
+  for t in $*;do
+    DEBUG "Seting up firewall $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerSetFirewall add
+    elif [ "$t" == "fsts" ];then
+      eosDockerStop $t
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh firewall-add
+    elif [ "$t" == "host" ];then
+      eosDockerStop $t
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh firewall-add $ED_HOSTS_HOST
+    fi
+  done
+  return 0
+}
+
+function eosDockerFirewallRemove() {
+
+  for t in $*;do
+    DEBUG "Seting up firewall $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerSetFirewall remove
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh firewall-remove
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh firewall-remove $ED_HOSTS_HOST
+    fi
+  done
+  return 0
+}
+
+function eosDockerFirewallPrint() {
+
+  for t in $*;do
+    DEBUG "Seting up firewall $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerSetFirewall print
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh firewall-print
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh firewall-print $ED_HOSTS_HOST
+    fi
+  done
+  return 0
+}
+
+function eosDockerCleanDocker() {
+  #$ED_DOCKER_CMD stop $($ED_DOCKER_CMD ps --format "{{.Names}}"  | grep eos-)> /dev/null 2>&1
+  #$ED_DOCKER_CMD rm $($ED_DOCKER_CMD ps --format "{{.Names}}"  | grep eos-)> /dev/null 2>&1
+  for d in $($ED_DOCKER_CMD images --format "{{.ID}}_{{.Repository}}:{{.Tag}}" --filter=reference=$ED_DOCKER_PREFIX/$(echo $ED_DOCKER_IMAGE_NAME_VERSION | cut -d ':' -f1) | grep -v $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION); do
+    INFO "Removing image '$d' ..."
+    img=$(echo "$d" | cut -d '_' -f1)
+    $ED_DOCKER_CMD rmi -f $img > /dev/null 2>&1
+  done
+}
+
+function eosDockerEnter() {
+    INFO "To enter run following command: "
+    INFO "   ed-enter"
+}
+
+function eosDockerCheck() {
+
+    for t in $*;do
+    DEBUG "Checking $t ..."
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      eosDockerHostnameCheck || { echo "Docker is not running !!!"; exit 40; }
+      systemctl status docker > /dev/null 2>&1 || { echo "Docker is not running !!!"; exit 41; }
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh check
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh check $ED_HOSTS_HOST
+    fi
+  done
+
+}
+
+function eosDockerHostnameCheck() {
+  if [ "$(hostname -f)" = "$(hostname -s)" ];then
+    echo "Error: Problem with hostname !!!"
+    echo ""
+    echo "'hostname -f' and 'hostname -s' are equal. Please fix it first !!!"
+    echo ""
+    echo "hostname -f => $(hostname -f)"
+    echo "hostname -s => $(hostname -s)"
+    echo ""
+    return 1
+  fi
+  return 0
+}
+
+function eosDockerLDAP() {
+  if  [[ $ED_NODE_TYPE == mgm* ]];then
+    if [ "$ED_MGM_LDAP" == "1" ];then
+      if [[ -z $ED_MGM_LDAP_SERVER || -z $ED_MGM_LDAP_BASE ]]; then
+        ERROR "Set \$ED_MGM_LDAP_SERVER and \$ED_MGM_LDAP_BASE first !!! "
+        eosDockerStop
+        exit 10
+      fi
+      INFO "Setting up LDAP server=$ED_MGM_LDAP_SERVER base=$ED_MGM_LDAP_BASE ..."
+      $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE authconfig --enableldap --ldapserver=$ED_MGM_LDAP_SERVER --ldapbasedn=$ED_MGM_LDAP_BASE --update
+    else
+      $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE authconfig --disableldap --update
+    fi
+  fi
+}
+
+function eosDockerFstRegisterDisks() {
+  for t in $*;do
+    if [ "$t" == "mgm" -o "$t" == "_single" ];then
+      [ $ED_NODE_TYPE == "mgm" ] && { WARN "Skipping on '$ED_NODE_TYPE' ..."; continue; }
+      DEBUG "Searching for data disks in $ED_FST_DATA_PREFIX ..."
+      if [ ! -d $ED_FST_DATA_PREFIX ];then
+        ERROR "$ED_FST_DATA_PREFIX doesn't exists !!!"
+        exit 20
+      fi
+
+      for dir in $(find $ED_FST_DATA_PREFIX -maxdepth 1 -type d);do
+        if [ $dir != $ED_FST_DATA_PREFIX ];then
+          [ -f $dir/.eosfsid ] || chown 2:2 $dir
+        fi
+      done
+
+      NUM_FS=$(find $ED_FST_DATA_PREFIX -maxdepth 1 -type d | wc -l)
+      [ $NUM_FS -le 1 ] && { ERROR "No directories in $ED_FST_DATA_PREFIX exists !!!"; exit 21; }
+      NUM_FS=$(($NUM_FS-1))
+      ED_FST_DATA_PREFIX=${ED_FST_DATA_PREFIX%%+(/)}
+      if [ "$ED_EOS_FS_GROUP_PER_DISK" = "0" ];then
+        DEBUG "Doing '$ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eosfstregister -i $ED_FST_DATA_PREFIX/ default:0'"
+        $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eosfstregister -i $ED_FST_DATA_PREFIX/ default:0 > /dev/null 2>&1
+      else
+        DEBUG "Doing '$ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eosfstregister -i $ED_FST_DATA_PREFIX/ default:$NUM_FS'"
+        $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eosfstregister -i $ED_FST_DATA_PREFIX/ default:$NUM_FS > /dev/null 2>&1
+      fi
+    elif [ "$t" == "fsts" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] &&  [ -f $ED_ROOT_DIR/$ED_FST_HOSTS ]  && eos-docker-ssh disk-sync
+    elif [ "$t" == "host" ];then
+      [[ $ED_NODE_TYPE == mgm* ]] && eos-docker-ssh disk-sync $ED_HOSTS_HOST
+    fi
+  done
+}
+
+function eosDockerReconfigure() {
+    eosDockerStop mgm fsts
+    eosDockerConfigReconfigure no-var
+    eosDockerStart mgm fsts
+    
+    NUM_FS_EOS=$(eos -b space ls | grep spaceview | grep default  | sed 's/\s\s*/ /g' | cut -d ' ' -f6)
+    for i in $(seq 1 $NUM_FS_EOS);do
+      HEADROOM="($eos -b fs status 1 | grep headroom | sed 's/\s\s*/ /g' | cut -d ' ' -f3)"
+      if [ "$HEADROOM" == "0" ];then
+        INFO "Setting headroom $ED_EOS_FS_HEADROOM to fsid=$i"
+        eos -b fs config $i headroom=$ED_EOS_FS_HEADROOM
+      fi
+    done
+
+}
+
+function eosDockerConfigReconfigure() {
+    EOS_DOCKER_EXTRA_ENV=""
+    [ "$ED_TYPE" == "alice" ] && EOS_DOCKER_EXTRA_ENV="-e ED_ISALICE=1 "
+    [ -z $ED_MGM_KRB5 ] || EOS_DOCKER_EXTRA_ENV="-e ED_MGM_KRB5=$ED_MGM_KRB5"
+    EOS_VAR_ENV=""
+    [ "$ED_EOS_VAR_DIR" == "/var" ] && EOS_VAR_ENV="-v $ED_EOS_VAR_DIR/eos:/var/eos -v $ED_EOS_VAR_DIR/log/eos:/var/log/eos"
+    DEBUG "$ED_DOCKER_CMD run $ED_DOCKER_ARGS_BEGIN -ti -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v $ED_ROOT_DIR:/root/eos -v $ED_CONFIG_FILE_DEFAULT:$ED_CONFIG_FILE_DEFAULT $EOS_VAR_ENV $EOS_DOCKER_EXTRA_ENV $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION /usr/bin/eos-docker-config-gen $1"
+    $ED_DOCKER_CMD run $ED_DOCKER_ARGS_BEGIN -ti -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v $ED_ROOT_DIR:/root/eos -v $ED_CONFIG_FILE_DEFAULT:$ED_CONFIG_FILE_DEFAULT $EOS_VAR_ENV $EOS_DOCKER_EXTRA_ENV $ED_DOCKER_PREFIX/$ED_DOCKER_IMAGE_NAME_VERSION /usr/bin/eos-docker-config-gen $1
+
+}
+
+function eosDockerCertificateSetup() {
+
+  [[ $ED_NODE_TYPE == mgm* ]] || return
+
+  if [ -f /etc/grid-security/hostkey.pem -a -f /etc/grid-security/hostcert.pem ];then
+    [ -d /etc/grid-security/daemon/ ] || mkdir -p /etc/grid-security/daemon/
+    chmod 400 /etc/grid-security/hostkey.pem
+    chmod 600 /etc/grid-security/hostcert.pem
+    cp /etc/grid-security/hostkey.pem /etc/grid-security/daemon/
+    cp /etc/grid-security/hostcert.pem /etc/grid-security/daemon/
+    chown -R 2:2 /etc/grid-security/daemon
+    INFO "All certicates are configure."
+  else
+    ERROR "Copy hostkey.pem and hostcert.pem to /etc/grid-security/ first !!!"
+    exit 1
+  fi
+}
+
+function eosDockerBackup() {
+
+  command -v rsync >/dev/null 2>&1 || { INFO >&2 "I require rsync but it's not installed.  Aborting."; exit 1; }
+
+  eosDockerStop
+  [ -d $ED_BACKUP_DIR ] || mkdir -p $ED_BACKUP_DIR
+  MY_DIR="eos-mgm-$(date +"%Y-%m-%d_%H-%M-%S")"
+  INFO "Doing eos mgm backup ..."
+  cd $ED_BACKUP_DIR
+  mkdir -p $MY_DIR/var/eos/md/
+  mkdir -p $MY_DIR/var/eos/config/
+  rsync -a $ED_EOS_VAR_DIR/eos/md/*.mdlog $ED_BACKUP_DIR/$MY_DIR/var/eos/md/
+  rsync -a $ED_EOS_VAR_DIR/eos/config/ $ED_BACKUP_DIR/$MY_DIR/var/eos/config/
+  tar cf $ED_BACKUP_DIR/$MY_DIR.tar $MY_DIR
+  rm -rf $MY_DIR
+  cd -
+  INFO "File '$ED_BACKUP_DIR/$MY_DIR.tar' was created."
+}
+
+function eosDockerSetLogLevel() {
+  echo "EOS debug level is not changed ..."
+#  [[ $ED_NODE_TYPE == mgm* ]] && { $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eos -b debug notice \/eos\/\*\/mgm; }
+#  [[ $ED_NODE_TYPE == mgm* ]] && { $ED_DOCKER_CMD exec eos-$ED_NODE_TYPE eos -b debug notice \/eos\/\*\/fst; }
+}
+
+function eosDockerInitLogger() {
+
+  [ -d $ED_ROOT_DIR/etc/ ] || mkdir -p $ED_ROOT_DIR/etc/
+  [ -f $ED_ROOT_DIR/etc/eos-docker-log.sh ] || cp /usr/bin/eos-docker-log.sh $ED_ROOT_DIR/etc/
+  [ -f $ED_ROOT_DIR/etc/eos-docker-log.sh ] || { echo "ERROR: EOS LOGGER was not found !!! Please report issue at eos/eos-docker."; exit 12; }
+  source $ED_ROOT_DIR/etc/eos-docker-log.sh
+
+  # if [ "$ED_LOGGER_THEME" == "light" ];then
+  LOG_LEVELS=(
+      ${LOG_LEVEL_FATAL}  "FATAL"  "${B_LOG_DEFAULT_TEMPLATE}" "\e[41;37m" "\e[0m"
+      ${LOG_LEVEL_ERROR}  "ERROR"  "${B_LOG_DEFAULT_TEMPLATE}" "\e[1;31m" "\e[0m"
+      ${LOG_LEVEL_WARN}   "WARN"   "${B_LOG_DEFAULT_TEMPLATE}" "\e[1;33m" "\e[0m"
+      ${LOG_LEVEL_NOTICE} "NOTICE" "${B_LOG_DEFAULT_TEMPLATE}" "\e[1;32m" "\e[0m"
+      ${LOG_LEVEL_INFO}   "INFO"   "${B_LOG_DEFAULT_TEMPLATE}" "\e[0m" "\e[0m"
+      ${LOG_LEVEL_DEBUG}  "DEBUG"  "${B_LOG_DEFAULT_TEMPLATE}" "\e[1;34m" "\e[0m"
+      ${LOG_LEVEL_TRACE}  "TRACE"  "${B_LOG_DEFAULT_TEMPLATE}" "\e[94m" "\e[0m"
+  )
+  # fi
+  [ -z $ED_DEBUG ] && LOG_LEVEL_INFO || LOG_LEVEL_DEBUG
+}
+
+function eosDockerCheckEnv() {
+  echo "Env $1 ${!1}"
+  # [ -n "$1" ] && { ERROR "\$$1 is not set. Add it to '$ED_ROOT_DIR/$ED_CONFIG_FILE' ..."; exit 1;}
+}
+
+# eosDockerCheckEnv ED_DOCKER_IMAGE_NAME_VERSION
+
+[ "$(id -u)" == "0" ] || { echo "You have to be root !!!"; exit 3; }
+
+# This is used only when one installs eos-docker-utils and doesn't logout/login
+[ -n $(alias | grep eos-mgm) ] || source /etc/profile.d/eos-docker-env.sh
+
+if [ -f $ED_ROOT_DIR/$ED_CONFIG_FILE ];then
+  if [ -f $ED_CONFIG_FILE_DEFAULT ];then
+    [ -f $ED_ROOT_DIR/$ED_CONFIG_FILE.default ] && { echo "Warning : File '$ED_ROOT_DIR/$ED_CONFIG_FILE.default' is decrypted on MGM. Please remove it !!!"; }
+    source $ED_CONFIG_FILE_DEFAULT
+  else
+    source $ED_ROOT_DIR/$ED_CONFIG_FILE.default
+  fi
+  source $ED_ROOT_DIR/$ED_CONFIG_FILE
+  eosDockerInitLogger
+  
+else
+  eosDockerGenerateConfig $*
+  [ -z $ED_VERSION ] || { version; echo ""; }
+  echo " "
+  echo "Default values are saved in '$ED_ROOT_DIR/$ED_CONFIG_FILE.default'."
+  echo "   Note : Don't modify it directly, but 'user config' instead."
+  echo " "
+  echo "User config file '$ED_ROOT_DIR/$ED_CONFIG_FILE' was generated. Please modify it accordingly ."
+  echo " "
+  echo " "
+  echo "For simple EOS"
+  echo "  Modify '$ED_ROOT_DIR/$ED_CONFIG_FILE'"
+  echo "  eos-docker init"
+  echo " "
+  echo "For ALICE SE"
+  echo "  ln -sfn $ED_ROOT_DIR/$ED_CONFIG_FILE.alice $ED_ROOT_DIR/$ED_CONFIG_FILE"
+  echo "  Modify '$ED_ROOT_DIR/$ED_CONFIG_FILE'"
+  echo "  eos-docker init"
+  echo " "
+  echo " "
+  exit 1
+fi
+
+
+export ED_TYPE=$(readlink -f $ED_ROOT_DIR/$ED_CONFIG_FILE | cut -d. -f3)
+
+[ -z $ED_MONITORING ] && export ED_MONITORING=0
+
+if [ "$ED_EOS_VAR_DIR" == "/var" ];then
+  mkdir -p $ED_EOS_VAR_DIR/eos $ED_EOS_VAR_DIR/log/eos
+  chown 2:2 $ED_EOS_VAR_DIR/eos
+fi
+
+MY_HOSTS_TYPES=$2
+[ -z $MY_HOSTS_TYPES ] && MY_HOSTS_TYPES="mgm"
+
+case "$MY_HOSTS_TYPES" in
+  all)
+    export ED_HOSTS_TYPES="mgm fsts"
+    ;;
+  mgm)
+    export ED_HOSTS_TYPES="mgm"
+    ;;
+  mgmfst)
+    export ED_HOSTS_TYPES="mgm"
+    ;;
+  fsts)
+    export ED_HOSTS_TYPES="fsts"
+    ;;
+  _single)
+    export ED_HOSTS_TYPES="_single"
+    ;;
+  *)
+    export ED_HOSTS_TYPES="host"
+    export ED_HOSTS_HOST="$2"
+    ;;
+esac
+
+case "$1" in
+  init)
+    INFO "Init EOS docker '$ED_TYPE' ..."
+    eosDockerConfigReconfigure
+    INFO "Init of EOS docker '$ED_TYPE' done ..."
+    exit $?
+    ;;
+  pull)
+    eosDockerPull $ED_HOSTS_TYPES
+    ;;
+  start)
+    eosDockerStart $ED_HOSTS_TYPES
+    eosDockerSetLogLevel
+    ;;
+  stop)
+    eosDockerStop $ED_HOSTS_TYPES
+    ;;
+  restart)
+    eosDockerRestart $ED_HOSTS_TYPES
+    eosDockerSetLogLevel
+    ;;
+  clean)
+    eosDockerClean $ED_HOSTS_TYPES
+    ;;
+  update)
+    eosDockerUpdate $ED_HOSTS_TYPES
+    eosDockerSetLogLevel
+    ;;
+  enter)
+    eosDockerEnter
+    ;;
+  cert-update)
+    eosDockerCertificateSetup
+    ;;
+  disk-sync)
+    eosDockerFstRegisterDisks $ED_HOSTS_TYPES
+    ;;
+  check)
+    eosDockerCheck $ED_HOSTS_TYPES
+    ;;
+  firewall-add)
+    eosDockerFirewallAdd $ED_HOSTS_TYPES
+    ;;
+  firewall-remove)
+    eosDockerFirewallRemove $ED_HOSTS_TYPES
+    ;;
+  firewall-print)
+    eosDockerFirewallPrint $ED_HOSTS_TYPES
+    ;;
+  backup)
+    eosDockerBackup
+    ;;
+  reconfigure)
+    INFO "Reconfiguring EOS docker '$ED_TYPE' ..."
+    eosDockerReconfigure
+    ;; 
+  *)
+    help
+    ;;
+esac

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+if [ ! -e /root/INITIALIZED ] ; then
+  quarkdb-create --path {{ item[0].eos_componet.redis_database }} --clusterID {{ qdb_cluster_uuid }} --nodes {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(',') }}
+  chown -R daemon:daemon {{ item[0].eos_componet.redis_database }}
+
+  touch /root/INITIALIZED
+fi
+
+/usr/bin/xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon

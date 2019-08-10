@@ -1,0 +1,33 @@
+---
+- name: Install Firewalld
+  package: name=firewalld state=installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Disable iptables now and at boot
+  service: name=iptables state=stopped enabled=false masked=true
+
+- name: Run firewalld now and at boot
+  service: name=firewalld state=started enabled=true
+
+- name: Add internal zone sources to firewalld
+  firewalld:
+    source: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: internal
+  loop: "{{ firewall_internal_zone_sources }}"
+  notify:
+  - reload firewalld
+
+- name: Set drop as default policy
+  shell: "if ! firewall-cmd --get-default-zone | grep drop ; then firewall-cmd --set-default-zone=drop && echo changed; else echo skipped; fi"
+  args:
+    executable: /bin/bash
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+
+- meta: flush_handlers

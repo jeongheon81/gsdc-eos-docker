@@ -1,0 +1,5 @@
+domain {{ network_resolv.domain }}
+search {{ network_resolv.search|join(" ") }}
+{% for nameserver in network_resolv.nameserver -%}
+nameserver {{ nameserver }}
+{% endfor -%}

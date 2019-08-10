@@ -1,0 +1,17 @@
+{% if host_group is defined and host_group|length > 0 -%}
+{%   for group in  host_group -%}
+{%     if group.name is defined and group.hosts is defined and group.hosts|length > 0 -%}
+{{ "" }}
+[{{ group.name }}]
+{%       for host in group.hosts -%}
+{{ host.name }} ansible_user={{ host.ansible_user }} ansible_port={{ host.ansible_port }}
+{%       endfor -%}
+{%     elif group.name is defined and group.children is defined and group.children|length > 0 -%}
+{{ "" }}
+[{{ group.name }}:children]
+{%       for child in group.children -%}
+{{ child.name }}
+{%       endfor -%}
+{%     endif -%}
+{%   endfor -%}
+{% endif -%}

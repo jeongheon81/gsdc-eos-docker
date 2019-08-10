@@ -1,0 +1,62 @@
+---
+- name: Install chrony
+  package: name=chrony state=installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Backup chrony config
+  shell: "if [ ! -e /etc/chrony.conf.backup ]; then /bin/cp /etc/chrony.conf /etc/chrony.conf.backup; fi"
+  args:
+    executable: /bin/bash
+    creates: "/etc/chrony.conf.backup"
+
+- name: Setup firewall chrony
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: internal
+  loop:
+  - ntp
+  notify:
+  - reload firewalld
+
+- set_fact:
+    ip_family: [ 'ipv4', 'ipv6' ]
+    firewall_rules:
+    - { tag: "Set counter for the NTP query frequency", args: "filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 0 }} -p udp --dport 123 -m recent --set --name ntpquery" }
+    - { tag: "Check the NTP query frequency", args: "filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 1 }} -p udp --dport 123 -m recent --name ntpquery --rcheck --seconds 60 --hitcount 3 -j DROP" }
+    - { tag: "Prevent NTP-DoS", args: "filter OUTPUT {{ firewall_direct_rule_priority_base.chrony|int + 0 }} -p udp --sport 123 -m length --length 600: -j DROP" }
+
+- name: Setup firewall chrony for security
+  shell: "if ! firewall-cmd --direct --get-all-rules | grep '{{ item[0] }}' | grep '{{ item[1].tag }}' ; then firewall-cmd --direct --add-rule {{ item[0] }} {{ item[1].args }} -m comment --comment '{{ item[1].tag }}' && echo changed; else echo skipped; fi"
+  loop: "{{ ip_family|product(firewall_rules)|list }}"
+  args:
+    executable: /bin/bash
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+  notify:
+  - reload firewalld
+
+- name: Setup firewall chrony for security --permanent
+  shell: "if ! firewall-cmd --permanent --direct --get-all-rules | grep '{{ item[0] }}' | grep '{{ item[1].tag }}' ; then firewall-cmd --permanent --direct --add-rule {{ item[0] }} {{ item[1].args }} -m comment --comment '{{ item[1].tag }}' && echo changed; else echo skipped; fi"
+  loop: "{{ ip_family|product(firewall_rules)|list }}"
+  args:
+    executable: /bin/bash
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+  notify:
+  - reload firewalld
+
+- name: Create chrony config file
+  template: src=chrony.conf.j2 dest=/etc/chrony.conf owner=root group=root mode=0644
+  notify:
+  - restart chronyd
+
+- name: Enable chrony service
+  systemd: name=chronyd state=started enabled=true
+
+- meta: flush_handlers

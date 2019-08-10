@@ -1,0 +1,84 @@
+ip.range: 
+  - 23, 24
+  - 134.75.125.34 
+  - 134.75.125.35 
+  - 134.75.125.36 
+  - 134.75.125.37 
+  - 134.75.125.38 
+  - 134.75.125.39 
+  - 134.75.125.40 
+
+eos.sysconfig(mgm):
+  xrd_roles: "mq sync mgm"
+eos.sysconfig(fst):
+  xrd_roles: "fst"
+
+  eos_instance_name: eostestatcf
+  eos_broker_url: root://eos-mgm-kisti01.sdfarm.kr:1097//eos/
+  eos_geotag: "kisti::gsdc::d10"
+  eos_mgm_master1: eos-mgm-kisti01.sdfarm.kr
+  eos_mgm_master2: eos-mgm-kisti02.sdfarm.kr
+  eos_mgm_alias: eos-mgm-kisti.sdfarm.kr
+  eos_mail_cc: "sahn@kisti.re.kr"
+  eos_fuse_mgm_alias: eos-mgm-kisti01.sdfarm.kr
+  
+xrd.cf.mgm:
+  eos_broker_url: root://eos-mgm-kisti01.sdfarm.kr:1097//eos/
+  eos_instance_name: eostestatcf
+  qdb_cluster: eos-qdb-kisti01.sdfarm.kr:7777
+
+xrd.cf.fst:
+  eos_broker_url: root://eos-mgm-kisti01.sdfarm.kr:1097//eos/
+
+xrd.cf.quarkdb:
+  redis_database: 
+    - /var/lib/quarkdb/node-01
+    - /var/lib/quarkdb/node-02
+    - /var/lib/quarkdb/node-03
+  redis_myself: 
+    - eos-qdb-kisti01.sdfarm.kr:7777
+    - eos-qdb-kisti02.sdfarm.kr:7777
+    - eos-qdb-kisti03.sdfarm.kr:7777
+
+kdc.sh:
+  admin_user: admin1
+
+eos_qdb_setup.sh:
+  uuid_cluster_id: # generated @ https://www.uuidgenerator.net/
+    - 689d996e-c5ee-4bdb-a9be-6689e52a4340
+    - 689d996e-c5ee-4bdb-a9be-6689e52a4340
+    - 689d996e-c5ee-4bdb-a9be-6689e52a4340
+  redis_database: 
+    - /var/lib/quarkdb/node-01
+    - /var/lib/quarkdb/node-02
+    - /var/lib/quarkdb/node-03
+  eos_qdb_cluster_nodes TODO CSV:
+    - eos-qdb-kisti01.sdfarm.kr:7777,eos-qdb-kisti02.sdfarm.kr:7777,eos-qdb-kisti03.sdfarm.kr:7777
+    - eos-qdb-kisti01.sdfarm.kr:7777,eos-qdb-kisti02.sdfarm.kr:7777,eos-qdb-kisti03.sdfarm.kr:7777
+    - eos-qdb-kisti01.sdfarm.kr:7777,eos-qdb-kisti02.sdfarm.kr:7777,eos-qdb-kisti03.sdfarm.kr:7777  
+
+eos_fst_setup.sh:
+  eos_mgm_url: root://eos-mgm-kisti01.sdfarm.kr//
+  space: default
+  config: rw
+  fst_fqdn:
+    - eos-fst-kisti01.sdfarm.kr
+    - eos-fst-kisti02.sdfarm.kr
+    - eos-fst-kisti03.sdfarm.kr
+  data_dir: 
+    - /data/disk1
+    - /data/disk2
+    - /data/disk3
+  fst_id:
+    - eos-fst-kisti01
+    - eos-fst-kisti02
+    - eos-fst-kisti03
+  fst_uuid: # generated @ https://www.uuidgenerator.net/
+    - 627bcd30-1af6-4525-a0c9-8a958a863b91
+    - 7469a2ee-ecbf-4a46-ac42-9d1f1adaa7e3
+    - 7b30fa24-5b9a-426d-9af8-98a62c341e19
+
+eos_mgm_fs_setup.sh:
+  space: default
+  n_fst: 3
+  config_name_to_save: default

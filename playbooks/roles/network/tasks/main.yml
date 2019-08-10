@@ -1,0 +1,107 @@
+---
+- name: Create route files
+  template: src=route.j2 dest=/etc/sysconfig/network-scripts/route-{{ item.device }} owner=root group=root mode=0644
+  loop: "{{ network_routes }}"
+  notify:
+  - restart network
+  - wait for new network settings
+
+- name: Create resolv files
+  template: src=resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
+  notify:
+  - restart network
+  - wait for new network settings
+
+- meta: flush_handlers
+
+- block:
+  - name: install needed network manager libs
+    package:
+      name:
+        - NetworkManager-glib
+        - nm-connection-editor
+        - libsemanage-python
+        - policycoreutils-python
+        - bridge-utils
+      state: present
+
+  - name: check bridge config before (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.conn_name }}
+    register: before_bridge_config_stats
+    loop: "{{ network_bridge }}"
+
+  - name: add bridge
+    nmcli: 
+      type: bridge
+      conn_name: "{{ item.conn_name }}"
+      ifname: "{{ item.ifname }}"
+      stp: "{{ item.stp }}"
+      ip4: "{{ item.ip4 }}"
+      gw4: "{{ item.gw4 }}"
+      mtu: "{{ item.mtu }}"
+      state: present
+    changed_when: false
+    loop: "{{ network_bridge }}"
+
+  - name: check bridge config after (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.item.conn_name }}
+    register: after_bridge_config_stat
+    changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
+    loop: "{{ before_bridge_config_stats.results }}"
+    notify:
+    - restart network
+    - wait for new network settings
+
+  - name: check bridge config before (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.slave_conn_name }}
+    register: before_bridge_config_stats
+    loop: "{{ network_bridge }}"
+
+  - name: add uplink to bridge
+    nmcli:
+      type: bridge-slave
+      conn_name: "{{ item.slave_conn_name }}"
+      ifname: "{{ item.slave_ifname }}"
+      master: "{{ item.conn_name }}"
+      hairpin: no
+      mtu: "{{ item.mtu }}"
+      state: present
+    changed_when: false
+    loop: "{{ network_bridge }}"
+
+  - name: check bridge config after (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.item.slave_conn_name }}
+    register: after_bridge_config_stat
+    changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
+    loop: "{{ before_bridge_config_stats.results }}"
+    notify:
+    - restart network
+    - wait for new network settings
+
+  - name: check bridge config before (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.slave_ifname }}
+    register: before_bridge_config_stats
+    loop: "{{ network_bridge }}"
+
+  - name: off conflict connection
+    nmcli:
+      type: "{{ item.conflict_type }}"
+      conn_name: "{{ item.conflict_conn_name }}"
+      autoconnect: no
+      mtu: "{{ lookup('vars', 'facter_mtu_' + item.slave_ifname) }}"
+      state: present
+    changed_when: false
+    loop: "{{ network_bridge }}"
+
+  - name: check bridge config after (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.item.slave_ifname }}
+    register: after_bridge_config_stat
+    changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
+    loop: "{{ before_bridge_config_stats.results }}"
+    notify:
+    - restart network
+    - wait for new network settings
+
+  when: network_bridge is defined
+
+- meta: flush_handlers

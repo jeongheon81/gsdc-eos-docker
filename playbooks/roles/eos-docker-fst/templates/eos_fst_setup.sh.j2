@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+id={{ item[0].eos_componet.fst_fsid }}
+
+UUID={{ item[0].eos_componet.fst_uuid }}
+DATADIR={{ item[0].eos_componet.data_dir }}
+SPACE={{ item[0].eos_componet.fst_space }}
+CONFIG={{ item[0].eos_componet.fst_status }}
+FSTHOSTNAME={{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}
+
+source /etc/sysconfig/eos
+export EOS_MGM_URL={{ eos_mgm_url_regular }}
+
+if [ -e /opt/eos/xrootd/bin/xrootd ]; then 
+   XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
+else
+   XROOTDEXE="/usr/bin/xrootd"
+fi
+
+echo "Starting fst: {{ item[0].eos_componet.name }} ..."
+${XROOTDEXE} -n fst${id} -c /etc/xrd.cf.fst -l /var/log/eos/xrdlog.fst -b -Rdaemon
+
+if [ ! -e /root/INITIALIZED ] ; then
+  echo "Configuring fst: {{ item[0].eos_componet.name }} ..."
+  mkdir -p $DATADIR
+  echo "$UUID" > $DATADIR/.eosfsuuid
+  echo "${id}" > $DATADIR/.eosfsid
+  chown -R daemon:daemon $DATADIR
+  eos -b fs add -m ${id} $UUID $FSTHOSTNAME:1095 $DATADIR $SPACE $CONFIG
+  eos -b node set $FSTHOSTNAME:1095 on
+  echo "Configuration done for fst: {{ item[0].eos_componet.name }}"
+
+  touch /root/INITIALIZED
+fi

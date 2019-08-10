@@ -1,0 +1,71 @@
+#
+# Simple EOS Docker file
+#
+# Version 0.2
+
+FROM centos:7
+MAINTAINER Elvin Sindrilaru, esindril@cern.ch, CERN 2017
+
+# Add extra repositories
+ADD eos-docker/*.repo /etc/yum.repos.d/
+
+# Add helper scripts
+ADD eos-docker/image_scripts/*.sh /
+
+# Add configuration files for EOS instance
+ADD eos-docker/eos.sysconfig /etc/sysconfig/eos
+ADD eos-docker/xrd.cf.* eos-docker/krb5.conf /etc/
+ADD eos-docker/fuse.conf /etc/eos/fuse.conf
+ADD eos-docker/fstfmd.dict /var/eos/md/
+
+RUN mkdir /var/tmp/eosxd-cache/ /var/tmp/eosxd-journal/
+RUN useradd eos-user
+
+# Docker will aggressively cache the following command, but this is fine, since
+# these packages are not updated often.
+RUN yum -y --nogpg install \
+    heimdal-server heimdal-workstation \
+    krb5-workstation yum-plugin-priorities \
+    createrepo initscripts less nano \
+    git parallel compat-libf2c-34 libgfortran \
+    gdb gcc-c++ cmake3 libacl-devel perl-Test-Harness \
+    rpm-build bzip2 automake autoconf libtool sudo vim \
+    lcov centos-release-scl-rh
+
+# Install devtoolset-6
+RUN yum -y --nogpg install devtoolset-6
+    
+# Install new EOS from created repo - the ADD command will reset the docker cache,
+# and any commands after that point will be uncached.
+ENV EOSREPODIR="/repo/eos"
+ADD cc7_coverage_artifacts ${EOSREPODIR}
+
+RUN createrepo ${EOSREPODIR}; \
+    echo -e "[eos-coverage-artifacts]\nname=EOS Coverage artifacts\nbaseurl=file://${EOSREPODIR}\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos.repo; \
+    echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=1\n' >> /etc/yum.repos.d/eos-depend.repo; \
+    # Special packages, must be installed un-cached.
+    yum -y --nogpg install quarkdb grid-hammer davix; \
+    yum -y --nogpg install \
+    eos-server eos-testkeytab eos-archive eos-client \
+    eos-fuse eos-fusex eos-debuginfo eos-test eos-coverage
+
+# Setup environment for coverage profiling
+ADD eos-docker/coverage/image/ /eos-coverage/
+ENV GCOV_PREFIX="/var/eos/coverage/"
+ENV GCOV_PREFIX_STRIP=4
+RUN echo -e "export EOS_COVERAGE_REPORT=1" >> /etc/sysconfig/eos 
+
+# Move source files to expected location
+# Note: the source file location is hardcoded into the ".gcno" files.
+#       Although there are ways to workaround this with lcovrc settings, the underlying gcov tool used will still throw many warnings.
+#       For this reason, we prefer to move the source files to the expected location.
+RUN mkdir -p /root/rpmbuild/BUILD/; \
+    cp -r --preserve /usr/src/debug/eos-* /root/rpmbuild/BUILD/
+
+# Generate a new forwardable keytab 'eos-test+' to replace the not-forwardable one (installed by the eos-testkeytab package).
+# This is useful to deploy EOS on Kubernetes clusters running on CERN's Cloud Infrastructure; you can remove these lines if you don't need one.
+RUN yes | xrdsssadmin -k eos-test del /etc/eos.keytab; \
+    yes | xrdsssadmin -u daemon -g daemon -k eos-test+ -n 1234567890123456789 add /etc/eos.keytab; \
+    chown daemon:daemon /etc/eos.keytab
+
+ENTRYPOINT ["/bin/bash"]

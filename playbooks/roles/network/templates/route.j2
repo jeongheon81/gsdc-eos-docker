@@ -1,0 +1,5 @@
+{% if item is defined and item.list is defined -%}
+{% for route in item.list -%}
+{{ route }}
+{% endfor -%}
+{% endif -%}
