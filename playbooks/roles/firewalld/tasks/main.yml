@@ -1,5 +1,12 @@
 ---
-- name: Install Firewalld
+- name: Install iptables
+  package: name=iptables state=installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Install firewalld
   package: name=firewalld state=installed
   register: install_packages
   until: install_packages is success

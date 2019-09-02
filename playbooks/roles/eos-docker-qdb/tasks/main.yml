@@ -8,6 +8,7 @@
       - { container_path: "/eos_qdb_setup.sh", host_dir: ".", host_file: "eos_qdb_setup.sh", template_file: "eos_qdb_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
       persistent_volumes:
       - { name: "roothome", dest: "/root" }
+      - { name: "qdbdata", dest: "/var/lib/quarkdb" }
       - { name: "log", dest: "/var/log/eos" }
       eos_componets: "{{ containers.eos_qdb }}"
 
@@ -144,6 +145,7 @@
         ipv4_address: "{{ item.ipv4_address }}"
         aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
       volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts }}"
     register: container_start_results
     loop: "{{ eos_componets }}"
 

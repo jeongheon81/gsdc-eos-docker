@@ -16,7 +16,7 @@
     - { src: "dictionary", dest: "eos-docker-build" }
 
   - name: Changing permissions of "image_scripts/*", adding "+x"
-    file: dest=image_scripts mode=a+x recurse=yes
+    file: dest=eos-docker-build/image_scripts mode=a+x recurse=yes
 
   - name: Build eos docker image
     docker_image:

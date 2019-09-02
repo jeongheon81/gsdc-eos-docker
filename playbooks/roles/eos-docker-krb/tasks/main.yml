@@ -1,11 +1,11 @@
 ---
 - block:
   - set_fact:
-      shiped_files:
-      - { container_path: "/etc/heimdal-kadmind.acl", host_dir: ".", host_file: "heimdal-kadmind.acl" }
-      - { container_path: "/etc/heimdal-kdc.conf", host_dir: ".", host_file: "heimdal-kdc.conf" }
-      - { container_path: "/etc/heimdal-slaves", host_dir: ".", host_file: "heimdal-slaves" }
+      shiped_files: []
       template_files:
+      - { container_path: "/etc/heimdal-kadmind.acl", host_dir: ".", host_file: "heimdal-kadmind.acl", template_file: "heimdal-kadmind.acl.j2", owner: "root", group: "root", mode: "0600" }
+      - { container_path: "/etc/heimdal-kdc.conf", host_dir: ".", host_file: "heimdal-kdc.conf", template_file: "heimdal-kdc.conf.j2", owner: "root", group: "root", mode: "0600" }
+      - { container_path: "/etc/heimdal-slaves", host_dir: ".", host_file: "heimdal-slaves", template_file: "heimdal-slaves.j2", owner: "root", group: "root", mode: "0600" }
       - { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
       - { container_path: "/kdc.sh", host_dir: ".", host_file: "kdc.sh", template_file: "kdc.sh.j2", owner: "root", group: "root", mode: "0755" }
       persistent_volumes:
@@ -146,6 +146,7 @@
         ipv4_address: "{{ item.ipv4_address }}"
         aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
       volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts }}"
     register: container_start_results
     loop: "{{ eos_componets }}"
 

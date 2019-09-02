@@ -147,6 +147,7 @@
         ipv4_address: "{{ item.ipv4_address }}"
         aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
       volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts }}"
     register: container_start_results
     loop: "{{ eos_componets }}"
 

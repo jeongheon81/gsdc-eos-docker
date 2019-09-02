@@ -88,7 +88,7 @@
       type: "{{ item.conflict_type }}"
       conn_name: "{{ item.conflict_conn_name }}"
       autoconnect: no
-      mtu: "{{ lookup('vars', 'facter_mtu_' + item.slave_ifname) }}"
+      mtu: "{{ item.mtu }}"
       state: present
     changed_when: false
     loop: "{{ network_bridge }}"
