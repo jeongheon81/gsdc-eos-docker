@@ -8,7 +8,9 @@
     loop: "{{ groups['all'] }}"
   - name: scan ssh public key
     become: no
-    shell: "ssh-keyscan -t rsa {{ item }},{{ item.split('.')[0] }},$(dig +short {{ item }})"
+    shell: "ssh-keyscan -t rsa {{ item }},{{ item.split('.')[0] }}$(IP=$(dig +short {{ item }}); if [ -n \"$IP\" ] ; then echo \",$IP\"; fi)"
+    args:
+      executable: /bin/bash
     ignore_errors: yes
     when: ssh_keyscan|bool
     changed_when: False

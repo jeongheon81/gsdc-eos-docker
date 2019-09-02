@@ -15,6 +15,23 @@ RETRY=false
 # -----------------------------------------------------------------------------
 # define helper
 # -----------------------------------------------------------------------------
+ 
+function gen_password() {
+  local length=$1
+  local count=$2
+
+  if [ "${length}" == "" ]; then
+    length=30
+  fi
+
+  if [ "${count}" == "" ]; then
+    count=100
+  fi
+
+  for i in $(seq  1 $count); do
+    tr -dc 'A-Za-z0-9_+\055!@#$%^&*()|:<>,.?=' < /dev/urandom | fold -w ${length} | grep -i '[A-Z]' | grep -i '[a-z]' | grep -i '[0-9]' | grep -i '[_+\055!@#$%^&*()|:<>,.?=]' | head -n 1
+  done
+}
 
 # full directory name of the script no matter where it is being called from
 get_setup_root() {
@@ -34,7 +51,7 @@ get_setup_root() {
 }
 SETUP_ROOT="$(get_setup_root)"
 
-# for checking interactive shell
+# checking interactive shell
 is_invoked() {
   if [ "$0" = "${BASH_SOURCE[0]}" ]; then
     true
@@ -64,8 +81,9 @@ for i in "$@" ; do
   esac
 done
 function split_csv {
-  # shellcheck disable=SC2206
-  local IFS=','; local v=( $1 ); echo "${v[@]}";
+  local IFS=','; # shellcheck disable=SC2206
+  local v=( $1 );
+  echo "${v[@]}";
 }
 declare -A STEP_NAME2INT
 for i in ${!STEP_NAMES[*]} ; do
@@ -102,7 +120,7 @@ __main() {
     set -o nounset
     set -o errexit
   fi
-  
+
 
   # start message
   echo -e '\n\n\n'
@@ -110,31 +128,41 @@ __main() {
   echo
 
   # check ansible
-  echo '# Checking ansible ...'
+  echo '# Checking ansible and packages ...'
   if ! ansible --version > /dev/null; then
     echo ' - Installing ansible ...'
     if ! sudo yum list installed epel-release > /dev/null; then
       sudo yum install -y epel-release
     fi
-    sudo yum install -y --enablerepo=epel ansible libselinux-python
-    echo ' - ... done'
+    sudo yum install -y --enablerepo=epel ansible
+    echo ' - ... Installed ansible'
   fi
-  echo '* ... done'
+  packages=( "libselinux-python" "bind-utils" "jq" )
+  for package in "${packages[@]}"; do
+    if ! rpm -q "${package}" > /dev/null; then
+      echo " - Installing ${package} ..."
+      sudo yum install -y --enablerepo=epel "${package}"
+      echo " - ... Installed ${package}"
+    fi
+  done
+  echo '... Checked ansible and packages'
   echo -e '\n\n\n'
 
   # setup vault
-  echo '# Setting up secrets ...'
+  echo '# Setting up vaults ...'
   # set vault password
   VAULT_PASSWORD_FILE="${SETUP_ROOT}/tmp/.vault"
+  VAULT_BASE="${SETUP_ROOT}/tmp/vaults"
   if [ ! -e "${VAULT_PASSWORD_FILE}" ]; then
+    echo ' - Setting up vault password ...'
     touch "${VAULT_PASSWORD_FILE}"
     chmod 600 "${VAULT_PASSWORD_FILE}"
     password=''
     while [ -z "${password}" ]
     do
-      read -r -s -p "  Vault password: " password1
+      read -r -s -p "   Vault password: " password1
       echo
-      read -r -s -p "  Re-enter password to verify: " password2
+      read -r -s -p "   Re-enter password to verify: " password2
       echo
       if [ "${password1}" = "${password2}" ]; then
         password="${password1}"
@@ -143,7 +171,7 @@ __main() {
         echo
       else
         echo
-        echo "  Passwords do not match"
+        echo "   Passwords do not match"
         echo
         echo
       fi
@@ -151,56 +179,37 @@ __main() {
     password=''
     password1=''
     password2=''
+    mkdir -p "${VAULT_BASE}"
+    echo ' - ... Set up vault password'
   fi
-
   # set secrets
-  VAULT_FILE="${SETUP_ROOT}/tmp/config_vault.yml"
-  if [ ! -e "${VAULT_FILE}" ]; then
-    touch "${VAULT_FILE}"
-    chmod 600 "${VAULT_PASSWORD_FILE}"
-    echo -e "---\n" >> "${VAULT_FILE}"
+  VAULT_FILE="vault.yml"
+  if [ ! -e "${VAULT_BASE}/${VAULT_FILE}" ]; then
+    echo ' - Setting up secrets ...'
+    touch "${VAULT_BASE}/${VAULT_FILE}"
+    chmod 600 "${VAULT_BASE}/${VAULT_FILE}"
+    echo -e "---\n" >> "${VAULT_BASE}/${VAULT_FILE}"
+    userlist=( "admin" "manager" )
+    for user in "${userlist[@]}" ; do
     password=''
     while [ -z "${password}" ]
     do
-      read -r -p "  Admin id: " user
+      read -r -p "   ${user} id: " userid
       echo
-      read -r -s -p "  Admin password: " password1
+      read -r -s -p "   ${user} password: " password1
       echo
-      read -r -s -p "  Re-enter password to verify: " password2
+      read -r -s -p "   Re-enter password to verify: " password2
       echo
       if [ "${password1}" = "${password2}" ]; then
         password="${password1}"
-        echo -e "vault_admin:\n"\
-                "  id: ${user}\n"\
-                "  password: ${password}\n" >> "${VAULT_FILE}"
+        echo -e "vault_${user}:\n"\
+                "  id: ${userid}\n"\
+                "  password: ${password}\n" >> "${VAULT_BASE}/${VAULT_FILE}"
         echo
         echo
       else
         echo
-        echo "  Passwords do not match"
-        echo
-        echo
-      fi
-    done
-    password=''
-    while [ -z "${password}" ]
-    do
-      read -r -p "  Manager id: " user
-      echo
-      read -r -s -p "  Manager password: " password1
-      echo
-      read -r -s -p "  Re-enter password to verify: " password2
-      echo
-      if [ "${password1}" = "${password2}" ]; then
-        password="${password1}"
-        echo -e "vault_manager:\n"\
-                "  id: ${user}\n"\
-                "  password: ${password}\n" >> "${VAULT_FILE}"
-        echo
-        echo
-      else
-        echo
-        echo "  Passwords do not match"
+        echo "   Password dose not match"
         echo
         echo
       fi
@@ -208,15 +217,36 @@ __main() {
     password=''
     password1=''
     password2=''
-    ansible-vault encrypt --vault-password-file="${VAULT_PASSWORD_FILE}" "${VAULT_FILE}"
+    done
+    ansible-vault encrypt --vault-password-file="${VAULT_PASSWORD_FILE}" "${VAULT_BASE}/${VAULT_FILE}"
+    echo ' - ... Set up secrets'
   fi
-  echo '* ... done'
+  # generate random password
+  VAULT_RANDOM_PASSWORDS_FILE="vault_random_password.yml"
+  if [ ! -e "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}" ]; then
+    echo ' - Generate random password ...'
+    touch "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    chmod 600 "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    echo -e "---\n" >> "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    echo -e "vault_random_passwords:" >> "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    for password in $(gen_password 30 100) ; do
+      echo -e "- '${password}'" >> "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    done
+    echo >> "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    password=''
+    ansible-vault encrypt --vault-password-file="${VAULT_PASSWORD_FILE}" "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    echo ' - ... Generated random password'
+  fi
+  VAULT_FILES=( "${VAULT_FILE}" "${VAULT_RANDOM_PASSWORDS_FILE}" )
+  echo '... Set up vaults'
   echo -e '\n\n\n'
 
   # bootstrap ansible
   if [[ ${included["0"]} -eq 1 ]] ; then
     echo '# Bootstrapping ansible ...'
-    ansible-playbook ${VERBOSITY} -f 1 -i localhost, -c local -e "setup_root=${SETUP_ROOT} vault_file=${VAULT_FILE}" "${SETUP_ROOT}/bootstrap-playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
+    extra_vars=$(echo "{ \"setup_root\": \"${SETUP_ROOT}\", \"vault_base\": \"${VAULT_BASE}\", \"vault_files\": $(printf '%s\n' "${VAULT_FILES[@]}" | jq -R . | jq -cs . ) }" | jq -c .)
+    # shellcheck disable=SC2086
+    ansible-playbook ${VERBOSITY} -f 1 -i localhost, -c local -e "${extra_vars}" "${SETUP_ROOT}/bootstrap-playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
     if [ -e "${SETUP_ROOT}/bootstrap-playbooks/site.retry" ]; then /bin/rm "${SETUP_ROOT}/bootstrap-playbooks/site.retry"; fi
     echo '* ... done'
     echo -e '\n\n\n'
@@ -229,9 +259,11 @@ __main() {
   if [[ ${included["1"]} -eq 1 ]] ; then
     echo '# Scanning SSH public key ...'
     bash -c "ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i '${SETUP_ROOT}/inventory/hosts' '${SETUP_ROOT}/playbooks/ssh-key-scan.yml' --vault-password-file='${VAULT_PASSWORD_FILE}'"
+    # shellcheck disable=SC2086
     if ! ansible all ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -m ping ; then
       echo
       echo " - Try copy ssh public key"
+      # shellcheck disable=SC2086
       ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -k "${SETUP_ROOT}/playbooks/ssh-copy-id.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
     fi
     echo '* ... done'
@@ -241,6 +273,7 @@ __main() {
   # check requirements
   if [[ ${included["2"]} -eq 1 ]] ; then
     echo '# Checking requirements ...'
+    # shellcheck disable=SC2086
     ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/requirements-check.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
     echo '* ... done'
     echo -e '\n\n\n'
@@ -251,6 +284,7 @@ __main() {
     echo '# Upgrading packages ...'
     running_holder="${SETUP_ROOT}/tmp/UPGRADED"
     if [ ! -e "${running_holder}" ]; then
+      # shellcheck disable=SC2086
       ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/paralleling-upgrade.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
       touch "${running_holder}"
     else
@@ -269,6 +303,7 @@ __main() {
     if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
+    # shellcheck disable=SC2086
     ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=base ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
@@ -281,6 +316,7 @@ __main() {
     if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
+    # shellcheck disable=SC2086
     ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=prepare ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
@@ -293,6 +329,7 @@ __main() {
     if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
+    # shellcheck disable=SC2086
     ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=install ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
@@ -305,6 +342,7 @@ __main() {
     if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
+    # shellcheck disable=SC2086
     ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=post ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
