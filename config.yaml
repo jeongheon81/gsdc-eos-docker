@@ -11,9 +11,15 @@ host_default: &host_default
   ansible_port: 22
 
 eos_container_default: &eos_container_default
-  domain: eoscluster.sdfarm.kr
+  domain: !unsafe "{{ eos_cluster_domain_name }}"
   image: !unsafe "{{ eos_container_image_name }}:{{ eos_container_image_tag }}"
-  network: eoscluster.sdfarm.kr
+  network: !unsafe "{{ eos_cluster_domain_name }}"
+  etc_hosts:
+    eos-mgm-01.eoscluster.sut.ac.th: 202.28.43.169
+    eos-fst-01.eoscluster.sut.ac.th: 202.28.43.173
+    eos-fst-02.eoscluster.sut.ac.th: 202.28.43.174
+    eos-fst-03.eoscluster.sut.ac.th: 202.28.43.175
+    eos-krb-01.eoscluster.sut.ac.th: 202.28.43.167
 
 group_vars_all:
   ssh_keyscan: true
@@ -28,6 +34,7 @@ group_vars_all:
   - 192.168.125.0/24
   - 192.168.127.0/24
   - 192.168.2.0/24
+  - 202.28.43.128/26
   firewall_secured_networks:
   - { family: "ipv4", address: "134.75.123.0/24" }
   firewall_direct_rule_priority_base:
@@ -61,23 +68,24 @@ group_vars_all:
   cockpit_rule_priority_base: 11
   docker_users:
   - localadmin
-  eos_container_image_name: eos-kisti
-  eos_container_image_tag: 1
+  eos_cluster_domain_name: eoscluster.sdfarm.kr
+  eos_container_image_name: eos-local
+  eos_container_image_tag: latest
   eos_instance_name: eostestatcf
   eos_geotag: kisti::gsdc::d10
   eos_mgm_masters:
-  - eos-mgm-kisti01.eoscluster.sdfarm.kr
-  - eos-mgm-kisti01.eoscluster.sdfarm.kr
-  eos_mgm_alias: eos-mgm-kisti01.eoscluster.sdfarm.kr
+  - !unsafe "eos-mgm-01.{{ eos_cluster_domain_name }}"
+  - !unsafe "eos-mgm-01.{{ eos_cluster_domain_name }}"
+  eos_mgm_alias: !unsafe "eos-mgm.{{ eos_cluster_domain_name }}"
   eos_mgm_url_regular: !unsafe "root://{{ eos_mgm_alias }}:1094"
   eos_mgm_url_proxied: !unsafe "root://{{ eos_proxy_server }}:1094//root://{{ eos_mgm_alias }}:1094"
-  eos_mq_alias: eos-mq-kisti.eoscluster.sdfarm.kr
+  eos_mq_alias: !unsafe "eos-mq.{{ eos_cluster_domain_name }}"
   eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
   eos_mail_cc: sahn@kisti.re.kr
   eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
   eos_krb_server: eos-krb-kisti.eoscluster.sdfarm.kr
-  eos_realm: SDFARM.EOS
-  eos_admin_user: admin1
+  eos_realm: !unsafe "{{ eos_cluster_domain_name|upper }}"
+  eos_admin_user: eos-admin
   eos_admin_user_uid: 1001
   eos_admin_user_gid: 1001
   eos_use_proxy: yes
@@ -96,12 +104,61 @@ group_vars_all:
   - /var/lib/quarkdb/node-01
   - /var/lib/quarkdb/node-02
   - /var/lib/quarkdb/node-03
+  krb5_conf:
+    libdefaults:
+      default_realm: !unsafe "{{ eos_realm }}"
+    realms:
+    - name: EOSCLUSTER.SDFARM.KR
+      config:
+        kdc: eos-krb-01.eoscluster.sdfarm.kr
+        admin_server: eos-krb-01.eoscluster.sdfarm.kr
+    - name: SDFARM.KR
+      config:
+        kdc:
+        - ipa1.sdfarm.kr
+        - ipa2.sdfarm.kr
+        - ipa.sdfarm.kr
+        admin_server: ipa1.sdfarm.kr
+    - name: EOSCLUSTER.SUT.AC.TH
+      config:
+        kdc: eos-krb-01.eoscluster.sut.ac.th
+        admin_server: eos-krb-01.eoscluster.sut.ac.th
+    domain_realm:
+    - domain: .eoscluster.sdfarm.kr
+      realm: EOSCLUSTER.SDFARM.KR
+    - domain: eoscluster.sdfarm.kr
+      realm: EOSCLUSTER.SDFARM.KR
+    - domain: .sdfarm.kr
+      realm: SDFARM.KR
+    - domain: sdfarm.kr
+      realm: SDFARM.KR
+    - domain: .eoscluster.sut.ac.th
+      realm: EOSCLUSTER.SUT.AC.TH
+    - domain: eoscluster.sut.ac.th
+      realm: EOSCLUSTER.SUT.AC.TH
+    capaths:
+    - realm: EOSCLUSTER.SDFARM.KR
+      config:
+      - target_realm: SDFARM.KR
+        next_realm: "."
+      - target_realm: EOSCLUSTER.SUT.AC.TH
+        next_realm: "."
+    - realm: EOSCLUSTER.SUT.AC.TH
+      config:
+      - target_realm: EEOSCLUSTER.SDFARM.KR
+        next_realm: "."
+  krb5_cross_realm_authentication_password_id:
+  - target_realm: SDFARM.KR
+    password_id: 1
+  - target_realm: EOSCLUSTER.SUT.AC.TH
+    password_id: 2
   admin:
     id: !unsafe "{{ vault_admin.id }}"
     password: !unsafe "{{ vault_admin.password }}"
   manager:
     id: !unsafe "{{ vault_manager.id }}"
     password: !unsafe "{{ vault_manager.password }}"
+  random_passwords: !unsafe "{{ vault_random_passwords }}"
 
 host_group:
 - name: eos_infra
