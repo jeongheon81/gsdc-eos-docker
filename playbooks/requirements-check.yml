@@ -32,7 +32,6 @@
 - hosts: all
   gather_facts: yes
   tasks:
-    - debug: var=qdb_redis_myself
     - name: check for CentOS 7.6
       when: not ( ansible_distribution is match("CentOS") ) or ( ansible_distribution_version is version("7.6", "<") )
       fail:
