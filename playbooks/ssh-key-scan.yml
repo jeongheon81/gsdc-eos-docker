@@ -4,8 +4,6 @@
   connection: local
   become: no
   tasks:
-  - debug: var=item
-    loop: "{{ groups['all'] }}"
   - name: scan ssh public key
     become: no
     shell: "ssh-keyscan -t rsa {{ item }},{{ item.split('.')[0] }}$(IP=$(dig +short {{ item }}); if [ -n \"$IP\" ] ; then echo \",$IP\"; fi)"
