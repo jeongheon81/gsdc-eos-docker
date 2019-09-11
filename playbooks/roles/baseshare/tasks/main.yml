@@ -1,0 +1,6 @@
+---
+- name: create install informaion home directory
+  file:
+    path: "{{ install_info_home }}"
+    state: directory
+    mode: 0700

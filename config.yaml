@@ -4,7 +4,7 @@
 bootstrap:
   ansible_cfg:
     defaults:
-      stdout_callback: debug
+      stdout_callback: human_readable_stdout
 
 host_default: &host_default
   ansible_user: root
@@ -24,6 +24,7 @@ eos_container_default: &eos_container_default
 group_vars_all:
   ssh_keyscan: true
   package_upgrade: true
+  install_info_home: eos-install-info
   firewall_internal_zone_sources:
   - 134.75.123.0/24
   - 134.75.124.0/24

@@ -1,6 +1,6 @@
 ---
 - include_vars: dir=vaults
-  no_log: false
+  no_log: true
 
 - name: create ansible cfg and inventory file
   become: no
