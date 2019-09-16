@@ -1,0 +1,16 @@
+---
+privileged_container: yes
+shiped_files: []
+generated_files:
+- { container_path: "/etc/eos.krb5.keytab", host_dir: ".", host_file: "eos.krb5.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "eos.krb5.keytab", owner: "root", group: "root", mode: "0600" }
+template_files:
+- { container_path: "/etc/sysconfig/eos", host_dir: "./sysconfig", host_file: "eos", template_file: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644" }
+- { container_path: "/etc/xrd.cf.mgm", host_dir: ".", host_file: "xrd.cf.mgm", template_file: "xrd.cf.mgm.j2", owner: "root", group: "root", mode: "0644" }
+- { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
+- { container_path: "/eos_mgm_fs_setup.sh", host_dir: ".", host_file: "eos_mgm_fs_setup.sh", template_file: "eos_mgm_fs_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
+- { container_path: "/eos_mgm_setup.sh", host_dir: ".", host_file: "eos_mgm_setup.sh", template_file: "eos_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
+persistent_volumes:
+- { name: "roothome", dest: "/root" }
+- { name: "userhome", dest: "/home" }
+- { name: "eos", dest: "/var/eos" }
+- { name: "log", dest: "/var/log/eos" }

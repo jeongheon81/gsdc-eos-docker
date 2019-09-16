@@ -84,21 +84,22 @@ group_vars_all:
   eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
   eos_mail_cc: sahn@kisti.re.kr
   eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
-  eos_krb_server: eos-krb-kisti.eoscluster.sdfarm.kr
+  eos_krb_server: eos-krb.eoscluster.sdfarm.kr
+  eos_manager_server: eos-manager.eoscluster.sdfarm.kr
   eos_realm: !unsafe "{{ eos_cluster_domain_name|upper }}"
   eos_admin_user: eos-admin
   eos_admin_user_uid: 1001
   eos_admin_user_gid: 1001
   eos_use_proxy: yes
-  eos_proxy_server: eos-proxy-kisti.eoscluster.sdfarm.kr
+  eos_proxy_server: eos-proxy.eoscluster.sdfarm.kr
   eos_default_fs_space_name: default
   eos_default_fs_insertion_status: rw
   eos_default_number_of_fst: 3
   eos_use_qdb: yes
   qdb_clusters:
-  - eos-qdb-kisti01.eoscluster.sdfarm.kr
-  - eos-qdb-kisti02.eoscluster.sdfarm.kr
-  - eos-qdb-kisti03.eoscluster.sdfarm.kr
+  - eos-qdb-01.eoscluster.sdfarm.kr
+  - eos-qdb-02.eoscluster.sdfarm.kr
+  - eos-qdb-03.eoscluster.sdfarm.kr
   qdb_port: 7777
   qdb_cluster_uuid: 689d996e-c5ee-4bdb-a9be-6689e52a4340
   qdb_redis_databases: 
@@ -197,20 +198,24 @@ host_group:
         bridge_name: br1
       containers:
         eos_krb:
-        - name: eos-krb-kisti
+        - name: eos-krb-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.30
+          network_aliases:
+          - eos-krb
+          - eos-krb.eoscluster.sdfarm.kr
+          krb_realm: !unsafe "{{ eos_realm }}"
         eos_mq:
-        - name: eos-mq-kisti01
+        - name: eos-mq-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.24
           network_aliases:
-          - eos-mq-kisti
-          - eos-mq-kisti.eoscluster.sdfarm.kr
+          - eos-mq
+          - eos-mq.eoscluster.sdfarm.kr
           xrd_roles:
           - mq
         eos_qdb:
-        - name: eos-qdb-kisti01
+        - name: eos-qdb-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.35
           redis_database: /var/lib/quarkdb/qdb-01
@@ -219,7 +224,7 @@ host_group:
             dest: /var/lib/quarkdb
             device: :/ifs/service/eos_kisti/qdb01
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
-        - name: eos-qdb-kisti02
+        - name: eos-qdb-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.36
           redis_database: /var/lib/quarkdb/qdb-02
@@ -228,7 +233,7 @@ host_group:
             dest: /var/lib/quarkdb
             device: :/ifs/service/eos_kisti/qdb02
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
-        - name: eos-qdb-kisti03
+        - name: eos-qdb-03
           <<: *eos_container_default
           ipv4_address: 134.75.125.37
           redis_database: /var/lib/quarkdb/qdb-03
@@ -238,24 +243,24 @@ host_group:
             device: :/ifs/service/eos_kisti/qdb03
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
         eos_proxy:
-        - name: eos-proxy-kisti
+        - name: eos-proxy
           <<: *eos_container_default
           ipv4_address: 134.75.125.34
           xrd_roles:
           - proxy
         eos_mgm:
-        - name: eos-mgm-kisti01
+        - name: eos-mgm-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.23
           network_aliases:
-          - eos-mgm-kisti
-          - eos-mgm-kisti.eoscluster.sdfarm.kr
+          - eos-mgm
+          - eos-mgm.eoscluster.sdfarm.kr
           xrd_roles:
           - mq
           - sync
           - mgm
         eos_fst:
-        - name: eos-fst-kisti01
+        - name: eos-fst-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.38
           xrd_roles:
@@ -270,7 +275,7 @@ host_group:
           fst_uuid: 627bcd30-1af6-4525-a0c9-8a958a863b91
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        - name: eos-fst-kisti02
+        - name: eos-fst-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.39
           xrd_roles:
@@ -285,7 +290,7 @@ host_group:
           fst_uuid: 7469a2ee-ecbf-4a46-ac42-9d1f1adaa7e3
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        - name: eos-fst-kisti03
+        - name: eos-fst-03
           <<: *eos_container_default
           ipv4_address: 134.75.125.40
           xrd_roles:
