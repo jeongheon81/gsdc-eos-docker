@@ -15,7 +15,7 @@ ${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -m -l /var/log/eos/xrdlog.mgm -b -Rdaemon
 # Enable sss authentication for the FSTs to connect to the MGM
 eos -b vid enable sss
 
-# let the force be with admin1 (typically krb-authenticated on clients)
+# let the force be with {{ eos_admin_user }} (typically krb-authenticated on clients)
 groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
 useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
 eos -b vid set membership {{ eos_admin_user }} +sudo

@@ -1,7 +1,17 @@
-if exec xrootd
-  xrd.port {{ qdb_port }}
-  xrd.protocol redis:{{ qdb_port }} /usr/lib64/libXrdQuarkDB.so
-  redis.mode raft
-  redis.database {{ item[0].eos_componet.redis_database }}
-  redis.myself {{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}:{{ qdb_port }}
-fi
+xrd.port {{ qdb_port }}
+xrd.protocol redis:{{ qdb_port }} libXrdQuarkDB.so
+
+redis.mode raft
+redis.database {{ item[0].eos_componet.redis_database }}
+
+#----------------------------------------------------------
+# $EOS_QUARKDB_HOSTPORT environment variable must be set
+# with the same value used for redis.myself
+#----------------------------------------------------------
+redis.myself {{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}:{{ qdb_port }}
+
+#----------------------------------------------------------
+# $EOS_QUARKDB_PASSWD environment variable must be set
+# with the same value used for redis.password
+#----------------------------------------------------------
+#redis.password password_must_be_atleast_32_characters

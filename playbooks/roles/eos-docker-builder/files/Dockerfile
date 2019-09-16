@@ -14,8 +14,8 @@ ADD image_scripts/*.sh /
 RUN chmod a+x *.sh
 
 # Add configuration files for EOS instance
-ADD configs/eos.sysconfig /etc/sysconfig/eos
-ADD configs/xrd.cf.* configs/krb5.conf /etc/
+#ADD configs/eos.sysconfig /etc/sysconfig/eos
+#ADD configs/xrd.cf.* configs/krb5.conf /etc/
 ADD configs/fuse.conf /etc/eos/fuse.conf
 ADD dictionary/fstfmd.dict /var/eos/md/
 
