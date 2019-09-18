@@ -30,8 +30,41 @@
   notify:
   - reload firewalld
 
+- name: Disable ssh service on external zone
+  firewalld:
+    service: ssh
+    permanent: true
+    immediate: true
+    state: disabled
+    zone: external
+  notify:
+  - reload firewalld
+
+- name: Add external zone sources to firewalld
+  firewalld:
+    source: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: external
+  loop: "{{ firewall_external_zone_sources }}"
+  notify:
+  - reload firewalld
+
 - name: Set drop as default policy
   shell: "if ! firewall-cmd --get-default-zone | grep drop ; then firewall-cmd --set-default-zone=drop && echo changed; else echo skipped; fi"
+  args:
+    executable: /bin/bash
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+
+- name: Create iptables syslog redirection config file
+  template: src=01_iptables.conf.j2 dest=/etc/rsyslog.d/01_iptables.conf owner=root group=root mode=0644
+  notify:
+  - restart rsyslog
+
+- name: Set logrotate for iptables syslog file
+  shell: "if ! grep '{{ iptables_syslog_file|replace('.', '\\.') }}' /etc/logrotate.d/syslog ; then sed '\\#{{ '{' }}#i{{ iptables_syslog_file }}' -i /etc/logrotate.d/syslog && echo changed; else echo skipped; fi"
   args:
     executable: /bin/bash
   register: command_result

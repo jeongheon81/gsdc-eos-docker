@@ -6,8 +6,8 @@ docker rm -f eos-qdb-kisti01 &
 docker rm -f eos-qdb-kisti02 &
 docker rm -f eos-qdb-kisti03 &
 docker rm -f eos-mq-kisti01 &
-docker rm -f eos-krb-kisti &
-docker rm -f eos-mgm-kisti01 &
+docker rm -f eos-krb-01 &
+docker rm -f eos-mgm-01 &
 docker rm -f eos-mgm-kisti02 &
 docker rm -f eos-fst-kisti01 &
 docker rm -f eos-fst-kisti02 &
@@ -33,3 +33,23 @@ docker rm -f eos-mgm-kisti01 &
 docker rm -f eos-mgm-kisti02 &
 docker rm -f eos-mq-kisti01 &
 rm -rf /etc/eos-docker/eos-m*
+
+firewall-cmd --permanent --direct --add-chain ipv4 filter DOCKER-USER
+
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 -d 224.0.0.0/4 -j RETURN # multi-cast
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 2 -d 134.75.125.31 -j RETURN
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 3 -d 192.168.125.31 -j RETURN
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 11 -s 134.75.125.0/24 ! -d 134.75.125.31 -j RETURN
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 996 -s 192.168.0.0/16 ! -d 192.168.125.31 -j LOG --log-prefix "DU_DROP: "
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 997 -s 192.168.0.0/16 ! -d 192.168.125.31 -j DROP
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 998 ! -d 134.75.125.31 -j LOG --log-prefix "DU_DROP: "
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 999 ! -d 134.75.125.31 -j DROP
+
+firewall-cmd --direct --get-all-rules
+
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 11 -o br1 -s 134.75.125.0/24 -j ACCEPT
+firewall-cmd --permanent --direct --get-all-rules
+
+firewall-cmd --permanent --direct --remove-rule ipv4 filter DOCKER-USER 11 -o br1 -s 134.75.125.0/24 -j ACCEPT
+
+firewall-cmd --reload

@@ -1,0 +1,11 @@
+---
+- name: Setup firewall by service on internal zone
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: "{{ firewall_service_state }}"
+    zone: internal
+  loop: "{{ firewall_service_list }}"
+  notify:
+  - reload firewalld

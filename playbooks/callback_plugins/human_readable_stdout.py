@@ -77,8 +77,16 @@ class CallbackModule(CallbackModule_default):  # pylint: disable=too-few-public-
         if ('no_print_skip_action' not in result._task.tags and 'no_print_action' not in result._task.tags) or 'print_action' in result._task.tags or (self._display.verbosity > 1 or '_ansible_verbose_always' in result._result):
             CallbackModule_default.v2_runner_on_skipped(self, result)
 
+    def v2_runner_item_on_ok(self, result):
+        if 'no_print_action' not in result._task.tags or 'print_action' in result._task.tags or (self._display.verbosity > 1 or '_ansible_verbose_always' in result._result):
+            CallbackModule_default.v2_runner_item_on_ok(self, result)
+
+    def v2_runner_item_on_skipped(self, result):
+        if ('no_print_skip_action' not in result._task.tags and 'no_print_action' not in result._task.tags) or 'print_action' in result._task.tags or (self._display.verbosity > 1 or '_ansible_verbose_always' in result._result):
+            CallbackModule_default.v2_runner_item_on_skipped(self, result)
+
     def v2_playbook_on_task_start(self, task, is_conditional):
-        if 'no_print_action' not in task.tags or 'print_action' in task.tags or self._display.verbosity > 1:
+        if (not task.get_name().strip().endswith('no_print_action') and 'no_print_action' not in task.tags) or 'print_action' in task.tags or self._display.verbosity > 1:
             CallbackModule_default.v2_playbook_on_task_start(self, task, is_conditional)
 
     def v2_playbook_on_include(self, included_file):

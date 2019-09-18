@@ -1,0 +1,13 @@
+---
+
+chrony_firewall_direct_rules:
+- { tag: "Set counter for the NTP query frequency (ipv4)", rule: "ipv4 filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 0 }} -p udp --dport 123 -m recent --set --name ntpquery" }
+- { tag: "Check the NTP query frequency and log (ipv4)"  , rule: "ipv4 filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 1 }} -p udp --dport 123 -m recent --name ntpquery --rcheck --seconds 60 --hitcount 3 -j LOG --log-prefix \"FWDID_DROP: \"" }
+- { tag: "Check the NTP query frequency and drop (ipv4)" , rule: "ipv4 filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 2 }} -p udp --dport 123 -m recent --name ntpquery --rcheck --seconds 60 --hitcount 3 -j DROP" }
+- { tag: "Prevent NTP-DoS, log (ipv4)" , rule: "ipv4 filter OUTPUT {{ firewall_direct_rule_priority_base.chrony|int + 0 }} -p udp --sport 123 -m length --length 600: -j LOG --log-prefix \"FWDOD_DROP: \"" }
+- { tag: "Prevent NTP-DoS, drop (ipv4)", rule: "ipv4 filter OUTPUT {{ firewall_direct_rule_priority_base.chrony|int + 1 }} -p udp --sport 123 -m length --length 600: -j DROP" }
+- { tag: "Set counter for the NTP query frequency (ipv6)", rule: "ipv6 filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 0 }} -p udp --dport 123 -m recent --set --name ntpquery" }
+- { tag: "Check the NTP query frequency and log (ipv6)"  , rule: "ipv6 filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 1 }} -p udp --dport 123 -m recent --name ntpquery --rcheck --seconds 60 --hitcount 3 -j LOG --log-prefix \"FWDID_DROP: \"" }
+- { tag: "Check the NTP query frequency and drop (ipv6)" , rule: "ipv6 filter INPUT {{ firewall_direct_rule_priority_base.chrony|int + 2 }} -p udp --dport 123 -m recent --name ntpquery --rcheck --seconds 60 --hitcount 3 -j DROP" }
+- { tag: "Prevent NTP-DoS, log (ipv6)" , rule: "ipv6 filter OUTPUT {{ firewall_direct_rule_priority_base.chrony|int + 0 }} -p udp --sport 123 -m length --length 600: -j LOG --log-prefix \"FWDOD_DROP: \"" }
+- { tag: "Prevent NTP-DoS, drop (ipv6)", rule: "ipv6 filter OUTPUT {{ firewall_direct_rule_priority_base.chrony|int + 1 }} -p udp --sport 123 -m length --length 600: -j DROP" }

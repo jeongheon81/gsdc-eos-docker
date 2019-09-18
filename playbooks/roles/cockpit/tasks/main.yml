@@ -58,17 +58,10 @@
     systemd: name=cockpit.socket state=started enabled=true
 
   - name: Enable cockpit via firewalld
-    firewalld:
-      service: "{{ item }}"
-      permanent: true
-      immediate: true
-      state: enabled
-      zone: internal
-    with_items:
-    - cockpit
-    - pmcd
-    notify:
-    - reload firewalld
+    import_tasks: tasks/firewall_by_service_on_internal.yml
+    vars:
+      firewall_service_state: enabled
+      firewall_service_list: [ 'cockpit', 'pmcd' ]
 
   when: cockpit_enabled|bool
 

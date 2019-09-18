@@ -11,6 +11,9 @@
 - name: restart chronyd
   systemd: name=chronyd state=restarted
 
+- name: restart rsyslog
+  systemd: name=rsyslog state=restarted
+
 - name: restart docker
   service: name=docker state=restarted
 

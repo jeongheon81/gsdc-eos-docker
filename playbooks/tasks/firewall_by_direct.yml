@@ -1,0 +1,47 @@
+---
+- block:
+  - name: Setup firewall by direct
+    shell: |
+      if {{ 'true' if firewall_direct_rule_state == 'present' else 'false' }} ; then
+        if ! firewall-cmd --direct --get-all-rules | grep '{{ item.tag }}' ; then
+          firewall-cmd --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+        else
+          echo skipped;
+        fi
+      else
+        if firewall-cmd --direct --get-all-rules | grep '{{ item.tag }}' ; then
+          firewall-cmd --direct --remove-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+        else
+          echo skipped;
+        fi
+      fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ firewall_direct_rule_list }}"
+
+  - name: Setup firewall by direct --permanent
+    shell: |
+      if {{ 'true' if firewall_direct_rule_state == 'present' else 'false' }} ; then
+        if ! firewall-cmd --permanent --direct --get-all-rules | grep '{{ item.tag }}' ; then
+          firewall-cmd --permanent --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+        else
+          echo skipped;
+        fi
+      else
+        if firewall-cmd --permanent --direct --get-all-rules | grep '{{ item.tag }}' ; then
+          firewall-cmd --permanent --direct --remove-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+        else
+          echo skipped;
+        fi
+      fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ firewall_direct_rule_list }}"
+    notify:
+    - reload firewalld
+
+  when: firewall_direct_rule_state == 'present' or firewall_direct_rule_state == 'absent'
