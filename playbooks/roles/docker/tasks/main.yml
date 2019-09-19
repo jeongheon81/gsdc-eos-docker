@@ -106,7 +106,7 @@
 
 - block:
   - name: Start default route monitoring
-    shell: touch /tmp/DEFAULT_ROUTE_MONITORING; while [ -e /tmp/DEFAULT_ROUTE_MONITORING ] ; do if route -n | grep '^0\.0\.0\.0' &>/dev/null ; then sleep 1 ; else sleep 5; systemctl restart network &>/dev/null ; fi ; done
+    shell: touch /tmp/DEFAULT_ROUTE_MONITORING; while [ -e /tmp/DEFAULT_ROUTE_MONITORING ] ; do if route -n | grep '^0\.0\.0\.0' &>/dev/null ; then sleep 1 ; else sleep 5; systemctl restart network &>/dev/null; touch {{ install_info_home }}/DOCKER_NETWORK_WRONG ; fi ; done
     args:
       warn: no
     async: 1000

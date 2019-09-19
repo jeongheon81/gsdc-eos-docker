@@ -2,8 +2,17 @@
 - name: reload systemd
   command: systemctl daemon-reload
 
+- name: reload network interface
+  shell: nmcli con reload
+  listen: "wait for new network settings"
+
+- name: restart NetworkManager
+  systemd: name=NetworkManager state=restarted
+  listen: "wait for new network settings"
+
 - name: restart network
   systemd: name=network state=restarted
+  listen: "wait for new network settings"
 
 - name: reload firewalld
   command: firewall-cmd --reload
@@ -15,13 +24,10 @@
   systemd: name=rsyslog state=restarted
 
 - name: restart docker
-  service: name=docker state=restarted
+  systemd: name=docker state=restarted
 
-- name: reload network interface
-  shell: nmcli con reload
-
-- name: restart NetworkManager
-  service: name=NetworkManager state=restarted
+- name: reload docker
+  systemd: name=docker state=reloaded
 
 - name: pause before waitting
   pause: seconds=5

@@ -3,13 +3,11 @@
   template: src=route.j2 dest=/etc/sysconfig/network-scripts/route-{{ item.device }} owner=root group=root mode=0644
   loop: "{{ network_routes }}"
   notify:
-  - restart network
   - wait for new network settings
 
 - name: Create resolv files
   template: src=resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
   notify:
-  - restart network
   - wait for new network settings
 
 - meta: flush_handlers
@@ -49,7 +47,6 @@
     changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
     loop: "{{ before_bridge_config_stats.results }}"
     notify:
-    - restart network
     - wait for new network settings
 
   - name: check bridge config before (nmcli module changed_when bug work around)
@@ -75,7 +72,6 @@
     changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
     loop: "{{ before_bridge_config_stats.results }}"
     notify:
-    - restart network
     - wait for new network settings
 
   - name: check bridge config before (nmcli module changed_when bug work around)
@@ -99,7 +95,6 @@
     changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
     loop: "{{ before_bridge_config_stats.results }}"
     notify:
-    - restart network
     - wait for new network settings
 
   when: network_bridge is defined
