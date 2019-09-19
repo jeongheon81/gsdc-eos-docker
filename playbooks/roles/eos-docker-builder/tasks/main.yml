@@ -19,6 +19,7 @@
 
   - name: Copy eos container build files
     copy: src={{ item.src }} dest={{ item.dest }}
+    register: container_build_files
     loop:
     - { src: "Dockerfile", dest: "{{ eos_container_build_home }}/Dockerfile" }
     - { src: "repos", dest: "{{ eos_container_build_home }}" }
@@ -27,7 +28,7 @@
     - { src: "dictionary", dest: "{{ eos_container_build_home }}" }
 
   - name: Changing permissions of "image_scripts/*", adding "+x"
-    file: dest={{ eos_container_build_home }}/image_scripts mode=a+x recurse=yes
+    file: path={{ eos_container_build_home }}/image_scripts mode=a+x recurse=yes
 
   when: containers is defined
 
@@ -68,7 +69,7 @@
 
   run_once: true
   delegate_to: "{{ eos_container_image_builder }}"
-  when: containers is defined and eos_docker_image_info.images|length == 0
+  when: containers is defined and (eos_docker_image_info.images|length == 0 or container_build_files.changed)
 
 - name: Check fetched eos container image
   become: no

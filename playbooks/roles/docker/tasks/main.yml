@@ -28,6 +28,7 @@
     - device-mapper-persistent-data
     - lvm2
     - python2-pip
+    - nfs-utils
     state: latest
   register: install_packages
   until: install_packages is success

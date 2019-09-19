@@ -45,7 +45,7 @@
 
   - name: Start container for shiped files
     docker_container:
-      name: "{{ item.eos_componet.name }}"
+      name: "{{ item.eos_componet.name }}_temp"
       image: "{{ item.eos_componet.image }}"
       state: started
       recreate: yes
@@ -65,7 +65,7 @@
 
   - name: Stop container for shiped files
     docker_container:
-      name: "{{ item.eos_componet.name }}"
+      name: "{{ item.eos_componet.name }}_temp"
       state: absent
     when: not item.is_initialized or need_shiped_files[item.eos_componet.name]
     loop: "{{ initialization_infos }}"
