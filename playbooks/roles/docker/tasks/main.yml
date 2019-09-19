@@ -87,6 +87,8 @@
   loop:
   - net.ipv4.ip_forward
   - net.ipv4.conf.all.forwarding
+  - net.bridge.bridge-nf-call-iptables
+  - net.bridge.bridge-nf-call-ip6tables
 
 - name: Install Python packages
   pip:
