@@ -40,8 +40,9 @@
       executable: /bin/bash
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    when: firewall_direct_rule_permanent|bool
     loop: "{{ firewall_direct_rule_list }}"
     notify:
     - reload firewalld
 
-  when: firewall_direct_rule_state == 'present' or firewall_direct_rule_state == 'absent'
+  when: firewall_direct_rule_state in [ 'present', 'absent' ]

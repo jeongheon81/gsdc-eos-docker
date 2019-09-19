@@ -143,4 +143,25 @@
 
   when: container_network is defined
 
+- name: Setup firewall chain for docker security
+  import_tasks: tasks/firewall_chain_by_direct.yml
+  vars:
+    firewall_chain_direct_rule_permanent: yes
+    firewall_chain_direct_rule_state: present
+    firewall_chain_direct_rule_list:
+    - { ipv: "ipv4", table: "filter", chain: "DOCKER-USER" }
+  when: container_network_user_firewall_rules is defined
+
+- meta: flush_handlers
+
+- name: Setup firewall for docker security
+  import_tasks: tasks/firewall_by_direct.yml
+  vars:
+    firewall_direct_rule_permanent: yes
+    firewall_direct_rule_state: present
+    firewall_direct_rule_list: "{{ container_network_user_firewall_rules }}"
+  when: container_network_user_firewall_rules is defined
+
+- meta: flush_handlers
+
 # https://github.com/nickjj/ansible-docker

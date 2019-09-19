@@ -2,7 +2,7 @@
 - name: Setup firewall by service on internal zone
   firewalld:
     service: "{{ item }}"
-    permanent: true
+    permanent: "{{ firewall_service_permanent }}"
     immediate: true
     state: "{{ firewall_service_state }}"
     zone: internal
