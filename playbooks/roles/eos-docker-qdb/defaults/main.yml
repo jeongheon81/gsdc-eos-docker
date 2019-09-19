@@ -8,5 +8,4 @@ template_files:
 - { container_path: "/eos_qdb_setup.sh", host_dir: ".", host_file: "eos_qdb_setup.sh", template_file: "eos_qdb_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
 persistent_volumes:
 - { name: "roothome", dest: "/root" }
-- { name: "qdbdata", dest: "/var/lib/quarkdb" }
 - { name: "log", dest: "/var/log/eos" }
