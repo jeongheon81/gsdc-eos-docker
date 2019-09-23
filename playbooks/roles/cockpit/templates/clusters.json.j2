@@ -1,8 +1,7 @@
-{
+{% set cockpit_clusters = {} %}
 {% for host in groups['all'] %}
-  "{{ host }}": {
-    "address": "{{ hostvars[host]['ansible_fqdn'] }}",
-    "visible": true
-  }{%- if not loop.last -%} , {%- endif -%} {{ "\n" }}
+{%   if host != inventory_hostname %}
+{%     set _dummy = cockpit_clusters.update({ host: { "address": hostvars[host]['ansible_fqdn'], "visible": true } }) %}
+{%   endif %}
 {% endfor %}
-}
+{{ cockpit_clusters | to_nice_json }}
