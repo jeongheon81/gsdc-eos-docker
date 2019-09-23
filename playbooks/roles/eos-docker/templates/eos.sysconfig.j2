@@ -71,6 +71,9 @@ export EOS_MGM_MASTER{{ loop.index }}={{ eos_mgm_master }}
 # The alias which selects master 1 or 2
 export EOS_MGM_ALIAS={{ eos_mgm_alias }}
 
+# Define if sync/eossync should be started separately, not by MGM
+export EOS_START_SYNC_SEPARATELY=1
+
 # Define if you want a namespace copy when doing a slave2master transition [default off]
 # export EOS_MGM_CP_ON_FAILOVER=1
 
@@ -99,17 +102,17 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export EOS_SECONDARY_GROUPS=0
 
 # Do subtree accounting on directories (set to 1 to enable)
-#export EOS_NS_ACCOUNTING=0
+export EOS_NS_ACCOUNTING=1
 
 # Do sync time propagation (set to 1 to enable)
-#export EOS_SYNCTIME_ACCOUNTING=0
+export EOS_SYNCTIME_ACCOUNTING=1
 
 # Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
 # export EOS_ALLOW_RAIN_RWM
 
 # Use std::shared_timed_mutex for the RWMutex implementation - uncomment to
 # enable.
-# export EOS_USE_SHARED_MUTEX=1
+export EOS_USE_SHARED_MUTEX=1
 
 # Allow heap profiling when using jemalloc built with profiling enabled (start profiling with signal 40 and stop with signal 41)
 # for information about the option see https://linux.die.net/man/3/jemalloc
@@ -179,6 +182,9 @@ EOS_USE_QDB_MASTER=1
 # the value is 10.
 # EOS_FST_CALL_MANAGER_XRD_POOL_SIZE=10
 
+# The port the FST should run on
+#export EOS_FST_PORT=1095
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
@@ -217,10 +223,11 @@ export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
 #export EOS_FUSE_NO_MT=1
 
 # Enable FUSE read-ahead (default off)
-#export EOS_FUSE_RDAHEAD=0
+export EOS_FUSE_RDAHEAD=1
 
 # Configure FUSE read-ahead window (default 128k)
-# export EOS_FUSE_RDAHEAD_WINDOW=131072
+export EOS_FUSE_RDAHEAD_WINDOW=131072
+
 # Disable using access for access permission check (default on)
 # export EOS_FUSE_NOACCESS=0
 

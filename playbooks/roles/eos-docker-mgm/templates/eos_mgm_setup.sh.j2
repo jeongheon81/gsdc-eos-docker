@@ -10,17 +10,30 @@ else
   XROOTDEXE="/usr/bin/xrootd"
 fi
 
-${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -m -l /var/log/eos/xrdlog.mgm -b -Rdaemon
+if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
+  if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+    touch /var/eos/eos.mgm.rw
+  fi
+else
+  if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+    unlink /var/eos/eos.mgm.rw
+  fi
+fi
 
-# Enable sss authentication for the FSTs to connect to the MGM
-eos -b vid enable sss
-
-# let the force be with {{ eos_admin_user }} (typically krb-authenticated on clients)
-groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
-useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
-eos -b vid set membership {{ eos_admin_user }} +sudo
+cd /var/spool/eos/core
+${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -b -Rdaemon
 
 if [ ! -e /root/INITIALIZED ] ; then
+  groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
+  useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
+
+  if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
+    # Enable sss authentication for the FSTs to connect to the MGM
+    eos -b vid enable sss
+
+    # let the force be with {{ eos_admin_user }} (typically krb-authenticated on clients)
+    eos -b vid set membership {{ eos_admin_user }} +sudo
+  fi
 
   touch /root/INITIALIZED
 fi

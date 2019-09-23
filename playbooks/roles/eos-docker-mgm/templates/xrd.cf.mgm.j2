@@ -22,13 +22,14 @@ sec.protocol krb5 /etc/eos.krb5.keytab host/<host>@{{ eos_realm }}
 
 # GSI authentication
 #sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1 -exppxy:/var/eos/auth/gsi#<uid>
-
-sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
+#sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
+#sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2
 
 ###########################################################
 sec.protbind localhost.localdomain unix sss
 sec.protbind localhost unix sss
-sec.protbind * only krb5 gsi sss unix
+#sec.protbind * only krb5 gsi sss unix
+sec.protbind * only krb5 sss unix
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095
@@ -79,7 +80,7 @@ mgmofs.cfgtype file
 
 ###########################################################
 # Set the FST gateway host and port
-mgmofs.fstgw someproxy.cern.ch:3001
+#mgmofs.fstgw someproxy.cern.ch:3001
 
 #-------------------------------------------------------------------------------
 # Configuration for the authentication plugin EosAuth
@@ -99,7 +100,7 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 # Quarkdb custer configuration used for the namespace
 mgmofs.qdbcluster {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(' ') }}
-mgmofs.qdbpassword_file /etc/eos.keytab
+#mgmofs.qdbpassword_file /etc/eos.keytab
 
 # Enable central draining to be use with Quarkdb namespace
 mgmofs.centraldrain true

@@ -7,4 +7,5 @@ else
   XROOTDEXE="/usr/bin/xrootd"
 fi
 
-${XROOTDEXE} -n proxy -c /etc/xrootd/xrootd-fwd-proxy.cfg -l /var/log/eos/xrdlog.proxy -b -Rdaemon
+cd /var/spool/eos/core
+${XROOTDEXE} -n proxy -c /etc/xrootd/xrootd-fwd-proxy.cfg -l /var/log/eos/xrdlog.proxy -s /tmp/xrootd.proxy.pid -b -Rdaemon

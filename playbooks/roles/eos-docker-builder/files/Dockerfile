@@ -10,8 +10,8 @@ MAINTAINER Elvin Sindrilaru, esindril@cern.ch, CERN 2017
 ADD repos/*.repo /etc/yum.repos.d/
 
 # Add helper scripts
-ADD image_scripts/*.sh /
-RUN chmod a+x *.sh
+#ADD image_scripts/*.sh /
+#RUN chmod a+x *.sh
 
 # Add configuration files for EOS instance
 #ADD configs/eos.sysconfig /etc/sysconfig/eos
@@ -23,19 +23,22 @@ ADD dictionary/fstfmd.dict /var/eos/md/
 ADD configs/xrootd.conf /etc/tmpfiles.d/
 ADD configs/xrootd-fwd-proxy.cfg /etc/xrootd/
 
-RUN mkdir -p /var/tmp/eosxd-cache/ /var/tmp/eosxd-journal/ /data/
+RUN mkdir -p /var/tmp/eosxd-cache/ /var/tmp/eosxd-journal/ /data/ /var/spool/eos/core
 RUN useradd eos-user
 
 # Docker will aggressively cache the following command, but this is fine, since
 # these packages are not updated often.
-RUN yum -y --nogpg install \
+RUN rpm --rebuilddb && yum -y install \
     heimdal-server heimdal-workstation \
     krb5-workstation yum-plugin-priorities \
     createrepo initscripts less nano \
     git parallel compat-libf2c-34 libgfortran \
     gdb gcc-c++ cmake3 libacl-devel perl-Test-Harness \
     rpm-build bzip2 automake autoconf libtool sudo vim \
-    centos-release-scl-rh at
+    centos-release-scl-rh at \ 
+    protobuf3 cryptsetup e2fsprogs xfsprogs smartmontools && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
 # Install new EOS from created repo - the ADD command will reset the docker cache,
 # and any commands after that point will be uncached.
@@ -45,10 +48,15 @@ RUN yum -y --nogpg install \
 # Special packages, must be installed un-cached.
 #RUN createrepo ${EOSREPODIR}; \
 #    echo -e "[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://${EOSREPODIR}\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos.repo; \
-RUN yum -y --nogpg install quarkdb quarkdb-debuginfo redis grid-hammer davix; \
+RUN rpm --rebuilddb; \
+    yum -y --nogpg install quarkdb quarkdb-debuginfo redis grid-hammer davix; \
     yum -y --nogpg install \
     eos-server eos-testkeytab eos-archive eos-client \
-    eos-debuginfo eos-fuse eos-fusex eos-test xrootd xrootd-client
+    eos-debuginfo eos-fuse eos-fusex eos-test \
+    xrootd xrootd-libs xrootd-client xrootd-client-libs xrootd-client-devel \
+    xrootd-server xrootd-server-libs xrootd-server-devel xrootd-private-devel; \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
 # Generate a new forwardable keytab 'eos-test+' to replace the not-forwardable one (installed by the eos-testkeytab package).
 # This is useful to deploy EOS on Kubernetes clusters running on CERN's Cloud Infrastructure; you can remove these lines if you don't need one.
@@ -57,6 +65,15 @@ RUN yes | xrdsssadmin -k eos-test del /etc/eos.keytab; \
     chown daemon:daemon /etc/eos.keytab
 
 # Change owner of /var/spool/xrootd directory to daemon
-RUN chown daemon:daemon /var/spool/xrootd
+RUN chown daemon:daemon /var/spool/xrootd; \
+    chown daemon:daemon /var/spool/eos; \
+    chown daemon:daemon /var/spool/eos/core; \
+    chown daemon:daemon /var/eos/md; \
+    chown daemon:daemon /var/eos/md/fstfmd.dict; \
+    chmod 0700 /var/eos/md
+
+# Raise limits
+RUN echo "*          soft    nofile    200000" >> /etc/security/limits.d/10-nofile.conf && \
+    echo "*          hard    nofile    200000" >> /etc/security/limits.d/10-nofile.conf
 
 ENTRYPOINT ["/bin/bash"]

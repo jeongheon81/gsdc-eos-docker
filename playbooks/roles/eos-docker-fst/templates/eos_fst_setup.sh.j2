@@ -17,8 +17,9 @@ else
    XROOTDEXE="/usr/bin/xrootd"
 fi
 
+cd /var/spool/eos/core
 echo "Starting fst: {{ item[0].eos_componet.name }} ..."
-${XROOTDEXE} -n fst${id} -c /etc/xrd.cf.fst -l /var/log/eos/xrdlog.fst -b -Rdaemon
+${XROOTDEXE} -n fst${id} -c /etc/xrd.cf.fst -l /var/log/eos/xrdlog.fst${id} -s /tmp/xrootd.fst${id}.pid -b -Rdaemon
 
 if [ ! -e /root/INITIALIZED ] ; then
   echo "Configuring fst: {{ item[0].eos_componet.name }} ..."

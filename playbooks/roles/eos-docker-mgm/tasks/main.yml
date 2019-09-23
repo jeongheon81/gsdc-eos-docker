@@ -6,7 +6,12 @@
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
 
-  - name: Start service
+  - name: Start service mq
+    shell: docker exec -i {{ item.item.name }} /eos_mq_setup.sh
+    when: item.changed
+    loop: "{{ container_start_results.results }}"
+
+  - name: Start service mgm
     shell: docker exec -i {{ item.item.name }} /eos_mgm_setup.sh
     when: item.changed
     loop: "{{ container_start_results.results }}"

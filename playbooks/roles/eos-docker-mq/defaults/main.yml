@@ -10,4 +10,6 @@ template_files:
 persistent_volumes:
 - { name: "roothome", dest: "/root" }
 - { name: "eos", dest: "/var/eos" }
+- { name: "spooleos", dest: "/var/spool/eos" }
+- { name: "spoolxrootd", dest: "/var/spool/xrootd" }
 - { name: "log", dest: "/var/log/eos" }
