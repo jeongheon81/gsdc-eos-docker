@@ -100,7 +100,7 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 # Quarkdb custer configuration used for the namespace
 mgmofs.qdbcluster {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(' ') }}
-#mgmofs.qdbpassword_file /etc/eos.keytab
+mgmofs.qdbpassword_file /etc/eos.keytab
 
 # Enable central draining to be use with Quarkdb namespace
 mgmofs.centraldrain true

@@ -2,11 +2,15 @@
 
 source /etc/sysconfig/eos
 
-if [ -e /opt/eos/xrootd/bin/xrootd ]; then
-  XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
-else
-  XROOTDEXE="/usr/bin/xrootd"
-fi
+if [ ! -e /tmp/xrootd.sync.pid ] || ! ps $(cat /tmp/xrootd.sync.pid) | grep 'xrootd -n sync' &>/dev/null ; then
+  if [ -e /opt/eos/xrootd/bin/xrootd ]; then
+    XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
+  else
+    XROOTDEXE="/usr/bin/xrootd"
+  fi
 
-cd /var/spool/eos/core
-${XROOTDEXE} -n sync -c /etc/xrd.cf.sync -l /var/log/eos/xrdlog.sync -s /tmp/xrootd.sync.pid -b -Rdaemon
+  cd /var/spool/eos/core
+  ${XROOTDEXE} -n sync -c /etc/xrd.cf.sync -l /var/log/eos/xrootd.sync.log -s /tmp/xrootd.sync.pid -b -Rdaemon
+else
+  echo "Already started, PID: $(cat /tmp/xrootd.sync.pid)"
+fi

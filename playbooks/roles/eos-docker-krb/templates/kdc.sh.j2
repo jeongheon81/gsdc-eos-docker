@@ -17,19 +17,23 @@ fi
 # Populate KDC and generate keytab files
 echo -n "Populating kdc... "
 if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get {{ eos_admin_user }} &>/dev/null ; then
-  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults {{ eos_admin_user }} | /usr/bin/tee -a /root/{{ eos_admin_user }}.log
-  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults {{ eos_admin_user }} | /usr/bin/tee -a /root/user.{{ eos_admin_user }}.log
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }}
 fi
-if [ ! -e /root/{{ eos_admin_user }}.keytab ] ; then
-  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}
+if [ ! -e /root/user.{{ eos_admin_user }}.keytab ] ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }}
 fi
-{% for eos_mgm_master in eos_mgm_masters %}
-if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get host/{{ eos_mgm_master }} &>/dev/null ; then
-  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults host/{{ eos_mgm_master }} | /usr/bin/tee -a /root/{{ eos_mgm_master }}.log
-  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/{{ eos_mgm_master }}.keytab host/{{ eos_mgm_master }}
+{% for eos_mgm_node in eos_mgm_nodes %}
+if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get host/{{ eos_mgm_node }} &>/dev/null ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/host.{{ eos_mgm_node }}.log
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }}
 fi
+if [ ! -e /root/host.{{ eos_mgm_node }}.keytab ] ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }}
+fi
+{% endfor %}
 if [ ! -e /root/eos.keytab ] ; then
-  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/{{ eos_mgm_master }}.keytab host/{{ eos_mgm_master }}
+  yes | xrdsssadmin -k eos+ -u daemon -g daemon add /root/eos.keytab | /usr/bin/tee -a /root/eos.keytab.log
+  chown daemon:daemon /root/eos.keytab
 fi
-{% endfor -%}
 echo Done.

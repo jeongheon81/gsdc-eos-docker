@@ -1,29 +1,31 @@
 
 
 
-docker rm -f eos-proxy-kisti &
-docker rm -f eos-qdb-kisti01 &
-docker rm -f eos-qdb-kisti02 &
-docker rm -f eos-qdb-kisti03 &
-docker rm -f eos-mq-kisti01 &
+docker rm -f eos-proxy-01 &
+docker rm -f eos-qdb-01 &
+docker rm -f eos-qdb-02 &
+docker rm -f eos-qdb-03 &
 docker rm -f eos-krb-01 &
 docker rm -f eos-mgm-01 &
-docker rm -f eos-mgm-kisti02 &
-docker rm -f eos-fst-kisti01 &
-docker rm -f eos-fst-kisti02 &
-docker rm -f eos-fst-kisti03 &
+docker rm -f eos-mgm-02 &
+docker rm -f eos-fst-01 &
+docker rm -f eos-fst-02 &
+docker rm -f eos-fst-03 &
 
 rm -rf /etc/eos-docker/
+rm -rf /etc/eos-docker/eos-mgm-*
 
 docker volume prune
 docker container prune
 
-docker volume rm eos-fst-kisti01_data
-docker volume rm eos-fst-kisti02_data
-docker volume rm eos-fst-kisti03_data
-docker volume rm eos-qdb-kisti01_qdb
-docker volume rm eos-qdb-kisti02_qdb
-docker volume rm eos-qdb-kisti03_qdb
+docker volume rm eos-fst-01_data
+docker volume rm eos-fst-02_data
+docker volume rm eos-fst-03_data
+docker volume rm eos-qdb-01_qdb
+docker volume rm eos-qdb-02_qdb
+docker volume rm eos-qdb-03_qdb
+docker volume ls
+
 
 
 docker exec -i eos-mgm-kisti01 /eos_mgm_fs_setup.sh 2
@@ -53,3 +55,28 @@ firewall-cmd --permanent --direct --get-all-rules
 firewall-cmd --permanent --direct --remove-rule ipv4 filter DOCKER-USER 11 -o br1 -s 134.75.125.0/24 -j ACCEPT
 
 firewall-cmd --reload
+
+
+redis-cli -p 7777 -h eos-qdb-01.eoscluster.sdfarm.kr -a "$(cat /etc/eos.keytab)" keys "eos-config*"
+redis-cli -p 7777 -h eos-qdb-01.eoscluster.sdfarm.kr keys "eos-config*"
+redis-cli -p 7777 -h eos-qdb-01.eoscluster.sdfarm.kr keys "eos-config*" | awk '{print "redis-cli -p 7777 -h eos-qdb-01.eoscluster.sdfarm.kr del "$1;}' | sh -x
+
+
+grep -i warn /var/log/eos/mgm/xrdlog.mgm
+
+
+docker run --privileged --pid=host -dit -h eos-client-sut.eoscluster.sut.ac.th --name eos-client-sut --net=eoscluster.sut.ac.th --net-alias=eos-client-sut --ip 202.28.43.176 eos-sut:1
+docker cp /var/lib/docker/volumes/eos-krb-sut_roothome/_data/admin1.keytab eos-client-sut:/root/admin1.keytab
+docker exec -i eos-krb-sut cat /etc/krb5.conf | docker exec -i eos-client-sut bash -c "cat > /etc/krb5.conf"
+
+docker exec -i eos-client-sut kinit -kt /root/admin1.keytab admin1@SUT.EOS
+docker exec -i eos-client-sut kvno host/eos-mgm-sut01.eoscluster.sut.ac.th
+
+docker exec -i eos-client-sut bash -c "echo 'export '"EOS_MGM_URL=root://eos-mgm-sut01.eoscluster.sut.ac.th:1094" >> /root/.bashrc; source /root/.bashrc"
+
+
+
+EOS Console [root://localhost] |/> vid enable krb5
+EOS Console [root://localhost] |/> vid set map -krb5 <pwd> vuid:root vgid:root
+EOS Console [root://localhost] |/> vid set membership admin1 -uids daemon
+EOS Console [root://localhost] |/> vid set membership admin1 -gids daemon

@@ -17,7 +17,7 @@
       executable: /bin/bash
     register: copy_command_result
     changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
-    loop: "{{ initialization_infos|product(eos_mgm_masters + [ eos_admin_user ])|list }}"
+    loop: "{{ initialization_infos|product( ['host']|product(eos_mgm_nodes)|map('join', '.')|list + [ 'user.'+eos_admin_user, 'eos' ] )|list }}"
 
   - name: Create keytab files directory
     become: no
@@ -26,21 +26,28 @@
       state: directory
       mode: u=rwX,g=rX,o=rX
       recurse: yes
-    loop: "{{ initialization_infos|product(eos_mgm_masters + [ eos_manager_server ])|list }}"
+    loop: "{{ initialization_infos|product(eos_nodes)|list }}"
     delegate_to: 127.0.0.1
 
   - name: Fetch server keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1] }}.keytab"
+      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/host.{{ item[1] }}.keytab"
       dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/eos.krb5.keytab"
       flat: yes
-    loop: "{{ initialization_infos|product(eos_mgm_masters)|list }}"
+    loop: "{{ initialization_infos|product(eos_mgm_nodes)|list }}"
 
   - name: Fetch user keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1] }}.keytab"
-      dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ eos_manager_server }}/{{ item[1] }}.keytab"
+      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/user.{{ eos_admin_user }}.keytab"
+      dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/{{ eos_admin_user }}.keytab"
       flat: yes
-    loop: "{{ initialization_infos|product([ eos_admin_user ])|list }}"
+    loop: "{{ initialization_infos|product(eos_manager_nodes)|list }}"
+
+  - name: Fetch eos keytab files
+    fetch:
+      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/eos.keytab"
+      dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/eos.keytab"
+      flat: yes
+    loop: "{{ initialization_infos|product(eos_nodes)|list }}"
 
   when: containers is defined and containers.eos_krb is defined

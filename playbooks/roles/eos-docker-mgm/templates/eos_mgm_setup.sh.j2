@@ -2,38 +2,42 @@
 
 source /etc/sysconfig/eos
 
-chown daemon:daemon /etc/eos.krb5.keytab
+if [ ! -e /tmp/xrootd.mgm.pid ] || ! ps $(cat /tmp/xrootd.mgm.pid) | grep 'xrootd -n mgm' &>/dev/null ; then
+  chown daemon:daemon /etc/eos.krb5.keytab
 
-if [ -e /opt/eos/xrootd/bin/xrootd ]; then
-  XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
-else
-  XROOTDEXE="/usr/bin/xrootd"
-fi
-
-if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
-  if [[ "$XRD_ROLES" == *"mgm"* ]]; then
-    touch /var/eos/eos.mgm.rw
+  if [ -e /opt/eos/xrootd/bin/xrootd ]; then
+    XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
+  else
+    XROOTDEXE="/usr/bin/xrootd"
   fi
-else
-  if [[ "$XRD_ROLES" == *"mgm"* ]]; then
-    unlink /var/eos/eos.mgm.rw
-  fi
-fi
-
-cd /var/spool/eos/core
-${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -b -Rdaemon
-
-if [ ! -e /root/INITIALIZED ] ; then
-  groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
-  useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
 
   if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
-    # Enable sss authentication for the FSTs to connect to the MGM
-    eos -b vid enable sss
-
-    # let the force be with {{ eos_admin_user }} (typically krb-authenticated on clients)
-    eos -b vid set membership {{ eos_admin_user }} +sudo
+    if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+      touch /var/eos/eos.mgm.rw
+    fi
+  else
+    if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+      unlink /var/eos/eos.mgm.rw
+    fi
   fi
 
-  touch /root/INITIALIZED
+  cd /var/spool/eos/core
+  ${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrootd.mgm.log -s /tmp/xrootd.mgm.pid -b -Rdaemon
+
+  if [ ! -e /root/INITIALIZED ] ; then
+    groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
+    useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }}
+
+    if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
+      # Enable sss authentication for the FSTs to connect to the MGM
+      eos -b vid enable sss
+
+      # let the force be with {{ eos_admin_user }} (typically krb-authenticated on clients)
+      eos -b vid set membership {{ eos_admin_user }} +sudo
+    fi
+
+    touch /root/INITIALIZED
+  fi
+else
+  echo "Already started, PID: $(cat /tmp/xrootd.mgm.pid)"
 fi

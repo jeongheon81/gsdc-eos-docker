@@ -27,7 +27,6 @@
   roles:
   - baseshare
   - eos-docker-krb
-  - eos-docker-mq
   - eos-docker-qdb
   - eos-docker-proxy
   - eos-docker-mgm

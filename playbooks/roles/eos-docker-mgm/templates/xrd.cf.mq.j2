@@ -32,5 +32,5 @@ mq.queue /eos/
 #############################################################
 # Quarkdb custer configuration used for the namespace
 mq.qdbcluster {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(' ') }}
-#mq.qdbpassword_file /etc/eos.keytab
+mq.qdbpassword_file /etc/eos.keytab
 {% endif %}

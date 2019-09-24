@@ -3,10 +3,11 @@ privileged_container: yes
 shiped_files: []
 generated_files:
 - { container_path: "/etc/eos.keytab", host_dir: ".", host_file: "eos.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "eos.keytab", owner: "daemon", group: "daemon", mode: "0400" }
+- { container_path: "/root/{{ eos_admin_user }}.keytab", host_dir: ".", host_file: "{{ eos_admin_user }}.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "{{ eos_admin_user }}.keytab", owner: "root", group: "root", mode: "0400" }
 template_files:
-- { container_path: "/etc/xrd.cf.quarkdb", host_dir: ".", host_file: "xrd.cf.quarkdb", template_file: "xrd.cf.quarkdb.j2", owner: "root", group: "root", mode: "0644" }
+- { container_path: "/etc/sysconfig/eos", host_dir: "./sysconfig", host_file: "eos", template_file: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644" }
 - { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/eos_qdb_setup.sh", host_dir: ".", host_file: "eos_qdb_setup.sh", template_file: "eos_qdb_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
+- { container_path: "/eos_proxy_setup.sh", host_dir: ".", host_file: "eos_proxy_setup.sh", template_file: "eos_proxy_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
 persistent_volumes:
 - { name: "roothome", dest: "/root" }
 - { name: "eos", dest: "/var/eos" }

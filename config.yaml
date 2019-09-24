@@ -75,35 +75,49 @@ group_vars_all:
   eos_container_image_tag: latest
   eos_instance_name: eostestatcf
   eos_geotag: kisti::gsdc::d10
-  eos_mgm_masters:
-  - !unsafe "eos-mgm-01.{{ eos_cluster_domain_name }}"
-  - !unsafe "eos-mgm-02.{{ eos_cluster_domain_name }}"
-  eos_mgm_alias: !unsafe "eos-mgm.{{ eos_cluster_domain_name }}"
-  eos_mgm_url_regular: !unsafe "root://{{ eos_mgm_alias }}:1094"
-  eos_mgm_url_proxied: !unsafe "root://{{ eos_proxy_server }}:1094//root://{{ eos_mgm_alias }}:1094"
-  eos_mq_alias: !unsafe "eos-mgm.{{ eos_cluster_domain_name }}"
-  eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
   eos_mail_cc: sahn@kisti.re.kr
-  eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
-  eos_krb_master: eos-krb.eoscluster.sdfarm.kr
-  eos_manager_server: eos-manager.eoscluster.sdfarm.kr
-  eos_realm: !unsafe "{{ eos_cluster_domain_name|upper }}"
   eos_admin_user: eos-admin
   eos_admin_user_uid: 1001
   eos_admin_user_gid: 1001
   eos_use_proxy: yes
-  eos_proxy_server: eos-proxy.eoscluster.sdfarm.kr
+  eos_realm: !unsafe "{{ eos_cluster_domain_name|upper }}"
+  eos_nodes: !unsafe "{{ eos_krb_nodes + eos_manager_nodes + eos_proxy_nodes + eos_mgm_nodes + eos_qdb_nodes + eos_fst_nodes }}"
+  eos_krb_nodes: "{{ (host_group | default({})) | to_json | from_json |
+    json_query('[?not_null(hosts[].host_vars.containers.eos_krb)].[ hosts[].host_vars.containers.eos_krb ]|[]|[]|[]|
+      [].join(`.`,[@.name, @.domain])') }}"
+  eos_krb_master: !unsafe "{{ eos_krb_nodes[0] }}"
+  eos_manager_nodes: "{{ (host_group | default({})) | to_json | from_json |
+    json_query('[?not_null(hosts[].host_vars.containers.eos_manager)].[ hosts[].host_vars.containers.eos_manager ]|[]|[]|[]|
+      [].join(`.`,[@.name, @.domain])') }}"
+  eos_manager_alias: !unsafe "eos-manager.{{ eos_cluster_domain_name }}"
+  eos_proxy_nodes: "{{ (host_group | default({})) | to_json | from_json |
+    json_query('[?not_null(hosts[].host_vars.containers.eos_proxy)].[ hosts[].host_vars.containers.eos_proxy ]|[]|[]|[]|
+      [].join(`.`,[@.name, @.domain])') }}"
+  eos_proxy_alias: !unsafe "eos-proxy.{{ eos_cluster_domain_name }}"
+  eos_mgm_nodes: "{{ (host_group | default({})) | to_json | from_json |
+    json_query('[?not_null(hosts[].host_vars.containers.eos_mgm)].[ hosts[].host_vars.containers.eos_mgm ]|[]|[]|[]|
+      [].join(`.`,[@.name, @.domain])') }}"
+  eos_mgm_alias: !unsafe "eos-mgm.{{ eos_cluster_domain_name }}"
+  eos_qdb_nodes: "{{ (host_group | default({})) | to_json | from_json |
+    json_query('[?not_null(hosts[].host_vars.containers.eos_qdb)].[ hosts[].host_vars.containers.eos_qdb ]|[]|[]|[]|
+      [].join(`.`,[@.name, @.domain])') }}"
+  eos_qdb_alias: !unsafe "eos-qdb.{{ eos_cluster_domain_name }}"
+  eos_fst_nodes: "{{ (host_group | default({})) | to_json | from_json |
+    json_query('[?not_null(hosts[].host_vars.containers.eos_fst)].[ hosts[].host_vars.containers.eos_fst ]|[]|[]|[]|
+      [].join(`.`,[@.name, @.domain])') }}"
+  eos_mgm_url_regular: !unsafe "root://{{ eos_mgm_alias }}:1094"
+  eos_mgm_url_proxied: !unsafe "root://{{ eos_proxy_node }}:1094//root://{{ eos_mgm_alias }}:1094"
+  eos_mq_alias: !unsafe "eos-mgm.{{ eos_cluster_domain_name }}"
+  eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
+  eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
   eos_default_fs_space_name: default
   eos_default_fs_insertion_status: rw
   eos_default_number_of_fst: 3
   eos_use_qdb: yes
-  qdb_clusters:
-  - eos-qdb-01.eoscluster.sdfarm.kr
-  - eos-qdb-02.eoscluster.sdfarm.kr
-  - eos-qdb-03.eoscluster.sdfarm.kr
+  qdb_clusters: !unsafe "{{ eos_qdb_nodes }}"
   qdb_port: 7777
   qdb_cluster_uuid: 689d996e-c5ee-4bdb-a9be-6689e52a4340
-  qdb_redis_databases: 
+  qdb_redis_databases:
   - /var/lib/quarkdb/node-01
   - /var/lib/quarkdb/node-02
   - /var/lib/quarkdb/node-03
@@ -197,15 +211,15 @@ host_group:
       - { tag: "multi-cast address", rule: "ipv4 filter DOCKER-USER 1 -d 224.0.0.0/4 -j RETURN" }
       - { tag: "bridge-br1 address", rule: "ipv4 filter DOCKER-USER 2 -d 134.75.125.31 -j RETURN" }
       - { tag: "bridge-br2 address", rule: "ipv4 filter DOCKER-USER 3 -s 192.168.0.0/16 -d 192.168.125.31 -j RETURN" }
-      - { tag: "internal address 01", rule: !unsafe "ipv4 filter DOCKER-USER 11 -s 134.75.123.0/24 -j RETURN" }
-      - { tag: "internal address 02", rule: !unsafe "ipv4 filter DOCKER-USER 12 -s 134.75.124.0/24 -j RETURN" }
-      - { tag: "internal address 03", rule: !unsafe "ipv4 filter DOCKER-USER 13 -s 134.75.125.0/24 -j RETURN" }
-      - { tag: "internal address 04", rule: !unsafe "ipv4 filter DOCKER-USER 14 -s 134.75.127.0/24 -j RETURN" }
-      - { tag: "internal address 05", rule: !unsafe "ipv4 filter DOCKER-USER 15 -s 192.168.123.0/24 -j RETURN" }
-      - { tag: "internal address 06", rule: !unsafe "ipv4 filter DOCKER-USER 16 -s 192.168.124.0/24 -j RETURN" }
-      - { tag: "internal address 07", rule: !unsafe "ipv4 filter DOCKER-USER 17 -s 192.168.125.0/24 -j RETURN" }
-      - { tag: "internal address 08", rule: !unsafe "ipv4 filter DOCKER-USER 18 -s 192.168.127.0/24 -j RETURN" }
-      - { tag: "internal address 09", rule: !unsafe "ipv4 filter DOCKER-USER 19 -s 192.168.2.0/24 -j RETURN" }
+      - { tag: "internal address 01", rule: "ipv4 filter DOCKER-USER 11 -s 134.75.123.0/24 -j RETURN" }
+      - { tag: "internal address 02", rule: "ipv4 filter DOCKER-USER 12 -s 134.75.124.0/24 -j RETURN" }
+      - { tag: "internal address 03", rule: "ipv4 filter DOCKER-USER 13 -s 134.75.125.0/24 -j RETURN" }
+      - { tag: "internal address 04", rule: "ipv4 filter DOCKER-USER 14 -s 134.75.127.0/24 -j RETURN" }
+      - { tag: "internal address 05", rule: "ipv4 filter DOCKER-USER 15 -s 192.168.123.0/24 -j RETURN" }
+      - { tag: "internal address 06", rule: "ipv4 filter DOCKER-USER 16 -s 192.168.124.0/24 -j RETURN" }
+      - { tag: "internal address 07", rule: "ipv4 filter DOCKER-USER 17 -s 192.168.125.0/24 -j RETURN" }
+      - { tag: "internal address 08", rule: "ipv4 filter DOCKER-USER 18 -s 192.168.127.0/24 -j RETURN" }
+      - { tag: "internal address 09", rule: "ipv4 filter DOCKER-USER 19 -s 192.168.2.0/24 -j RETURN" }
       - { tag: "drop log no bridge-br2 address", rule: "ipv4 filter DOCKER-USER 996 -s 192.168.0.0/16 ! -d 192.168.125.31 -j LOG --log-prefix \"DU_DROP: \"" }
       - { tag: "drop no bridge-br2 address", rule: "ipv4 filter DOCKER-USER 997 -s 192.168.0.0/16 ! -d 192.168.125.31 -j DROP" }
       - { tag: "drop log no bridge-br1 address", rule: "ipv4 filter DOCKER-USER 998 ! -d 134.75.125.31 -j LOG --log-prefix \"DU_DROP: \"" }
@@ -254,9 +268,12 @@ host_group:
             device: :/ifs/service/eos_kisti/qdb03
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
         eos_proxy:
-        - name: eos-proxy
+        - name: eos-proxy-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.34
+          network_aliases:
+          - eos-proxy
+          - eos-proxy.eoscluster.sdfarm.kr
           xrd_roles:
           - proxy
         eos_mgm:
@@ -268,11 +285,9 @@ host_group:
           - eos-mgm.eoscluster.sdfarm.kr
           xrd_roles:
           - mq
-          - sync
           - mgm
-          mgm_master: yes
-          mgm_host: !unsafe "{{ eos_mgm_masters[0] }}"
-          mgm_host_target: !unsafe "{{ eos_mgm_masters[1] }}"
+          mgm_host: !unsafe "{{ eos_mgm_nodes[0] }}"
+          mgm_host_target: !unsafe "{{ eos_mgm_nodes[1] }}"
         - name: eos-mgm-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.24
@@ -281,11 +296,9 @@ host_group:
           - eos-mgm.eoscluster.sdfarm.kr
           xrd_roles:
           - mq
-          - sync
           - mgm
-          mgm_master: no
-          mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
-          mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
+          mgm_host: !unsafe "{{ eos_mgm_nodes[1] }}"
+          mgm_host_target: !unsafe "{{ eos_mgm_nodes[0] }}"
         eos_fst:
         - name: eos-fst-01
           <<: *eos_container_default
@@ -332,6 +345,9 @@ host_group:
           fst_uuid: 7b30fa24-5b9a-426d-9af8-98a62c341e19
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+        eos_manager:
+        - name: eos-manager-01
+          <<: *eos_container_default
   - name: eos-kisti-02.sdfarm.kr
     <<: *host_default
     host_vars:

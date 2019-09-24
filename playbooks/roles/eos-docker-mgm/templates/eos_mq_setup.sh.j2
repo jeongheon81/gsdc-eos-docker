@@ -2,21 +2,25 @@
 
 source /etc/sysconfig/eos
 
-if [ -e /opt/eos/xrootd/bin/xrootd ]; then
-  XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
-else
-  XROOTDEXE="/usr/bin/xrootd"
-fi
-
-if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
-  if [[ "$XRD_ROLES" == *"mgm"* ]]; then
-    touch /var/eos/eos.mq.master
+if [ ! -e /tmp/xrootd.mq.pid ] || ! ps $(cat /tmp/xrootd.mq.pid) | grep 'xrootd -n mq' &>/dev/null ; then
+  if [ -e /opt/eos/xrootd/bin/xrootd ]; then
+    XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
+  else
+    XROOTDEXE="/usr/bin/xrootd"
   fi
-else
-  if [[ "$XRD_ROLES" == *"mgm"* ]]; then
-    unlink /var/eos/eos.mq.master
-  fi
-fi
 
-cd /var/spool/eos/core
-${XROOTDEXE} -n mq -c /etc/xrd.cf.mq -l /var/log/eos/xrdlog.mq -s /tmp/xrootd.mq.pid -b -Rdaemon
+  if [ "${EOS_MGM_MASTER1}" == "$(hostname -f)" ] ; then
+    if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+      touch /var/eos/eos.mq.master
+    fi
+  else
+    if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+      unlink /var/eos/eos.mq.master
+    fi
+  fi
+
+  cd /var/spool/eos/core
+  ${XROOTDEXE} -n mq -c /etc/xrd.cf.mq -l /var/log/eos/xrootd.mq.log -s /tmp/xrootd.mq.pid -b -Rdaemon
+else
+  echo "Already started, PID: $(cat /tmp/xrootd.mq.pid)"
+fi
