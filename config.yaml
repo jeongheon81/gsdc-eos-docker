@@ -348,6 +348,12 @@ host_group:
         eos_manager:
         - name: eos-manager-01
           <<: *eos_container_default
+          ipv4_address: 134.75.125.20
+          network_aliases:
+          - eos-manager
+          - eos-manager.eoscluster.sdfarm.kr
+          xrd_roles:
+          - eosxd
   - name: eos-kisti-02.sdfarm.kr
     <<: *host_default
     host_vars:

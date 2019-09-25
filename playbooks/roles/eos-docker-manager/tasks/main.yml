@@ -1,0 +1,14 @@
+---
+- block:
+  - set_fact:
+      eos_componets: "{{ containers.eos_manager }}"
+
+  - name: Setup container
+    include_tasks: tasks/eos_container_setup.yml
+
+  - name: Start service
+    shell: docker exec -i {{ item.item.name }} /eos_manager_setup.sh
+    when: item.changed
+    loop: "{{ container_start_results.results }}"
+
+  when: containers is defined and containers.eos_manager is defined

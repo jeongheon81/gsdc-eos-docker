@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+
+kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }}
+{% for eos_mgm_node in eos_mgm_nodes %}
+kvno host/{{ eos_mgm_node }}
+{% endfor %}
+
+if ! grep 'EOS_MGM_URL=' /root/.bashrc &>/dev/null ; then
+  echo 'export EOS_MGM_URL={{ eos_mgm_url_regular }}' >> /root/.bashrc;
+fi

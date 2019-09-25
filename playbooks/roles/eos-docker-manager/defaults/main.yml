@@ -7,7 +7,8 @@ generated_files:
 template_files:
 - { container_path: "/etc/sysconfig/eos", host_dir: "./sysconfig", host_file: "eos", template_file: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644" }
 - { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/eos_proxy_setup.sh", host_dir: ".", host_file: "eos_proxy_setup.sh", template_file: "eos_proxy_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
+- { container_path: "/etc/eos/fuse.conf", host_dir: ".", host_file: "fuse.conf", template_file: "fuse.conf.j2", owner: "root", group: "root", mode: "0644" }
+- { container_path: "/eos_manager_setup.sh", host_dir: ".", host_file: "eos_manager_setup.sh", template_file: "eos_manager_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
 persistent_volumes:
 - { name: "roothome", dest: "/root" }
 - { name: "eos", dest: "/var/eos" }
