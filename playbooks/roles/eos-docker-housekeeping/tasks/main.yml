@@ -1,0 +1,55 @@
+---
+- block:
+  - set_fact:
+      container_list: "{{ containers|json_query('*[].name') }}"
+
+  - name: Install required packages.
+    package:
+      name:
+      - cronie
+      - cronie-anacron
+      - crontabs
+      - logrotate
+      state: latest
+    register: install_packages
+    until: install_packages is success
+    retries: 5
+    delay: 3
+
+  - name: Get log volume information
+    docker_volume_info:
+      name: "{{ item }}_log"
+    register: log_volume_info_results
+    loop: "{{ container_list }}"
+
+  - name: Set logrotate config
+    template: src=logrotate-eos-logs.j2 dest=/etc/logrotate.d/{{ log_volume_info.volume.Name }}s owner=root group=root mode=0644
+    when: log_volume_info.exists
+    loop: "{{ log_volume_info_results.results }}"
+    loop_control:
+      loop_var: log_volume_info
+
+  - name: Set cron log housekeeping
+    template: src=cron-eos-logs.j2 dest=/etc/cron.d/{{ log_volume_info.volume.Name }}s owner=root group=root mode=0644
+    when: log_volume_info.exists
+    loop: "{{ log_volume_info_results.results }}"
+    loop_control:
+      loop_var: log_volume_info
+
+  - set_fact:
+      mgm_container_list: "{{ containers|json_query('eos_mgm[].name') }}"
+
+  - name: Get eos volume information
+    docker_volume_info:
+      name: "{{ item }}_eos"
+    register: eos_volume_info_results
+    loop: "{{ mgm_container_list }}"
+
+  - name: Set cron report housekeeping
+    template: src=cron-eos-reports.j2 dest=/etc/cron.d/{{ eos_volume_info.volume.Name }}-reports owner=root group=root mode=0644
+    when: eos_volume_info.exists
+    loop: "{{ eos_volume_info_results.results }}"
+    loop_control:
+      loop_var: eos_volume_info
+
+  when: containers is defined

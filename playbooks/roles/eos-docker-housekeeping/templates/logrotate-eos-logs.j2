@@ -1,0 +1,14 @@
+{{ log_volume_info.volume.Mountpoint }}/*/*.log
+{
+        createolddir 755 daemon daemon
+        olddir oldlog
+        notifempty
+        missingok
+        daily
+        copytruncate
+        create 644 daemon daemon
+        dateext
+        rotate 200
+        compress
+        delaycompress
+}
