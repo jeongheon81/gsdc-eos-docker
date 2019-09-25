@@ -164,7 +164,7 @@ group_vars_all:
         next_realm: "."
     - realm: EOSCLUSTER.SUT.AC.TH
       config:
-      - target_realm: EEOSCLUSTER.SDFARM.KR
+      - target_realm: EOSCLUSTER.SDFARM.KR
         next_realm: "."
   krb5_cross_realm_authentication_password_id:
   - target_realm: SDFARM.KR

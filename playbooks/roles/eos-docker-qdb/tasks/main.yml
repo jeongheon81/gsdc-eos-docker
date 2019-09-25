@@ -1,7 +1,7 @@
 ---
 - block:
   - set_fact:
-      eos_componets: "{{ containers.eos_qdb }}"
+      eos_components: "{{ containers.eos_qdb }}"
 
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml

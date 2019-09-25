@@ -2,6 +2,6 @@ if exec xrootd
   xrd.port {{ qdb_port }}
   xrd.protocol redis:{{ qdb_port }} /usr/lib64/libXrdQuarkDB.so
   redis.mode raft
-  redis.database {{ item[0].eos_componet.redis_database }}
-  redis.myself {{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}:{{ qdb_port }}
+  redis.database {{ item[0].eos_component.redis_database }}
+  redis.myself {{ item[0].eos_component.name }}.{{ item[0].eos_component.domain }}:{{ qdb_port }}
 fi

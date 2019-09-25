@@ -1,6 +1,6 @@
 ---
 privileged_container: yes
-shiped_files: []
+shipped_files: []
 generated_files:
 - { container_path: "/etc/eos.keytab", host_dir: ".", host_file: "eos.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "eos.keytab", owner: "daemon", group: "daemon", mode: "0400" }
 - { container_path: "/root/{{ eos_admin_user }}.keytab", host_dir: ".", host_file: "{{ eos_admin_user }}.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "{{ eos_admin_user }}.keytab", owner: "root", group: "root", mode: "0400" }

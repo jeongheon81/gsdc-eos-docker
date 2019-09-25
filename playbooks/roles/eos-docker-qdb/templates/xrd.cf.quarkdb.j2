@@ -2,13 +2,13 @@ xrd.port {{ qdb_port }}
 xrd.protocol redis:{{ qdb_port }} libXrdQuarkDB.so
 
 redis.mode raft
-redis.database {{ item[0].eos_componet.redis_database }}
+redis.database {{ item[0].eos_component.redis_database }}
 
 #----------------------------------------------------------
 # $EOS_QUARKDB_HOSTPORT environment variable must be set
 # with the same value used for redis.myself
 #----------------------------------------------------------
-redis.myself {{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}:{{ qdb_port }}
+redis.myself {{ item[0].eos_component.name }}.{{ item[0].eos_component.domain }}:{{ qdb_port }}
 
 #----------------------------------------------------------
 # $EOS_QUARKDB_PASSWD environment variable must be set

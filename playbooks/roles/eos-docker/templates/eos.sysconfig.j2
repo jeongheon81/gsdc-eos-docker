@@ -2,7 +2,7 @@
 # File: eos.example
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
-{% set xrd_roles = item[0].eos_componet.xrd_roles %}
+{% set xrd_roles = item[0].eos_component.xrd_roles %}
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -43,12 +43,12 @@ XRD_ROLES="{{ xrd_roles|join(' ') }}"
 # EOS Configuration
 # ------------------------------------------------------------------
 
-{% if item[0].eos_componet.mgm_host is defined and item[0].eos_componet.mgm_host_target is defined %}
+{% if item[0].eos_component.mgm_host is defined and item[0].eos_component.mgm_host_target is defined %}
 # The fully qualified hostname of current MGM
-export EOS_MGM_HOST={{ item[0].eos_componet.mgm_host }}
+export EOS_MGM_HOST={{ item[0].eos_component.mgm_host }}
 
 # The fully qualified hostname of target MGM
-export EOS_MGM_HOST_TARGET={{ item[0].eos_componet.mgm_host_target }}
+export EOS_MGM_HOST_TARGET={{ item[0].eos_component.mgm_host_target }}
 {% endif %}
 
 # The EOS instance name
@@ -159,7 +159,7 @@ export EOS_USE_QDB_MASTER=1
 # Disable fast boot and always do a full resync when a fs is booting
 # export EOS_FST_NO_FAST_BOOT=0 (default off)
 
-# Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
+# Change minimum file system size setting - default is to have at least 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
 
 # Set S3 access key & secret key
@@ -177,7 +177,7 @@ export EOS_USE_QDB_MASTER=1
 # to the MGM in the CallManager method. By default this is disabled.
 # export EOS_FST_CALL_MANAGER_XRD_POOL=1
 
-# If CallManager xrootd connection pool is enabled one can set the maxium size
+# If CallManager xrootd connection pool is enabled one can set the maximum size
 # of the pool of connections. The min value is 1, the max value is 32. By default
 # the value is 10.
 # export EOS_FST_CALL_MANAGER_XRD_POOL_SIZE=10

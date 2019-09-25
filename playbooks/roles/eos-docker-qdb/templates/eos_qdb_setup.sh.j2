@@ -2,8 +2,8 @@
 
 if [ ! -e /tmp/xrootd.qdb.pid ] || ! ps $(cat /tmp/xrootd.qdb.pid) | grep 'xrootd -n qdb' &>/dev/null ; then
   if [ ! -e /root/INITIALIZED ] ; then
-    quarkdb-create --path {{ item[0].eos_componet.redis_database }} --clusterID {{ qdb_cluster_uuid }} --nodes {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(',') }}
-    chown -R daemon:daemon {{ item[0].eos_componet.redis_database }}
+    quarkdb-create --path {{ item[0].eos_component.redis_database }} --clusterID {{ qdb_cluster_uuid }} --nodes {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(',') }}
+    chown -R daemon:daemon {{ item[0].eos_component.redis_database }}
 
     touch /root/INITIALIZED
   fi

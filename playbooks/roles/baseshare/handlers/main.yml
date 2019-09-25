@@ -29,7 +29,7 @@
 - name: reload docker
   systemd: name=docker state=reloaded
 
-- name: pause before waitting
+- name: pause before waiting
   pause: seconds=5
   listen: "wait for new network settings"
 

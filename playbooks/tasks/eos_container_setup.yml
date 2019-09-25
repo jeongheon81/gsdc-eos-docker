@@ -1,88 +1,88 @@
 ---
 
-- name: Set empty initialization informaions variable
+- name: Set empty initialization information variable
   set_fact:
     initialization_infos: []
-    need_shiped_files: {}
+    need_shipped_files: {}
 
-- name: Initialize need_shiped_files flag
+- name: Initialize need_shipped_files flag
   set_fact:
-    need_shiped_files: "{{ need_shiped_files | combine({ item.name: 'False'|bool }) }}"
-  loop: "{{ eos_componets }}"
+    need_shipped_files: "{{ need_shipped_files | combine({ item.name: 'False'|bool }) }}"
+  loop: "{{ eos_components }}"
 
 - name: Check initialized holder
-  stat: path=/etc/eos-docker/{{ eos_componet.name }}/INITIALIZED
+  stat: path=/etc/eos-docker/{{ eos_component.name }}/INITIALIZED
   register: initialized_holder_stats
-  loop: "{{ eos_componets }}"
+  loop: "{{ eos_components }}"
   loop_control:
-    loop_var: eos_componet
+    loop_var: eos_component
 
-- name: Build initialization informaions of each container
+- name: Build initialization information of each container
   set_fact:
-    initialization_infos: "{{ initialization_infos + [ { 'eos_componet': item.eos_componet, 'is_initialized': item.stat.exists } ] }}"
+    initialization_infos: "{{ initialization_infos + [ { 'eos_component': item.eos_component, 'is_initialized': item.stat.exists } ] }}"
   loop: "{{ initialized_holder_stats.results }}"
 
 - name: Create config files directory
   file:
-    path: "/etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1].host_dir }}/"
+    path: "/etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1].host_dir }}/"
     state: directory
     mode: u=rwX,g=rX,o=rX
     recurse: yes
   when: not item[0].is_initialized
-  loop: "{{ initialization_infos|product(shiped_files + template_files)|list }}"
+  loop: "{{ initialization_infos|product(shipped_files + template_files)|list }}"
 
 - block:
-  - name: Check shiped files
-    stat: path=/etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }}
-    register: shiped_files_stats
-    loop: "{{ initialization_infos|product(shiped_files)|list }}"
+  - name: Check shipped files
+    stat: path=/etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }}
+    register: shipped_files_stats
+    loop: "{{ initialization_infos|product(shipped_files)|list }}"
 
-  - name: Build need_shiped_files
+  - name: Build need_shipped_files
     set_fact:
-      need_shiped_files: "{{ need_shiped_files | combine({ item.item[0].eos_componet.name: 'True'|bool }) }}"
+      need_shipped_files: "{{ need_shipped_files | combine({ item.item[0].eos_component.name: 'True'|bool }) }}"
     when: not item.stat.exists
-    loop: "{{ shiped_files_stats.results }}"
+    loop: "{{ shipped_files_stats.results }}"
 
-  - name: Start container for shiped files
+  - name: Start container for shipped files
     docker_container:
-      name: "{{ item.eos_componet.name }}_temp"
-      image: "{{ item.eos_componet.image }}"
+      name: "{{ item.eos_component.name }}_temp"
+      image: "{{ item.eos_component.image }}"
       state: started
       recreate: yes
       interactive: yes
       tty: yes
-      hostname: "{{ item.eos_componet.name }}.{{ item.eos_componet.domain }}"
-    when: not item.is_initialized or need_shiped_files[item.eos_componet.name]
+      hostname: "{{ item.eos_component.name }}.{{ item.eos_component.domain }}"
+    when: not item.is_initialized or need_shipped_files[item.eos_component.name]
     loop: "{{ initialization_infos }}"
 
-  - name: Copy default shiped files
-    shell: if ! {{ item[0].is_initialized|string|lower }} ||  [ ! -e /etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} ] ; then docker cp {{ item[0].eos_componet.name }}:{{ item[1].container_path }} /etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} && echo changed; else echo skipped; fi
+  - name: Copy default shipped files
+    shell: if ! {{ item[0].is_initialized|string|lower }} ||  [ ! -e /etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} ] ; then docker cp {{ item[0].eos_component.name }}:{{ item[1].container_path }} /etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} && echo changed; else echo skipped; fi
     args:
       executable: /bin/bash
     register: copy_command_result
     changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
-    loop: "{{ initialization_infos|product(shiped_files)|list }}"
+    loop: "{{ initialization_infos|product(shipped_files)|list }}"
 
-  - name: Stop container for shiped files
+  - name: Stop container for shipped files
     docker_container:
-      name: "{{ item.eos_componet.name }}_temp"
+      name: "{{ item.eos_component.name }}_temp"
       state: absent
-    when: not item.is_initialized or need_shiped_files[item.eos_componet.name]
+    when: not item.is_initialized or need_shipped_files[item.eos_component.name]
     loop: "{{ initialization_infos }}"
 
-  when: shiped_files|length > 0
+  when: shipped_files|length > 0
 
 - name: Copy generated files
-  copy: src={{ item[1].src_base }}/{{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}/{{ item[1].src_file }} dest=/etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} owner={{ item[1].owner }} group={{ item[1].group }} mode={{ item[1].mode }} force={{ not item[0].is_initialized }}
+  copy: src={{ item[1].src_base }}/{{ item[0].eos_component.name }}.{{ item[0].eos_component.domain }}/{{ item[1].src_file }} dest=/etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} owner={{ item[1].owner }} group={{ item[1].group }} mode={{ item[1].mode }} force={{ not item[0].is_initialized }}
   loop: "{{ initialization_infos|product(generated_files)|list }}"
 
 - name: Create template files
-  template: src={{ item[1].template_file }} dest=/etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} owner={{ item[1].owner }} group={{ item[1].group }} mode={{ item[1].mode }} force={{ not item[0].is_initialized }}
+  template: src={{ item[1].template_file }} dest=/etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1].host_dir }}/{{ item[1].host_file }} owner={{ item[1].owner }} group={{ item[1].group }} mode={{ item[1].mode }} force={{ not item[0].is_initialized }}
   loop: "{{ initialization_infos|product(template_files)|list }}"
 
 - name: Create initialized holder
   file:
-    path: /etc/eos-docker/{{ item.eos_componet.name }}/INITIALIZED
+    path: /etc/eos-docker/{{ item.eos_component.name }}/INITIALIZED
     state: touch
   when: not item.is_initialized
   loop: "{{ initialization_infos }}"
@@ -90,7 +90,7 @@
 - name: Create a local volume
   docker_volume:
     name: "{{ item[0].name }}_{{ item[1].name }}"
-  loop: "{{ eos_componets|product(persistent_volumes)|list }}"
+  loop: "{{ eos_components|product(persistent_volumes)|list }}"
 
 - name: Create a nfs volume
   docker_volume:
@@ -99,7 +99,7 @@
       type: nfs
       device: "{{ item[1].device }}"
       o: "{{ item[1].options }}"
-  loop: "{{ eos_componets|default([{}])|subelements('nfs_volumes', skip_missing=True) }}"
+  loop: "{{ eos_components|default([{}])|subelements('nfs_volumes', skip_missing=True) }}"
 
 - name: Set empty container_volumes variable
   set_fact:
@@ -108,22 +108,22 @@
 - name: Build empty volume list of each container
   set_fact:
     container_volumes: "{{ container_volumes | combine( { item.name: [] } ) }}"
-  loop: "{{ eos_componets }}"
+  loop: "{{ eos_components }}"
 
-- name: Build container volume list with shiped_files, generated_files and template_files
+- name: Build container volume list with shipped_files, generated_files and template_files
   set_fact:
     container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ '/etc/eos-docker/' + item[0].name + '/' + item[1].host_dir + '/' + item[1].host_file + ':' + item[1].container_path ] }) }}"
-  loop: "{{ eos_componets|product(shiped_files+generated_files+template_files)|list }}"
+  loop: "{{ eos_components|product(shipped_files+generated_files+template_files)|list }}"
 
 - name: Build container volume list with persistent_volumes
   set_fact:
     container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[0].name + '_' + item[1].name + ':' + item[1].dest ] }) }}"
-  loop: "{{ eos_componets|product(persistent_volumes)|list }}"
+  loop: "{{ eos_components|product(persistent_volumes)|list }}"
 
 - name: Build container volume list with nfs_volumes
   set_fact:
     container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[0].name + '_' + item[1].name + ':' + item[1].dest ] }) }}"
-  loop: "{{ eos_componets|default([{}])|subelements('nfs_volumes', skip_missing=True) }}"
+  loop: "{{ eos_components|default([{}])|subelements('nfs_volumes', skip_missing=True) }}"
 
 - name: Start container
   docker_container:
@@ -142,5 +142,5 @@
     volumes: "{{ container_volumes[item.name] }}"
     etc_hosts: "{{ item.etc_hosts }}"
   register: container_start_results
-  loop: "{{ eos_componets }}"
+  loop: "{{ eos_components }}"
 

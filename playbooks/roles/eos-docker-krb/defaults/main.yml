@@ -1,6 +1,6 @@
 ---
 privileged_container: false
-shiped_files: []
+shipped_files: []
 generated_files: []
 template_files:
 - { container_path: "/etc/heimdal-kadmind.acl", host_dir: ".", host_file: "heimdal-kadmind.acl", template_file: "heimdal-kadmind.acl.j2", owner: "root", group: "root", mode: "0600" }

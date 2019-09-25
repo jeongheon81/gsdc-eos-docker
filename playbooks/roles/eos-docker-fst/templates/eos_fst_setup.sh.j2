@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-id={{ item[0].eos_componet.fst_fsid }}
+id={{ item[0].eos_component.fst_fsid }}
 
-UUID={{ item[0].eos_componet.fst_uuid }}
-DATADIR={{ item[0].eos_componet.data_dir }}
-SPACE={{ item[0].eos_componet.fst_space }}
-CONFIG={{ item[0].eos_componet.fst_status }}
-FSTHOSTNAME={{ item[0].eos_componet.name }}.{{ item[0].eos_componet.domain }}
+UUID={{ item[0].eos_component.fst_uuid }}
+DATADIR={{ item[0].eos_component.data_dir }}
+SPACE={{ item[0].eos_component.fst_space }}
+CONFIG={{ item[0].eos_component.fst_status }}
+FSTHOSTNAME={{ item[0].eos_component.name }}.{{ item[0].eos_component.domain }}
 
 source /etc/sysconfig/eos
 export EOS_MGM_URL={{ eos_mgm_url_regular }}
@@ -19,18 +19,18 @@ if [ ! -e /tmp/xrootd.fst${id}.pid ] || ! ps $(cat /tmp/xrootd.fst${id}.pid) | g
   fi
 
   cd /var/spool/eos/core
-  echo "Starting fst: {{ item[0].eos_componet.name }} ..."
+  echo "Starting fst: {{ item[0].eos_component.name }} ..."
   ${XROOTDEXE} -n fst${id} -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst${id}.log -s /tmp/xrootd.fst${id}.pid -b -Rdaemon
 
   if [ ! -e /root/INITIALIZED ] ; then
-    echo "Configuring fst: {{ item[0].eos_componet.name }} ..."
+    echo "Configuring fst: {{ item[0].eos_component.name }} ..."
     mkdir -p $DATADIR
     echo "$UUID" > $DATADIR/.eosfsuuid
     echo "${id}" > $DATADIR/.eosfsid
     chown -R daemon:daemon $DATADIR
     eos -b fs add -m ${id} $UUID $FSTHOSTNAME:1095 $DATADIR $SPACE $CONFIG
     eos -b node set $FSTHOSTNAME:1095 on
-    echo "Configuration done for fst: {{ item[0].eos_componet.name }}"
+    echo "Configuration done for fst: {{ item[0].eos_component.name }}"
 
     touch /root/INITIALIZED
   fi

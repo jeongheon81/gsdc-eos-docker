@@ -1,7 +1,7 @@
 ---
 - block:
   - set_fact:
-      eos_componets: "{{ containers.eos_krb }}"
+      eos_components: "{{ containers.eos_krb }}"
 
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
@@ -12,7 +12,7 @@
     loop: "{{ container_start_results.results }}"
 
   - name: Copy keytab files
-    shell: if ! {{ item[0].is_initialized|string|lower }} || [ ! -e /etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1] }}.keytab ] ; then docker cp {{ item[0].eos_componet.name }}:/root/{{ item[1] }}.keytab /etc/eos-docker/{{ item[0].eos_componet.name }}/{{ item[1] }}.keytab && echo changed; else echo skipped; fi
+    shell: if ! {{ item[0].is_initialized|string|lower }} || [ ! -e /etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1] }}.keytab ] ; then docker cp {{ item[0].eos_component.name }}:/root/{{ item[1] }}.keytab /etc/eos-docker/{{ item[0].eos_component.name }}/{{ item[1] }}.keytab && echo changed; else echo skipped; fi
     args:
       executable: /bin/bash
     register: copy_command_result
@@ -22,7 +22,7 @@
   - name: Create keytab files directory
     become: no
     file:
-      path: "{{ playbook_dir }}/tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/"
+      path: "{{ playbook_dir }}/tmp/keytab/{{ item[0].eos_component.krb_realm }}/{{ item[1] }}/"
       state: directory
       mode: u=rwX,g=rX,o=rX
       recurse: yes
@@ -31,22 +31,22 @@
 
   - name: Fetch server keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/host.{{ item[1] }}.keytab"
-      dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/eos.krb5.keytab"
+      src: "/etc/eos-docker/{{ item[0].eos_component.name }}/host.{{ item[1] }}.keytab"
+      dest: "tmp/keytab/{{ item[0].eos_component.krb_realm }}/{{ item[1] }}/eos.krb5.keytab"
       flat: yes
     loop: "{{ initialization_infos|product(eos_mgm_nodes)|list }}"
 
   - name: Fetch user keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/user.{{ eos_admin_user }}.keytab"
-      dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/{{ eos_admin_user }}.keytab"
+      src: "/etc/eos-docker/{{ item[0].eos_component.name }}/user.{{ eos_admin_user }}.keytab"
+      dest: "tmp/keytab/{{ item[0].eos_component.krb_realm }}/{{ item[1] }}/{{ eos_admin_user }}.keytab"
       flat: yes
     loop: "{{ initialization_infos|product(eos_manager_nodes)|list }}"
 
   - name: Fetch eos keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].eos_componet.name }}/eos.keytab"
-      dest: "tmp/keytab/{{ item[0].eos_componet.krb_realm }}/{{ item[1] }}/eos.keytab"
+      src: "/etc/eos-docker/{{ item[0].eos_component.name }}/eos.keytab"
+      dest: "tmp/keytab/{{ item[0].eos_component.krb_realm }}/{{ item[1] }}/eos.keytab"
       flat: yes
     loop: "{{ initialization_infos|product(eos_nodes)|list }}"
 

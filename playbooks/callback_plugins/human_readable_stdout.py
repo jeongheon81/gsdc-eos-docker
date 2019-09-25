@@ -38,7 +38,7 @@ class CallbackModule(CallbackModule_default):  # pylint: disable=too-few-public-
     def _dump_results(self, result, indent=None, sort_keys=True, keep_invocation=False):
         '''Return the text to output for a result.'''
 
-        # Enable JSON identation
+        # Enable JSON indentation
         result['_ansible_verbose_always'] = True
 
         save = {}
