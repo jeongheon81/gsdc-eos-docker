@@ -1,0 +1,46 @@
+---
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/promtail/positions.yaml
+
+clients:
+  - url: http://127.0.0.1:3100/api/prom/push
+
+scrape_configs:
+- job_name: syslog
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      service: syslog
+      job: messages
+      server: "{{ ansible_fqdn }}"
+      __path__: /var/log/messages
+  pipeline_stages:
+  - match:
+      selector: '{service="syslog",job="messages"} '
+      stages:
+      - regex:
+          expression: '^(?s)(?P<time>\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) (?P<logsource>\S+?) (?P<logtag>\S+?): (?P<message>.*)$'
+      - timestamp:
+          source: time
+          format: Jan 02 15:04:05
+          location: "{{ iana_timezone }}"
+      - labels:
+          logsource:
+          logtag:
+      - output:
+          source: message
+- job_name: journal
+  journal:
+    path: /run/log/journal
+    labels:
+      service: journal
+      job: systemd-journal
+      server: "{{ ansible_fqdn }}"
+  relabel_configs:
+  - source_labels: ['__journal__systemd_unit']
+    target_label: 'unit'

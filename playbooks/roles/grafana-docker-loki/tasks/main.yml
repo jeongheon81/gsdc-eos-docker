@@ -1,0 +1,57 @@
+---
+- block:
+  - set_fact:
+      grafana_components: "{{ containers.grafana_loki }}"
+
+  - name: Create config base directory
+    file:
+      path: "/etc/grafana/"
+      state: directory
+      owner: root
+      group: root
+      mode: u=rwX,g=rX,o=rX
+
+  - name: Create config files directory
+    file:
+      path: "/etc/grafana/loki"
+      state: directory
+      owner: root
+      group: root
+      mode: u=rwX,g=rX,o=rX
+
+  - name: Create config files
+    template:
+      src: local-config.yaml.j2
+      dest: /etc/grafana/loki/local-config.yaml
+      owner: root
+      group: root
+      mode: "0644"
+
+  - name: Create a local volume
+    docker_volume:
+      name: "grafana-loki_storage"
+
+  - name: Start container
+    docker_container:
+      name: "grafana-loki"
+      image: "grafana/loki:latest"
+      state: started
+      command: -config.file=/etc/loki/local-config.yaml
+      purge_networks: yes
+      network_mode: host
+      volumes:
+      - "/etc/grafana/loki:/etc/loki"
+      - "grafana-loki_storage:/tmp/loki"
+    register: container_start_results
+
+  - name: Setup firewall on internal zone
+    firewalld:
+      port: 3100/tcp
+      permanent: yes
+      immediate: yes
+      state: enabled
+      zone: internal
+    notify:
+    - reload firewalld
+
+  when: containers is defined and containers.grafana_loki is defined

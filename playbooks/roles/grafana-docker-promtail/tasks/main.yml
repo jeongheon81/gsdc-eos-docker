@@ -1,0 +1,68 @@
+---
+- block:
+  - set_fact:
+      grafana_components: "{{ containers.grafana_promtail }}"
+
+  - name: Check timezone
+    shell: "timedatectl status | grep 'Time zone:' | awk '{ print $3 }'"
+    args:
+      executable: /bin/bash
+    changed_when: False
+    register: timezone_result
+  - set_fact:
+      iana_timezone: "{{ timezone_result.stdout }}"
+
+  - name: Create config base directory
+    file:
+      path: "/etc/grafana/"
+      state: directory
+      owner: root
+      group: root
+      mode: u=rwX,g=rX,o=rX
+
+  - name: Create config files directory
+    file:
+      path: "/etc/grafana/promtail"
+      state: directory
+      owner: root
+      group: root
+      mode: u=rwX,g=rX,o=rX
+
+  - name: Create config files
+    template:
+      src: local-config.yaml.j2
+      dest: /etc/grafana/promtail/local-config.yaml
+      owner: root
+      group: root
+      mode: "0644"
+
+  - name: Create a local volume
+    docker_volume:
+      name: "grafana-promtail_storage"
+
+  - name: Start container
+    docker_container:
+      name: "grafana-promtail"
+      image: "grafana/promtail:latest"
+      state: started
+      command: -config.file=/etc/promtail/local-config.yaml
+      purge_networks: yes
+      network_mode: host
+      volumes:
+      - "/var/log:/var/log:ro"
+      - "/run/log/journal:/run/log/journal:ro"
+      - "/etc/grafana/promtail:/etc/promtail"
+      - "grafana-promtail_storage:/tmp/promtail"
+    register: container_start_results
+
+  - name: Setup firewall on internal zone
+    firewalld:
+      port: 9080/tcp
+      permanent: yes
+      immediate: yes
+      state: enabled
+      zone: internal
+    notify:
+    - reload firewalld
+
+  when: containers is defined and containers.grafana_promtail is defined

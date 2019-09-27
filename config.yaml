@@ -354,6 +354,12 @@ host_group:
           - eos-manager.eoscluster.sdfarm.kr
           xrd_roles:
           - eosxd
+        grafana_server:
+        - name: grafana-server
+        grafana_loki:
+        - name: grafana-loki
+        grafana_promtail:
+        - name: grafana-promtail
   - name: eos-kisti-02.sdfarm.kr
     <<: *host_default
     host_vars:

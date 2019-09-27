@@ -1,4 +1,8 @@
 ---
+# - name: "Ansible | List all known variables and facts"
+#   debug:
+#     var: hostvars[inventory_hostname]
+
 - name: create install information home directory
   file:
     path: "{{ install_info_home }}"

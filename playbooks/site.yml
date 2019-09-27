@@ -35,3 +35,14 @@
   - eos-docker-housekeeping
   tags:
   - install
+
+- name: Setup post eos_infra
+  hosts: eos_infra
+  any_errors_fatal: true
+  roles:
+  - baseshare
+  - grafana-docker-server
+  - grafana-docker-loki
+  - grafana-docker-promtail
+  tags:
+  - post
