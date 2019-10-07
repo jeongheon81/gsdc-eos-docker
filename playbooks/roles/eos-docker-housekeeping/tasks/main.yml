@@ -1,10 +1,11 @@
 ---
 - block:
-  - set_fact:
-      eos_container_groups: "{{ containers|to_json|from_json|json_query('keys(@)|[?starts_with(@,`eos_`)]') }}"
+  # - set_fact:
+  #     eos_container_groups: "{{ containers|to_json|from_json|json_query('keys(@)|[?starts_with(@,`eos_`)]') }}"
 
   - set_fact:
-      eos_container_list: "{{ containers|to_json|from_json|json_query('['+ eos_container_groups|join(',') +'][].name') }}"
+      #eos_container_list: "{{ containers|to_json|from_json|json_query('['+ eos_container_groups|join(',') +'][]|[].{ name: name, logs: logs }') }}"
+      eos_container_list: "{{ containers|dict2items|subelements('value')|to_json|from_json|json_query('[?starts_with(@[0].key,`eos_`)].{ type: [0].key, name: [1].name, logs: [1].logs }') }}"
 
   - name: Install required packages.
     package:
@@ -21,9 +22,11 @@
 
   - name: Get log volume information
     docker_volume_info:
-      name: "{{ item }}_log"
+      name: "{{ eos_container.name }}_log"
     register: log_volume_info_results
     loop: "{{ eos_container_list }}"
+    loop_control:
+      loop_var: eos_container
 
   - name: Set logrotate config
     template: src=logrotate-eos-logs.j2 dest=/etc/logrotate.d/{{ log_volume_info.volume.Name }}s owner=root group=root mode=0644
@@ -45,14 +48,29 @@
   - name: Get eos volume information
     docker_volume_info:
       name: "{{ item }}_eos"
-    register: eos_volume_info_results
+    register: eos_mgm_volume_info_results
     loop: "{{ eos_mgm_container_list }}"
 
   - name: Set cron report housekeeping
-    template: src=cron-eos-reports.j2 dest=/etc/cron.d/{{ eos_volume_info.volume.Name }}-reports owner=root group=root mode=0644
-    when: eos_volume_info.exists
-    loop: "{{ eos_volume_info_results.results }}"
+    template: src=cron-eos-reports.j2 dest=/etc/cron.d/{{ eos_mgm_volume_info.volume.Name }}-reports owner=root group=root mode=0644
+    when: eos_mgm_volume_info.exists
+    loop: "{{ eos_mgm_volume_info_results.results }}"
     loop_control:
-      loop_var: eos_volume_info
+      loop_var: eos_mgm_volume_info
+
+  - set_fact:
+      log_volumes: "{{ log_volumes|default([]) +
+        [{
+          'name': log_volume_info.volume.Name,
+          'mountpoint': log_volume_info.volume.Mountpoint,
+          'logs': eos_container_list[ansible_loop.index0].logs,
+          'job_prefix': eos_container_list[ansible_loop.index0].name,
+          'service': 'eos-'+eos_container_list[ansible_loop.index0].type[4:],
+          'pipeline_stages': grafana_promtail_pipeline_stages[eos_container_list[ansible_loop.index0].type]|default([])
+        }] }}"
+    loop: "{{ log_volume_info_results.results }}"
+    loop_control:
+      extended: yes
+      loop_var: log_volume_info
 
   when: containers is defined

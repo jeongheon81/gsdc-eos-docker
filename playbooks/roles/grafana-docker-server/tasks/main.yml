@@ -19,13 +19,45 @@
       group: root
       mode: u=rwX,g=rX,o=rX
 
-  # - name: Create config files
-  #   template:
-  #     src: local-config.yaml.j2
-  #     dest: /etc/grafana/loki/local-config.yaml
-  #     owner: root
-  #     group: root
-  #     mode: "0644"
+  - name: Create provisioning files directory
+    file:
+      path: "/etc/grafana/server/provisioning"
+      state: directory
+      owner: "472"
+      group: "472"
+      mode: u=rwX,g=rwX,o=rwX
+
+  - name: Create provisioning/dashboards files directory
+    file:
+      path: "/etc/grafana/server/provisioning/dashboards"
+      state: directory
+      owner: "472"
+      group: "472"
+      mode: u=rwX,g=rwX,o=rwX
+
+  - name: Create provisioning/datasources files directory
+    file:
+      path: "/etc/grafana/server/provisioning/datasources"
+      state: directory
+      owner: "472"
+      group: "472"
+      mode: u=rwX,g=rwX,o=rwX
+
+  - name: Create provisioning/notifiers files directory
+    file:
+      path: "/etc/grafana/server/provisioning/notifiers"
+      state: directory
+      owner: "472"
+      group: "472"
+      mode: u=rwX,g=rwX,o=rwX
+
+  - name: Create config files
+    template:
+      src: loki.yaml.j2
+      dest: /etc/grafana/server/provisioning/datasources/loki.yaml
+      owner: "472"
+      group: "472"
+      mode: "0644"
 
   - name: Create a local volume
     docker_volume:
@@ -42,6 +74,7 @@
       purge_networks: yes
       network_mode: host
       volumes:
+      - "/etc/grafana/server/provisioning:/etc/grafana/provisioning"
       - "grafana-server_storage:/var/lib/grafana"
       - "grafana-server_log:/var/log/grafana"
     register: container_start_results

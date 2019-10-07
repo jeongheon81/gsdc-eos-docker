@@ -11,7 +11,7 @@ FSTHOSTNAME={{ item[0].eos_component.name }}.{{ item[0].eos_component.domain }}
 source /etc/sysconfig/eos
 export EOS_MGM_URL={{ eos_mgm_url_regular }}
 
-if [ ! -e /tmp/xrootd.fst${id}.pid ] || ! ps $(cat /tmp/xrootd.fst${id}.pid) | grep 'xrootd -n fst${id}' &>/dev/null ; then
+if [ ! -e /tmp/xrootd.fst.pid ] || ! ps $(cat /tmp/xrootd.fst.pid) | grep 'xrootd -n fst' &>/dev/null ; then
   if [ -e /opt/eos/xrootd/bin/xrootd ]; then 
     XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
   else
@@ -20,7 +20,7 @@ if [ ! -e /tmp/xrootd.fst${id}.pid ] || ! ps $(cat /tmp/xrootd.fst${id}.pid) | g
 
   cd /var/spool/eos/core
   echo "Starting fst: {{ item[0].eos_component.name }} ..."
-  ${XROOTDEXE} -n fst${id} -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst${id}.log -s /tmp/xrootd.fst${id}.pid -b -Rdaemon
+  ${XROOTDEXE} -n fst -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst.log -k fifo -s /tmp/xrootd.fst.pid -b -Rdaemon
 
   if [ ! -e /root/INITIALIZED ] ; then
     echo "Configuring fst: {{ item[0].eos_component.name }} ..."
@@ -35,5 +35,5 @@ if [ ! -e /tmp/xrootd.fst${id}.pid ] || ! ps $(cat /tmp/xrootd.fst${id}.pid) | g
     touch /root/INITIALIZED
   fi
 else
-  echo "Already started, PID: $(cat /tmp/xrootd.fst${id}.pid)"
+  echo "Already started, PID: $(cat /tmp/xrootd.fst.pid)"
 fi

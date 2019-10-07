@@ -8,3 +8,13 @@
     path: "{{ install_info_home }}"
     state: directory
     mode: 0700
+
+- name: Check timezone
+  shell: "timedatectl status | grep 'Time zone:' | awk '{ print $3 }'"
+  args:
+    executable: /bin/bash
+  changed_when: False
+  register: timezone_result
+
+- set_fact:
+    iana_timezone: "{{ timezone_result.stdout }}"

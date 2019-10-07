@@ -171,6 +171,171 @@ group_vars_all:
     password_id: 1
   - target_realm: EOSCLUSTER.SUT.AC.TH
     password_id: 2
+  grafana_promtail_pipeline_stages:
+    eos_krb:
+    - match:
+        selector: '{service="eos-krb",job=~".*kdc\\.log"}'
+        stages:
+        - regex:
+            expression: '^(?s)(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+        - timestamp:
+            source: timestamp
+            format: '2006-01-02T15:04:05'
+        - output:
+            source: content
+    eos_qdb:
+    - match:
+        selector: '{service="eos-qdb",job=~".*xrootd\\.qdb\\.log"}'
+        stages:
+        - regex:
+            expression: '^(?s)(?P<xrootd_log_type>\[(?P<timestamp>\d+)\]) (?P<content>.*)$'
+        - labels:
+            xrootd_log_type:
+        - match:
+            selector: '{xrootd_log_type=~".+"}'
+            stages:
+            - template:
+                source: xrootd_log_type
+                template: "QDB"
+            - labels:
+                xrootd_log_type:
+            - timestamp:
+                source: timestamp
+                format: UnixMs
+                location: !unsafe "{{ iana_timezone }}"
+            - output:
+                source: content
+        - match:
+            selector: '{xrootd_log_type=""}'
+            stages:
+            - template:
+                source: xrootd_log_type
+                template: "STARTUP"
+            - labels:
+                xrootd_log_type:
+            - regex:
+                expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+            - timestamp:
+                source: timestamp
+                format: '060102 15:04:05'
+                location: !unsafe "{{ iana_timezone }}"
+                #action_on_failure: fudge
+            # bug on timestamp process, we remain time info
+            # - output:
+            #     source: content
+            # - template:
+            #     source: timestamp
+            #     template: !unsafe "{{ '{{' }} .Value {{ '}}' }}"
+    eos_proxy:
+    - match:
+        selector: '{service="eos-proxy",job=~".*xrootd\\.proxy\\.log"}'
+        stages:
+        - regex:
+            expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>\d{3} (?P<logtag>\S+):.*)$'
+        - labels:
+            xrootd_log_type: logtag
+        - match:
+            selector: '{xrootd_log_type=~".+"}'
+            stages:
+            - template:
+                source: xrootd_log_type
+                template: "PROXY"
+            - labels:
+                xrootd_log_type:
+                logtag:
+            - timestamp:
+                source: timestamp
+                format: '060102 15:04:05'
+                location: !unsafe "{{ iana_timezone }}"
+            # bug on timestamp process, we remain time info
+            # - output:
+            #     source: content
+        - match:
+            selector: '{xrootd_log_type=""}'
+            stages:
+            - template:
+                source: xrootd_log_type
+                template: "STARTUP"
+            - labels:
+                xrootd_log_type:
+            - regex:
+                expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+            - timestamp:
+                source: timestamp
+                format: '060102 15:04:05'
+                location: !unsafe "{{ iana_timezone }}"
+                #action_on_failure: fudge
+            # bug on timestamp process, we remain time info
+            # - output:
+            #     source: content
+    eos_mgm:
+    - match:
+        selector: '{service="eos-mgm",job=~".*xrootd\\.(mq|mgm)\\.log"}'
+        stages:
+        - regex:
+            expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>(?P<timestamp_us>time=\S+).*)$'
+        - labels:
+            xrootd_log_type: timestamp_us
+        - match:
+            selector: '{xrootd_log_type=~".+"}'
+            stages:
+            - template:
+                source: xrootd_log_type
+                template: "EOS-MGM"
+            - labels:
+                xrootd_log_type:
+            - template:
+                source: timestamp_us
+                template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+            - timestamp:
+                source: timestamp_us
+                format: UnixNs
+                location: !unsafe "{{ iana_timezone }}"
+            # bug on timestamp process, we remain time info
+            # - output:
+            #     source: content
+        - match:
+            selector: '{xrootd_log_type=""}'
+            stages:
+            - regex:
+                expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>\d{3} (?P<logtag>\S+):.*)$'
+            - labels:
+                xrootd_log_type: logtag
+            - match:
+                selector: '{xrootd_log_type=~".+"}'
+                stages:
+                - template:
+                    source: xrootd_log_type
+                    template: "EOS"
+                - labels:
+                    xrootd_log_type:
+                    logtag:
+                - timestamp:
+                    source: timestamp
+                    format: '060102 15:04:05'
+                    location: !unsafe "{{ iana_timezone }}"
+                # bug on timestamp process, we remain time info
+                # - output:
+                #     source: content
+            - match:
+                selector: '{xrootd_log_type=""}'
+                stages:
+                - template:
+                    source: xrootd_log_type
+                    template: "STARTUP"
+                - labels:
+                    xrootd_log_type:
+                - regex:
+                    expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+                - timestamp:
+                    source: timestamp
+                    format: '060102 15:04:05'
+                    location: !unsafe "{{ iana_timezone }}"
+                    #action_on_failure: fudge
+                # bug on timestamp process, we remain time info
+                # - output:
+                #     source: content
+            
   admin:
     id: !unsafe "{{ vault_admin.id }}"
     password: !unsafe "{{ vault_admin.password }}"
@@ -179,8 +344,9 @@ group_vars_all:
     password: !unsafe "{{ vault_manager.password }}"
   random_passwords: !unsafe "{{ vault_random_passwords }}"
 
+
 host_group:
-- name: eos_infra
+- name: eos_infra_kisti
   hosts:
   - name: eos-kisti-01.sdfarm.kr
     <<: *host_default
@@ -237,74 +403,112 @@ host_group:
           ipv4_address: 134.75.125.30
           network_aliases:
           - eos-krb
-          - eos-krb.eoscluster.sdfarm.kr
+          - !unsafe "eos-krb.{{ eos_cluster_domain_name }}"
           krb_realm: !unsafe "{{ eos_realm }}"
+          logs:
+          - kdc.log
         eos_qdb:
         - name: eos-qdb-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.35
+          network_aliases: &qdb_network_aliases
+          - eos-qdb
+          - !unsafe "eos-qdb.{{ eos_cluster_domain_name }}"
           redis_database: /var/lib/quarkdb/qdb-01
           nfs_volumes:
           - name: qdb
             dest: /var/lib/quarkdb
             device: :/ifs/service/eos_kisti/qdb01
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
+          logs: &qdb_logs
+          - qdb/xrootd.qdb.log
         - name: eos-qdb-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.36
+          network_aliases: *qdb_network_aliases
           redis_database: /var/lib/quarkdb/qdb-02
           nfs_volumes:
           - name: qdb
             dest: /var/lib/quarkdb
             device: :/ifs/service/eos_kisti/qdb02
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
+          logs: *qdb_logs
         - name: eos-qdb-03
           <<: *eos_container_default
           ipv4_address: 134.75.125.37
+          network_aliases: *qdb_network_aliases
           redis_database: /var/lib/quarkdb/qdb-03
           nfs_volumes:
           - name: qdb
             dest: /var/lib/quarkdb
             device: :/ifs/service/eos_kisti/qdb03
             options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
+          logs: *qdb_logs
         eos_proxy:
         - name: eos-proxy-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.34
           network_aliases:
           - eos-proxy
-          - eos-proxy.eoscluster.sdfarm.kr
+          - !unsafe "eos-proxy.{{ eos_cluster_domain_name }}"
           xrd_roles:
           - proxy
+          logs:
+          - proxy/xrootd.proxy.log
         eos_mgm:
         - name: eos-mgm-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.23
-          network_aliases:
+          network_aliases: &mgm_network_aliases
           - eos-mgm
-          - eos-mgm.eoscluster.sdfarm.kr
+          - !unsafe "eos-mgm.{{ eos_cluster_domain_name }}"
           xrd_roles:
           - mq
           - mgm
           mgm_host: !unsafe "{{ eos_mgm_nodes[0] }}"
           mgm_host_target: !unsafe "{{ eos_mgm_nodes[1] }}"
+          logs: &mgm_logs
+          - mgm/xrootd.mgm.log
+          - mgm/Balancer.log
+          - mgm/Clients.log
+          - mgm/Converter.log
+          - mgm/DrainJob.log
+          - mgm/eosxd-logtraces.log
+          - mgm/eosxd-stacktraces.log
+          - mgm/error.log
+          - mgm/FileInspector.log
+          - mgm/GeoBalancer.log
+          - mgm/GeoTreeEngine.log
+          - mgm/GroupBalancer.log
+          - mgm/Grpc.log
+          - mgm/Http.log
+          - mgm/logbook.log
+          - mgm/LRU.log
+          - mgm/Master.log
+          - mgm/MetadataFlusher.log
+          - mgm/Recycle.log
+          - mgm/ReplicationTracker.log
+          - mgm/WFE::Job.log
+          - mgm/WFE.log
+          - mgm/ZMQ.log
+          - mq/xrootd.mq.log
+          - tx/transfer-archive.log
         - name: eos-mgm-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.24
-          network_aliases:
-          - eos-mgm
-          - eos-mgm.eoscluster.sdfarm.kr
+          network_aliases: *mgm_network_aliases
           xrd_roles:
           - mq
           - mgm
           mgm_host: !unsafe "{{ eos_mgm_nodes[1] }}"
           mgm_host_target: !unsafe "{{ eos_mgm_nodes[0] }}"
+          logs: *mgm_logs
         eos_fst:
         - name: eos-fst-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.38
           xrd_roles:
-          - fst1
+          - fst
           data_dir: /data/disk01
           nfs_volumes:
           - name: data
@@ -315,11 +519,14 @@ host_group:
           fst_uuid: 627bcd30-1af6-4525-a0c9-8a958a863b91
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          logs: &fst_logs
+          - fst/xrootd.fst.log
+          - fst/eoscp.log
         - name: eos-fst-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.39
           xrd_roles:
-          - fst2
+          - fst
           data_dir: /data/disk02
           nfs_volumes:
           - name: data
@@ -330,11 +537,12 @@ host_group:
           fst_uuid: 7469a2ee-ecbf-4a46-ac42-9d1f1adaa7e3
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          logs: *fst_logs
         - name: eos-fst-03
           <<: *eos_container_default
           ipv4_address: 134.75.125.40
           xrd_roles:
-          - fst3
+          - fst
           data_dir: /data/disk03
           nfs_volumes:
           - name: data
@@ -345,15 +553,18 @@ host_group:
           fst_uuid: 7b30fa24-5b9a-426d-9af8-98a62c341e19
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          logs: *fst_logs
         eos_manager:
         - name: eos-manager-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.20
           network_aliases:
           - eos-manager
-          - eos-manager.eoscluster.sdfarm.kr
+          - !unsafe "eos-manager.{{ eos_cluster_domain_name }}"
           xrd_roles:
           - eosxd
+          logs:
+          - fuse/fuse.main.log
         grafana_server:
         - name: grafana-server
         grafana_loki:
@@ -409,7 +620,7 @@ host_group:
   #       gw4: ''
   #       mtu: 1500
   group_vars: {}
-- name: eos
+- name: eos_infra
   children:
-  - name: eos_infra
+  - name: eos_infra_kisti
   group_vars: {}

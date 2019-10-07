@@ -1,0 +1,16 @@
+---
+- name: Check initialized holder
+  stat: path=/etc/eos-docker/MGM_FS_INITIALIZED
+  register: initialized_holder_stat
+
+- block:
+  - name: Setup fs
+    shell: docker exec -i {{ containers.eos_mgm[0].name }} /eos_mgm_fs_setup.sh {{ eos_fst_nodes|length }}
+    run_once: true
+
+  - name: Create initialized holder
+    file:
+      path: /etc/eos-docker/MGM_FS_INITIALIZED
+      state: touch
+
+  when: not initialized_holder_stat.stat.exists and containers is defined and containers.eos_mgm is defined and containers.eos_mgm|length > 0

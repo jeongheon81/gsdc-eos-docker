@@ -9,7 +9,7 @@ if [ ! -e /tmp/xrootd.qdb.pid ] || ! ps $(cat /tmp/xrootd.qdb.pid) | grep 'xroot
   fi
 
   cd /var/spool/eos/core
-  /usr/bin/xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrootd.qdb.log -s /tmp/xrootd.qdb.pid -b -Rdaemon
+  /usr/bin/xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrootd.qdb.log -k fifo -s /tmp/xrootd.qdb.pid -b -Rdaemon
 else
   echo "Already started, PID: $(cat /tmp/xrootd.qdb.pid)"
 fi

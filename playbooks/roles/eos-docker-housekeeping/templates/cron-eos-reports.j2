@@ -21,4 +21,4 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-30 0 * * * root  test -d {{ eos_volume_info.volume.Mountpoint }}/report/ && find {{ eos_volume_info.volume.Mountpoint }}/report/  -name "*.eosreport" -mtime +2 -exec gzip -9 \{\} \;
+30 0 * * * root  test -d {{ eos_mgm_volume_info.volume.Mountpoint }}/report/ && find {{ eos_mgm_volume_info.volume.Mountpoint }}/report/  -name "*.eosreport" -mtime +2 -exec gzip -9 \{\} \;

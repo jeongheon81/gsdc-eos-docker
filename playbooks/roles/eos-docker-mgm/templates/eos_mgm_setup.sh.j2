@@ -22,7 +22,7 @@ if [ ! -e /tmp/xrootd.mgm.pid ] || ! ps $(cat /tmp/xrootd.mgm.pid) | grep 'xroot
   fi
 
   cd /var/spool/eos/core
-  ${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrootd.mgm.log -s /tmp/xrootd.mgm.pid -b -Rdaemon
+  ${XROOTDEXE} -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrootd.mgm.log -k fifo -s /tmp/xrootd.mgm.pid -b -Rdaemon
 
   if [ ! -e /root/INITIALIZED ] ; then
     groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }}

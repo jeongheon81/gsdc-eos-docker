@@ -1,4 +1,6 @@
-{{ log_volume_info.volume.Mountpoint }}/*/*.log
+{% for log in log_volume_info.eos_container.logs %}
+{{ log_volume_info.volume.Mountpoint }}/{{ log }}
+{% endfor %}
 {
         createolddir 755 daemon daemon
         olddir oldlog

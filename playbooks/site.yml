@@ -32,7 +32,6 @@
   - eos-docker-mgm
   - eos-docker-fst
   - eos-docker-manager
-  - eos-docker-housekeeping
   tags:
   - install
 
@@ -41,6 +40,8 @@
   any_errors_fatal: true
   roles:
   - baseshare
+  - eos-docker-config
+  - eos-docker-housekeeping
   - grafana-docker-server
   - grafana-docker-loki
   - grafana-docker-promtail

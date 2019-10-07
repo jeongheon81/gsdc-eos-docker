@@ -3,15 +3,6 @@
   - set_fact:
       grafana_components: "{{ containers.grafana_promtail }}"
 
-  - name: Check timezone
-    shell: "timedatectl status | grep 'Time zone:' | awk '{ print $3 }'"
-    args:
-      executable: /bin/bash
-    changed_when: False
-    register: timezone_result
-  - set_fact:
-      iana_timezone: "{{ timezone_result.stdout }}"
-
   - name: Create config base directory
     file:
       path: "/etc/grafana/"
@@ -36,9 +27,31 @@
       group: root
       mode: "0644"
 
+  - name: Create sd config files
+    template:
+      src: logs-sd.json.j2
+      dest: /etc/grafana/promtail/{{ log_volume.job_prefix }}_logs-sd.json
+      owner: root
+      group: root
+      mode: "0644"
+    loop: "{{ log_volumes }}"
+    loop_control:
+      loop_var: log_volume
+
   - name: Create a local volume
     docker_volume:
       name: "grafana-promtail_storage"
+
+  - set_fact:
+      container_volumes_basic:
+      - "/var/log:/var/log:ro"
+      - "/run/log/journal:/run/log/journal:ro"
+      - "/etc/grafana/promtail:/etc/promtail"
+      - "grafana-promtail_storage:/tmp/promtail"
+
+  - set_fact:
+      container_volumes: "{{ (container_volumes|default([])) + [ item.name+':/run/log/'+item.name+':ro' ] }}"
+    loop: "{{ log_volumes }}"
 
   - name: Start container
     docker_container:
@@ -48,11 +61,7 @@
       command: -config.file=/etc/promtail/local-config.yaml
       purge_networks: yes
       network_mode: host
-      volumes:
-      - "/var/log:/var/log:ro"
-      - "/run/log/journal:/run/log/journal:ro"
-      - "/etc/grafana/promtail:/etc/promtail"
-      - "grafana-promtail_storage:/tmp/promtail"
+      volumes: "{{ container_volumes + container_volumes_basic }}"
     register: container_start_results
 
   - name: Setup firewall on internal zone
