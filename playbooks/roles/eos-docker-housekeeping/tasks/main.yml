@@ -1,11 +1,22 @@
 ---
 - block:
-  # - set_fact:
-  #     eos_container_groups: "{{ containers|to_json|from_json|json_query('keys(@)|[?starts_with(@,`eos_`)]') }}"
+  - set_fact:
+      eos_container_groups: "{{ containers|to_json|from_json|json_query('keys(@)|[?starts_with(@,`eos_`)]') }}"
+
+  - set_fact:
+      eos_containers_with_logs: >-
+        {% for container in containers[item] -%}
+        {%   if container.logs is not defined -%}
+        {%     set container = container|combine({ 'logs': eos_log_files_default[item] }) -%}
+        {%     set dummy = containers[item].__setitem__(loop.index0, container) -%}
+        {%   endif -%}
+        {% endfor -%}
+        {{ eos_containers_with_logs|default({})|combine({ item: containers[item]}, recursive=True) }}
+    loop: "{{ eos_container_groups }}"
 
   - set_fact:
       #eos_container_list: "{{ containers|to_json|from_json|json_query('['+ eos_container_groups|join(',') +'][]|[].{ name: name, logs: logs }') }}"
-      eos_container_list: "{{ containers|dict2items|subelements('value')|to_json|from_json|json_query('[?starts_with(@[0].key,`eos_`)].{ type: [0].key, name: [1].name, logs: [1].logs }') }}"
+      eos_container_list: "{{ eos_containers_with_logs|dict2items|subelements('value')|to_json|from_json|json_query('[?starts_with(@[0].key,`eos_`)].{ type: [0].key, name: [1].name, logs: [1].logs }') }}"
 
   - name: Install required packages.
     package:
@@ -43,7 +54,7 @@
       loop_var: log_volume_info
 
   - set_fact:
-      eos_mgm_container_list: "{{ containers|json_query('eos_mgm[].name') }}"
+      eos_mgm_container_list: "{{ eos_containers_with_logs|json_query('eos_mgm[].name') }}"
 
   - name: Get eos volume information
     docker_volume_info:
@@ -66,7 +77,7 @@
           'logs': eos_container_list[ansible_loop.index0].logs,
           'job_prefix': eos_container_list[ansible_loop.index0].name,
           'service': 'eos-'+eos_container_list[ansible_loop.index0].type[4:],
-          'pipeline_stages': grafana_promtail_pipeline_stages[eos_container_list[ansible_loop.index0].type]|default([])
+          'pipeline_stages': eos_grafana_promtail_pipeline_stages[eos_container_list[ansible_loop.index0].type]|default([])
         }] }}"
     loop: "{{ log_volume_info_results.results }}"
     loop_control:

@@ -1,5 +1,12 @@
 
 
+docker rm -f grafana-server
+docker rm -f grafana-promtail
+docker rm -f grafana-loki
+docker volume prune
+
+rm -rf /etc/grafana/
+
 
 docker rm -f eos-proxy-01 &
 docker rm -f eos-qdb-01 &
@@ -11,6 +18,7 @@ docker rm -f eos-mgm-02 &
 docker rm -f eos-fst-01 &
 docker rm -f eos-fst-02 &
 docker rm -f eos-fst-03 &
+docker rm -f eos-manager-01 &
 
 rm -rf /etc/eos-docker/
 rm -rf /etc/eos-docker/eos-mgm-*
@@ -26,10 +34,11 @@ docker volume rm eos-qdb-02_qdb
 docker volume rm eos-qdb-03_qdb
 docker volume ls
 
+rm -f /etc/logrotate.d/eos-*_logs
 
 
-docker exec -i eos-mgm-kisti01 /eos_mgm_fs_setup.sh 2
-
+docker exec -i eos-mgm-01 /eos_mgm_fs_setup.sh 3
+docker exec -it eos-manager-01 bash
 
 docker rm -f eos-mgm-kisti01 &
 docker rm -f eos-mgm-kisti02 &
@@ -80,3 +89,7 @@ EOS Console [root://localhost] |/> vid enable krb5
 EOS Console [root://localhost] |/> vid set map -krb5 <pwd> vuid:root vgid:root
 EOS Console [root://localhost] |/> vid set membership admin1 -uids daemon
 EOS Console [root://localhost] |/> vid set membership admin1 -gids daemon
+
+
+
+
