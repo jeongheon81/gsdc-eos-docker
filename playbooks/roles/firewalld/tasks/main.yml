@@ -13,8 +13,13 @@
   retries: 5
   delay: 3
 
+- name: Check if iptables-services package is installed
+  yum: list=iptables-services
+  register: result
+
 - name: Disable iptables now and at boot
   service: name=iptables state=stopped enabled=false masked=true
+  when: result.results[0].yumstate == 'installed'
 
 - name: Run firewalld now and at boot
   service: name=firewalld state=started enabled=true

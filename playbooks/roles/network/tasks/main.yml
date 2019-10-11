@@ -37,6 +37,10 @@
       ip4: "{{ item.ip4 }}"
       gw4: "{{ item.gw4 }}"
       mtu: "{{ item.mtu }}"
+      dns4: "{{ item.dns4|default(omit) }}"
+      dns4_search: "{{ item.dns4_search|default(omit) }}"
+      dns6: "{{ item.dns4|default(omit) }}"
+      dns6_search: "{{ item.dns4_search|default(omit) }}"
       state: present
     changed_when: false
     loop: "{{ network_bridge }}"

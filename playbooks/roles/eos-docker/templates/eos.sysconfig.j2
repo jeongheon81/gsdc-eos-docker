@@ -63,7 +63,7 @@ export EOS_BROKER_URL={{ eos_broker_url }}
 # The EOS host geo location tag used to sort hosts into geographical (rack) locations 
 export EOS_GEOTAG="{{ eos_geotag }}"
 
-{% for eos_mgm_node in eos_mgm_nodes %}
+{% for eos_mgm_node in eos_mgm_masters %}
 # The fully qualified hostname of MGM master{{ loop.index }}
 export EOS_MGM_MASTER{{ loop.index }}={{ eos_mgm_node }}
 

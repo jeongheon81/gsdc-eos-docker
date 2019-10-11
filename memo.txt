@@ -92,4 +92,12 @@ EOS Console [root://localhost] |/> vid set membership admin1 -gids daemon
 
 
 
+SUT
 
+firewall-offline-cmd --zone=internal --add-source=202.28.43.128/26
+firewall-offline-cmd --zone=external --add-source=134.75.123.0/24
+firewall-offline-cmd --set-default-zone=drop
+
+
+systemctl start firewalld
+yum install bash-completion

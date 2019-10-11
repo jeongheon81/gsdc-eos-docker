@@ -1,4 +1,4 @@
 ---
 {% if group_vars_all is defined -%}
-{{ group_vars_all | to_nice_yaml(indent=2) }}
+{{ group_vars_all|combine(group_vars_all_auto|default({})) | to_nice_yaml(indent=2) }}
 {% endif -%}

@@ -9,6 +9,16 @@
     state: directory
     mode: 0700
 
+- name: Install base package
+  package:
+    name:
+    - yum-utils
+    state: installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
 - name: Check timezone
   shell: "timedatectl status | grep 'Time zone:' | awk '{ print $3 }'"
   args:
