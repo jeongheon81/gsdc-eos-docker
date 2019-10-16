@@ -10,7 +10,7 @@ if [ ! -e /tmp/xrootd.sync.pid ] || ! ps $(cat /tmp/xrootd.sync.pid) | grep 'xro
   fi
 
   cd /var/spool/eos/core
-  ${XROOTDEXE} -n sync -c /etc/xrd.cf.sync -l /var/log/eos/xrootd.sync.log -k fifo -s /tmp/xrootd.sync.pid -b -Rdaemon
+  ${XROOTDEXE} -n sync -c /etc/xrd.cf.sync -l /var/log/eos/xrootd.sync.log -k fifo -s /tmp/xrootd.sync.pid -b -I {{ eos_xrootd_internet_address_protocol }} -Rdaemon
 else
   echo "Already started, PID: $(cat /tmp/xrootd.sync.pid)"
 fi

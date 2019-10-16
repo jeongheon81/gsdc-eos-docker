@@ -28,6 +28,13 @@ sec.protocol krb5 /etc/eos.krb5.keytab host/<host>@{{ eos_realm }}
 ###########################################################
 sec.protbind localhost.localdomain unix sss
 sec.protbind localhost unix sss
+{% set bind_eos_cluster_domain_name = [] %}
+{% for eos_cluster_domain_name in group_eos_cluster_domain_name %}
+{%   if eos_cluster_domain_name not in bind_eos_cluster_domain_name %}
+sec.protbind *.{{ eos_cluster_domain_name }} sss unix
+{%   set dummy = bind_eos_cluster_domain_name.append(eos_cluster_domain_name) %}
+{%   endif %}
+{% endfor %}
 #sec.protbind * only krb5 gsi sss unix
 sec.protbind * only krb5 sss unix
 ###########################################################

@@ -20,7 +20,7 @@ if [ ! -e /tmp/xrootd.mq.pid ] || ! ps $(cat /tmp/xrootd.mq.pid) | grep 'xrootd 
   fi
 
   cd /var/spool/eos/core
-  ${XROOTDEXE} -n mq -c /etc/xrd.cf.mq -l /var/log/eos/xrootd.mq.log -k fifo -s /tmp/xrootd.mq.pid -b -Rdaemon
+  ${XROOTDEXE} -n mq -c /etc/xrd.cf.mq -l /var/log/eos/xrootd.mq.log -k fifo -s /tmp/xrootd.mq.pid -b -I {{ eos_xrootd_internet_address_protocol }} -Rdaemon
 else
   echo "Already started, PID: $(cat /tmp/xrootd.mq.pid)"
 fi

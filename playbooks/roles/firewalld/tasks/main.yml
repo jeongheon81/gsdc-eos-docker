@@ -35,24 +35,24 @@
   notify:
   - reload firewalld
 
-- name: Disable ssh service on external zone
+- name: Add cooperation zone
   firewalld:
-    service: ssh
-    permanent: true
-    immediate: true
-    state: disabled
-    zone: external
+    zone: cooperation
+    state: present
+    permanent: yes
   notify:
   - reload firewalld
 
-- name: Add external zone sources to firewalld
+- meta: flush_handlers
+
+- name: Add cooperation zone sources to firewalld
   firewalld:
     source: "{{ item }}"
     permanent: true
     immediate: true
     state: enabled
-    zone: external
-  loop: "{{ firewall_external_zone_sources }}"
+    zone: cooperation
+  loop: "{{ firewall_cooperation_zone_sources }}"
   notify:
   - reload firewalld
 

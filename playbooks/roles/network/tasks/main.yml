@@ -101,6 +101,11 @@
     notify:
     - wait for new network settings
 
+  - name: Create resolv files
+    template: src=resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
+    notify:
+    - wait for new network settings
+
   when: network_bridge is defined
 
 - meta: flush_handlers

@@ -8,7 +8,7 @@ if [ ! -e /tmp/xrootd.proxy.pid ] || ! ps $(cat /tmp/xrootd.proxy.pid) | grep 'x
   fi
 
   cd /var/spool/eos/core
-  ${XROOTDEXE} -n proxy -c /etc/xrootd/xrootd-fwd-proxy.cfg -l /var/log/eos/xrootd.proxy.log -k fifo -s /tmp/xrootd.proxy.pid -b -Rdaemon
+  ${XROOTDEXE} -n proxy -c /etc/xrootd/xrootd-fwd-proxy.cfg -l /var/log/eos/xrootd.proxy.log -k fifo -s /tmp/xrootd.proxy.pid -b -I {{ eos_xrootd_internet_address_protocol }} -Rdaemon
 else
   echo "Already started, PID: $(cat /tmp/xrootd.proxy.pid)"
 fi

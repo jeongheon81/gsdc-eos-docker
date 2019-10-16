@@ -6,15 +6,10 @@ bootstrap:
     defaults:
       stdout_callback: human_readable_stdout
 
-host_default: &host_default
-  ansible_user: root
-  ansible_port: 22
-
-eos_container_default: &eos_container_default
-  domain: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
-  image: !unsafe "{{ eos_container_image_name }}:{{ eos_container_image_tag }}"
-  network: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
-  etc_hosts: !unsafe "{{ group_eos_container_etc_hosts[eos_group] }}"
+group_eos_container_etc_hosts_static:
+  eos_infra_group_001: {}
+  eos_infra_group_002:
+    eos-mgm.eoscluster.sdfarm.kr: 134.75.125.23
 
 group_vars_all:
   ssh_keyscan: true
@@ -36,7 +31,8 @@ group_vars_all:
   cockpit_rule_priority_base: 11
   group_eos_cluster_domain_name:
     eos_infra_group_001: eoscluster.sdfarm.kr
-    eos_infra_group_002: eoscluster.sut.ac.th
+    eos_infra_group_002: eoscluster.sdfarm.kr
+    # eos_infra_group_002: eoscluster.sut.ac.th
   # group_eos_container_etc_hosts_tuples:
   #   eos_infra_group_001: "{{ (host_group | default({})) | to_json | from_json |
   #     json_query('[?name != `eos_infra_group_001`].hosts[]|[?not_null(host_vars.containers)].host_vars.containers|[].*[*][{key: join(`.`,[name, domain]), value: ipv4_address }]|[]|[]|[]') }}"
@@ -53,6 +49,7 @@ group_vars_all:
   eos_admin_user_uid: 1001
   eos_admin_user_gid: 1001
   eos_use_proxy: yes
+  eos_xrootd_internet_address_protocol: v4
   eos_realm: !unsafe "{{ eos_cluster_domain_name|upper }}"
   eos_nodes: !unsafe "{{ eos_krb_nodes + eos_manager_nodes + eos_proxy_nodes + eos_mgm_nodes + eos_qdb_nodes + eos_fst_nodes }}"
   # eos_krb_nodes: "{{ (host_group | default({})) | to_json | from_json |
@@ -142,6 +139,16 @@ group_vars_all:
     password: !unsafe "{{ vault_manager.password }}"
   random_passwords: !unsafe "{{ vault_random_passwords }}"
 
+host_default: &host_default
+  ansible_user: root
+  ansible_port: 22
+
+eos_container_default: &eos_container_default
+  domain: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
+  image: !unsafe "{{ eos_container_image_name }}:{{ eos_container_image_tag }}"
+  network: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
+  etc_hosts: !unsafe "{{ group_eos_container_etc_hosts[eos_group] }}"
+
 host_group:
 - name: eos_infra_group_001
   group_vars:
@@ -155,7 +162,7 @@ host_group:
     - 192.168.125.0/24
     - 192.168.127.0/24
     - 192.168.2.0/24
-    firewall_external_zone_sources:
+    firewall_cooperation_zone_sources:
     - 202.28.43.128/26
     firewall_trusted_zone_sources:
     - 134.75.123.0/24
@@ -223,6 +230,7 @@ host_group:
       - { tag: "internal address 07", rule: "ipv4 filter DOCKER-USER 17 -s 192.168.125.0/24 -j RETURN" }
       - { tag: "internal address 08", rule: "ipv4 filter DOCKER-USER 18 -s 192.168.127.0/24 -j RETURN" }
       - { tag: "internal address 09", rule: "ipv4 filter DOCKER-USER 19 -s 192.168.2.0/24 -j RETURN" }
+      - { tag: "external address 01", rule: "ipv4 filter DOCKER-USER 101 -s 202.28.43.128/26 -j RETURN" }
       - { tag: "drop log no bridge-br2 address", rule: "ipv4 filter DOCKER-USER 996 -s 192.168.0.0/16 ! -d 192.168.125.31 -j LOG --log-prefix \"DU_DROP: \"" }
       - { tag: "drop no bridge-br2 address", rule: "ipv4 filter DOCKER-USER 997 -s 192.168.0.0/16 ! -d 192.168.125.31 -j DROP" }
       - { tag: "drop log no bridge-br1 address", rule: "ipv4 filter DOCKER-USER 998 ! -d 134.75.125.31 -j LOG --log-prefix \"DU_DROP: \"" }
@@ -288,7 +296,7 @@ host_group:
         - name: eos-mgm-01
           <<: *eos_container_default
           ipv4_address: 134.75.125.23
-          network_aliases: &mgm_network_aliases
+          network_aliases:
           - eos-mgm
           - !unsafe "{{ eos_mgm_alias }}"
           xrd_roles:
@@ -299,19 +307,18 @@ host_group:
         - name: eos-mgm-02
           <<: *eos_container_default
           ipv4_address: 134.75.125.24
-          network_aliases: *mgm_network_aliases
           xrd_roles:
           - mq
           - mgm
           mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
           mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
         eos_fst:
-        - name: eos-fst-01
+        - name: eos-fst-0001
           <<: *eos_container_default
           ipv4_address: 134.75.125.38
           xrd_roles:
           - fst
-          data_dir: /data/disk01
+          data_dir: /data/disk0001
           nfs_volumes:
           - name: data
             dest: /data
@@ -321,12 +328,12 @@ host_group:
           fst_uuid: 627bcd30-1af6-4525-a0c9-8a958a863b91
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        - name: eos-fst-02
+        - name: eos-fst-0002
           <<: *eos_container_default
           ipv4_address: 134.75.125.39
           xrd_roles:
           - fst
-          data_dir: /data/disk02
+          data_dir: /data/disk0002
           nfs_volumes:
           - name: data
             dest: /data
@@ -336,12 +343,12 @@ host_group:
           fst_uuid: 7469a2ee-ecbf-4a46-ac42-9d1f1adaa7e3
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        - name: eos-fst-03
+        - name: eos-fst-0003
           <<: *eos_container_default
           ipv4_address: 134.75.125.40
           xrd_roles:
           - fst
-          data_dir: /data/disk03
+          data_dir: /data/disk0003
           nfs_volumes:
           - name: data
             dest: /data
@@ -371,9 +378,10 @@ host_group:
           domain: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
           ipv4_address: 134.75.125.31
         grafana_promtail:
-        - name: grafana-promtail
+        - name: grafana-promtail-eos-kisti-01
           domain: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
           ipv4_address: 134.75.125.31
+          loki_address: 127.0.0.1:3100
   - name: eos-kisti-02.sdfarm.kr
     <<: *host_default
     host_vars:
@@ -432,7 +440,7 @@ host_group:
     - 134.75.123.146/32
     - 134.75.123.240/32
     - 150.183.234.141/32
-    firewall_external_zone_sources:
+    firewall_cooperation_zone_sources:
     - 134.75.125.0/24
     firewall_trusted_zone_sources:
     - 202.28.43.128/26
@@ -475,8 +483,9 @@ host_group:
       - { tag: "multi-cast address", rule: "ipv4 filter DOCKER-USER 1 -d 224.0.0.0/4 -j RETURN" }
       - { tag: "bridge-br1 address", rule: "ipv4 filter DOCKER-USER 2 -d 202.28.43.139 -j RETURN" }
       - { tag: "internal address 01", rule: "ipv4 filter DOCKER-USER 11 -s 202.28.43.128/26 -j RETURN" }
-      - { tag: "internal address 02", rule: "ipv4 filter DOCKER-USER 12 -s 134.75.123.0/24 -j RETURN" }
-      - { tag: "internal address 03", rule: "ipv4 filter DOCKER-USER 13 -s 134.75.125.0/24 -j RETURN" }
+      - { tag: "internal address 02", rule: "ipv4 filter DOCKER-USER 11 -s 134.75.123.146/32 -j RETURN" }
+      - { tag: "internal address 03", rule: "ipv4 filter DOCKER-USER 11 -s 134.75.123.240/32 -j RETURN" }
+      - { tag: "external address 01", rule: "ipv4 filter DOCKER-USER 101 -s 134.75.125.0/24 -j RETURN" }
       - { tag: "drop log no bridge-br1 address", rule: "ipv4 filter DOCKER-USER 998 ! -d 202.28.43.139 -j LOG --log-prefix \"DU_DROP: \"" }
       - { tag: "drop no bridge-br1 address", rule: "ipv4 filter DOCKER-USER 999 ! -d 202.28.43.139 -j DROP" }
       container_network:
@@ -487,7 +496,7 @@ host_group:
         bridge_name: br1
       containers:
         eos_fst:
-        - name: eos-fst-04
+        - name: eos-fst-0004
           <<: *eos_container_default
           ipv4_address: 202.28.43.173
           xrd_roles:
@@ -502,6 +511,41 @@ host_group:
           fst_uuid: d7159acf-cc61-4747-8848-7b0f5ac96ca4
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+        - name: eos-fst-0005
+          <<: *eos_container_default
+          ipv4_address: 202.28.43.174
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0005
+          nfs_volumes:
+          - name: data
+            dest: /data
+            device: :/volume2/EOS-FST02
+            options: addr=202.28.43.163,rw,nfsvers=3
+          fst_fsid: 5
+          fst_uuid: 1b35ec0f-211c-4452-a462-3266e7836378
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+        - name: eos-fst-0006
+          <<: *eos_container_default
+          ipv4_address: 202.28.43.175
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0006
+          nfs_volumes:
+          - name: data
+            dest: /data
+            device: :/volume3/EOS-FST03
+            options: addr=202.28.43.163,rw,nfsvers=3
+          fst_fsid: 6
+          fst_uuid: c87dfeda-45ec-4b91-8fca-ea55a6ea8128
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+        # grafana_promtail:
+        # - name: grafana-promtail-eos-sut-01
+        #   domain: !unsafe "{{ group_eos_cluster_domain_name[eos_group] }}"
+        #   ipv4_address: 202.28.43.139
+        #   loki_address: 134.75.125.31:3100
 - name: eos_infra
   group_vars: {}
   children:
@@ -545,7 +589,8 @@ group_vars_all_auto: >-
   {%           endif -%}
   {%         endif -%}
   {%       endfor -%}
-  {%       set dummy = result.update({ group.name: pre_result|flatten|items2dict }) -%}
+  {#       set dummy = pre_result.append(group_eos_container_etc_hosts_static[group.name]|dict2items) -#}
+  {%       set dummy = result.update({ group.name: pre_result|flatten|items2dict|combine(group_eos_container_etc_hosts_static[group.name]) }) -%}
   {%     endif -%}
   {%   endfor -%}
   {%   set dummy = final_result.update({ 'group_eos_container_etc_hosts': result }) -%}

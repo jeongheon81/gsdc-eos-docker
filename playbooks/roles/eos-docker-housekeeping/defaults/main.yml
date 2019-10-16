@@ -67,7 +67,7 @@ eos_grafana_promtail_pipeline_stages:
           - timestamp:
               source: timestamp
               format: UnixMs
-              location: !unsafe "{{ iana_timezone }}"
+              location: "{{ iana_timezone }}"
           - output:
               source: content
       - match:
@@ -83,14 +83,14 @@ eos_grafana_promtail_pipeline_stages:
           - timestamp:
               source: timestamp
               format: '060102 15:04:05'
-              location: !unsafe "{{ iana_timezone }}"
+              location: "{{ iana_timezone }}"
               #action_on_failure: fudge
           # bug on timestamp process, we remain time info
           # - output:
           #     source: content
           # - template:
           #     source: timestamp
-          #     template: !unsafe "{{ '{{' }} .Value {{ '}}' }}"
+          #     template: "{{ '{{' }} .Value {{ '}}' }}"
   eos_proxy:
   - match:
       selector: '{service="eos-proxy",job=~".*xrootd\\.proxy\\.log"}'
@@ -111,7 +111,7 @@ eos_grafana_promtail_pipeline_stages:
           - timestamp:
               source: timestamp
               format: '060102 15:04:05'
-              location: !unsafe "{{ iana_timezone }}"
+              location: "{{ iana_timezone }}"
           # bug on timestamp process, we remain time info
           # - output:
           #     source: content
@@ -128,7 +128,7 @@ eos_grafana_promtail_pipeline_stages:
           - timestamp:
               source: timestamp
               format: '060102 15:04:05'
-              location: !unsafe "{{ iana_timezone }}"
+              location: "{{ iana_timezone }}"
               #action_on_failure: fudge
           # bug on timestamp process, we remain time info
           # - output:
@@ -151,11 +151,11 @@ eos_grafana_promtail_pipeline_stages:
               xrootd_log_type:
           - template:
               source: timestamp_us
-              template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+              template: '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
           - timestamp:
               source: timestamp_us
               format: UnixNs
-              location: !unsafe "{{ iana_timezone }}"
+              location: "{{ iana_timezone }}"
           # bug on timestamp process, we remain time info
           # - output:
           #     source: content
@@ -178,7 +178,7 @@ eos_grafana_promtail_pipeline_stages:
               - timestamp:
                   source: timestamp
                   format: '060102 15:04:05'
-                  location: !unsafe "{{ iana_timezone }}"
+                  location: "{{ iana_timezone }}"
               # bug on timestamp process, we remain time info
               # - output:
               #     source: content
@@ -195,7 +195,7 @@ eos_grafana_promtail_pipeline_stages:
               - timestamp:
                   source: timestamp
                   format: '060102 15:04:05'
-                  location: !unsafe "{{ iana_timezone }}"
+                  location: "{{ iana_timezone }}"
                   #action_on_failure: fudge
               # bug on timestamp process, we remain time info
               # - output:
@@ -218,11 +218,11 @@ eos_grafana_promtail_pipeline_stages:
               xrootd_log_type:
           - template:
               source: timestamp_us
-              template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+              template: '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
           - timestamp:
               source: timestamp_us
               format: UnixNs
-              location: !unsafe "{{ iana_timezone }}"
+              location: "{{ iana_timezone }}"
           # bug on timestamp process, we remain time info
           # - output:
           #     source: content
@@ -245,7 +245,7 @@ eos_grafana_promtail_pipeline_stages:
               - timestamp:
                   source: timestamp
                   format: '060102 15:04:05'
-                  location: !unsafe "{{ iana_timezone }}"
+                  location: "{{ iana_timezone }}"
               # bug on timestamp process, we remain time info
               # - output:
               #     source: content
@@ -262,7 +262,7 @@ eos_grafana_promtail_pipeline_stages:
               - timestamp:
                   source: timestamp
                   format: '060102 15:04:05'
-                  location: !unsafe "{{ iana_timezone }}"
+                  location: "{{ iana_timezone }}"
                   #action_on_failure: fudge
               # bug on timestamp process, we remain time info
               # - output:

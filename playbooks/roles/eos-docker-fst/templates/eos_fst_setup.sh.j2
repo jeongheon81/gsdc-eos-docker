@@ -20,7 +20,7 @@ if [ ! -e /tmp/xrootd.fst.pid ] || ! ps $(cat /tmp/xrootd.fst.pid) | grep 'xroot
 
   cd /var/spool/eos/core
   echo "Starting fst: {{ item[0].eos_component.name }} ..."
-  ${XROOTDEXE} -n fst -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst.log -k fifo -s /tmp/xrootd.fst.pid -b -Rdaemon
+  ${XROOTDEXE} -n fst -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst.log -k fifo -s /tmp/xrootd.fst.pid -b -I {{ eos_xrootd_internet_address_protocol }} -Rdaemon
 
   if [ ! -e /root/INITIALIZED ] ; then
     echo "Configuring fst: {{ item[0].eos_component.name }} ..."
@@ -28,8 +28,8 @@ if [ ! -e /tmp/xrootd.fst.pid ] || ! ps $(cat /tmp/xrootd.fst.pid) | grep 'xroot
     echo "$UUID" > $DATADIR/.eosfsuuid
     echo "${id}" > $DATADIR/.eosfsid
     chown -R daemon:daemon $DATADIR
-    eos -b fs add -m ${id} $UUID $FSTHOSTNAME:1095 $DATADIR $SPACE $CONFIG
-    eos -b node set $FSTHOSTNAME:1095 on
+    eos -r root root -b fs add -m ${id} $UUID $FSTHOSTNAME:1095 $DATADIR $SPACE $CONFIG 2>&1 | tee -a /root/INITIALIZED.log
+    eos -r root root -b node set $FSTHOSTNAME:1095 on 2>&1 | tee -a /root/INITIALIZED.log
     echo "Configuration done for fst: {{ item[0].eos_component.name }}"
 
     touch /root/INITIALIZED

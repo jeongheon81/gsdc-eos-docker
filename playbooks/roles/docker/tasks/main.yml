@@ -16,10 +16,21 @@
   retries: 5
   delay: 3
 
+- name: Install epel-release packages.
+  package:
+    name:
+    - epel-release
+    state: latest
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
 - name: Enable extras repository.
   yum:
     enablerepo:
     - extras
+    - epel
 
 - name: Install required packages.
   package:
@@ -42,6 +53,10 @@
 - name: Add Docker repository.
   command: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
   changed_when: false
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
 
 - name: check Docker repository after
   stat: path=/etc/yum.repos.d/docker-ce.repo
@@ -52,6 +67,10 @@
   rpm_key:
     key: https://download.docker.com/linux/centos/gpg
     state: present
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
 
 - name: Install Docker Engine.
   package:
