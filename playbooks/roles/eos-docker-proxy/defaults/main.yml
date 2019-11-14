@@ -13,9 +13,13 @@ eos_proxy_template_files:
 - { name: "eos_proxy_setup.sh", dest: "/eos_proxy_setup.sh", src: "eos_proxy_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
 eos_proxy_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
-eos_proxy_config_directories: []
-# - { name: "", dest: "", is_volume: true }
+eos_proxy_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+- { name: "sysconfig", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+- { name: "xrootd", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
 eos_proxy_persistent_volumes:
+# - { name: "", dest: "" }
 - { name: "roothome", dest: "/root" }
 - { name: "eos", dest: "/var/eos" }
 - { name: "spooleos", dest: "/var/spool/eos" }

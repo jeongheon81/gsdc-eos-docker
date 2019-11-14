@@ -15,7 +15,6 @@
     file:
       path: "{{ item }}"
       state: directory
-      recurse: yes
       mode: u=rwX,g=rX,o=rX
     loop:
     - "{{ build_home }}"

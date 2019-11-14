@@ -10,8 +10,8 @@ grafana_loki_template_files:
 grafana_loki_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 grafana_loki_config_directories:
-# - { name: "", dest: "", is_volume: true }
-- { name: "", dest: "/etc/loki", is_volume: true }
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "/etc/loki", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
 grafana_loki_persistent_volumes:
 # - { name: "", dest: "" }
 - { name: "data", dest: "/tmp/loki" }

@@ -44,7 +44,7 @@
   any_errors_fatal: true
   roles:
   - baseshare
-  # - eos-docker-config
+  - eos-docker-config
   - eos-docker-housekeeping
   - grafana-docker-server
   - grafana-docker-loki

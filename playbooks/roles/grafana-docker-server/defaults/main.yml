@@ -10,11 +10,11 @@ grafana_server_template_files:
 grafana_server_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 grafana_server_config_directories:
-# - { name: "", dest: "", is_volume: true }
-- { name: "provisioning", dest: "/etc/grafana/provisioning", is_volume: true }
-- { name: "provisioning/dashboards", dest: "", is_volume: false }
-- { name: "provisioning/datasources", dest: "", is_volume: false }
-- { name: "provisioning/notifiers", dest: "", is_volume: false }
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "provisioning", dest: "/etc/grafana/provisioning", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "provisioning/dashboards", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+- { name: "provisioning/datasources", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+- { name: "provisioning/notifiers", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
 grafana_server_persistent_volumes:
 # - { name: "", dest: "" }
 - { name: "data", dest: "/var/lib/grafana" }

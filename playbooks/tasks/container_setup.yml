@@ -25,21 +25,29 @@
 - set_fact:
     nfs_volume_names: "{{ container_infos|to_json|from_json|json_query('[].{ key: name, value: nfs_volumes[].name }')|items2dict }}"
 
-- name: Create config files directory
+- name: Create config directory
   file:
-    path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name|dirname }}/"
+    path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
     state: directory
-    mode: u=rwX,g=rX,o=rX
-    recurse: yes
-  loop: "{{ container_infos|product(shipped_files + generated_files + template_files)|list }}"
-
-- name: Create config sub directory
-  file:
-    path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}/"
-    state: directory
-    mode: u=rwX,g=rX,o=rX
-    recurse: yes
+    owner: "{{ item[1].owner }}"
+    group: "{{ item[1].group }}"
+    mode: "{{ item[1].mode }}"
+  when: not item[0].is_initialized or item[1].force
   loop: "{{ container_infos|product(config_directories)|list }}"
+
+# - name: Create config files directory
+#   file:
+#     path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name|dirname }}/"
+#     state: directory
+#     mode: u=rwX,g=rX,o=rX
+#   loop: "{{ container_infos|product(shipped_files + generated_files + template_files)|list }}"
+
+# - name: Create config sub directory
+#   file:
+#     path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
+#     state: directory
+#     mode: u=rwX,g=rX,o=rX
+#   loop: "{{ container_infos|product(config_directories)|list }}"
 
 - block:
   - name: Check shipped files

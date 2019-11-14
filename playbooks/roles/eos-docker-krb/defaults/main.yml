@@ -13,9 +13,11 @@ eos_krb_template_files:
 - { name: "kdc.sh", dest: "/kdc.sh", src: "kdc.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
 eos_krb_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
-eos_krb_config_directories: []
-# - { name: "", dest: "", is_volume: true }
+eos_krb_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
 eos_krb_persistent_volumes:
+# - { name: "", dest: "" }
 - { name: "roothome", dest: "/root" }
 - { name: "heimdal", dest: "/var/heimdal" }
 - { name: "log", dest: "/var/log/heimdal" }

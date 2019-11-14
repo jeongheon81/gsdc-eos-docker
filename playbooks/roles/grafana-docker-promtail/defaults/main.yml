@@ -10,8 +10,8 @@ grafana_promtail_template_files:
 grafana_promtail_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 grafana_promtail_config_directories:
-# - { name: "", dest: "", is_volume: true }
-- { name: "", dest: "/etc/promtail", is_volume: true }
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "/etc/promtail", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
 grafana_promtail_persistent_volumes:
 # - { name: "", dest: "" }
 - { name: "data", dest: "/tmp/promtail" }
