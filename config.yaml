@@ -582,11 +582,12 @@ host_group:
           fst_uuid: c87dfeda-45ec-4b91-8fca-ea55a6ea8128
           fst_space: !unsafe "{{ eos_default_fs_space_name }}"
           fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        # grafana_promtail:
-        # - name: grafana-promtail-physics4
-        #   domain: !unsafe "{{ container_domain }}"
-        #   ipv4_address: 202.28.43.139
-        #   loki_address: grafana-loki.eoscluster.sdfarm.kr:3100
+        grafana_promtail:
+        - name: grafana-promtail-physics4
+          <<: *container_default
+          image: !unsafe "{{ container_images.promtail }}"
+          ipv4_address: 202.28.43.172
+          loki_address: grafana-loki.eoscluster.sdfarm.kr:3100
 - name: eos_infra
   group_vars: {}
   children:
