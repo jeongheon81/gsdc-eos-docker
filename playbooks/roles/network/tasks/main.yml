@@ -1,17 +1,4 @@
 ---
-- name: Create route files
-  template: src=route.j2 dest=/etc/sysconfig/network-scripts/route-{{ item.device }} owner=root group=root mode=0644
-  loop: "{{ network_routes }}"
-  notify:
-  - wait for new network settings
-
-- name: Create resolv files
-  template: src=resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
-  notify:
-  - wait for new network settings
-
-- meta: flush_handlers
-
 - block:
   - name: install needed network manager libs
     package:
@@ -22,6 +9,10 @@
         - policycoreutils-python
         - bridge-utils
       state: present
+    register: install_packages
+    until: install_packages is success
+    retries: 5
+    delay: 3
 
   - name: check bridge config before (nmcli module changed_when bug work around)
     stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.conn_name }}
@@ -101,11 +92,54 @@
     notify:
     - wait for new network settings
 
-  - name: Create resolv files
-    template: src=resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
+  when: network_bridge is defined
+
+- block:
+  - name: Set ipv4 dns
+    shell: if ! nmcli -t connection show '{{ item.conn_name }}' | grep 'ipv4\.dns' | grep '{{ item.dns4|map('regex_escape', 'posix_basic')|list|join("' | grep '") }}' ; then nmcli connection modify '{{ item.conn_name }}' ipv4.dns '{{ item.dns4|join(' ') }}' && echo changed; else echo skipped; fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    when: item.dns4 is defined
+    loop: "{{ network_dns }}"
     notify:
     - wait for new network settings
 
-  when: network_bridge is defined
+  - name: Set ipv4 dns-search
+    shell: if ! nmcli -t connection show '{{ item.conn_name }}' | grep 'ipv4\.dns-search' | grep '{{ item.dns4_search|map('regex_escape', 'posix_basic')|list|join("' | grep '") }}' ; then nmcli connection modify '{{ item.conn_name }}' ipv4.dns-search '{{ item.dns4_search|join(' ') }}' && echo changed; else echo skipped; fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    when: item.dns4_search is defined
+    loop: "{{ network_dns }}"
+    notify:
+    - wait for new network settings
+
+  when: network_dns is defined
+
+- block:
+  - name: Set ipv4 routes
+    shell: "if ! nmcli -t connection show '{{ item[0].conn_name }}' | grep 'ipv4\\.routes' | grep '{{ item[1].ip|regex_escape('posix_basic') }} {{ item[1].nh|regex_escape('posix_basic') }}' ; then nmcli connection modify '{{ item[0].conn_name }}' +ipv4.routes '{{ item[1].ip }} {{ item[1].nh }}' && echo changed; else echo skipped; fi"
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ network_routes|subelements('ipv4_list', skip_missing=True) }}"
+    notify:
+    - wait for new network settings
+
+  - name: Set ipv6 routes
+    shell: "if ! nmcli -t connection show '{{ item[0].conn_name }}' | grep 'ipv6\\.routes' | grep '{{ item[1].ip|regex_escape('posix_basic') }} {{ item[1].nh|regex_escape('posix_basic') }}' ; then nmcli connection modify '{{ item[0].conn_name }}' +ipv6.routes '{{ item[1].ip }} {{ item[1].nh }}' && echo changed; else echo skipped; fi"
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ network_routes|subelements('ipv6_list', skip_missing=True) }}"
+    notify:
+    - wait for new network settings
+
+  when: network_routes is defined
 
 - meta: flush_handlers

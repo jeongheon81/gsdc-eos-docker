@@ -1,36 +1,21 @@
 ---
 - block:
-  - set_fact:
-      grafana_components: "{{ containers.grafana_promtail }}"
-
-  - name: Create config base directory
-    file:
-      path: "/etc/grafana/"
-      state: directory
-      owner: root
-      group: root
-      mode: u=rwX,g=rX,o=rX
-
-  - name: Create config files directory
-    file:
-      path: "/etc/grafana/promtail"
-      state: directory
-      owner: root
-      group: root
-      mode: u=rwX,g=rX,o=rX
-
-  - name: Create config files
-    template:
-      src: local-config.yaml.j2
-      dest: /etc/grafana/promtail/local-config.yaml
-      owner: root
-      group: root
-      mode: "0644"
+  - name: Setup container
+    include_tasks: tasks/container_setup.yml
+    vars:
+      components: "{{ containers.grafana_promtail }}"
+      config_base_directory: "{{ grafana_promtail_config_base_directory }}"
+      shipped_files: "{{ grafana_promtail_shipped_files }}"
+      generated_files: "{{ grafana_promtail_generated_files }}"
+      template_files: "{{ grafana_promtail_template_files }}"
+      config_files: "{{ grafana_promtail_config_files }}"
+      config_directories: "{{ grafana_promtail_config_directories }}"
+      persistent_volumes: "{{ grafana_promtail_persistent_volumes }}"
 
   - name: Create sd config files
     template:
       src: logs-sd.json.j2
-      dest: /etc/grafana/promtail/{{ log_volume.job_prefix }}_logs-sd.json
+      dest: "{{ grafana_promtail_config_base_directory }}/{{ log_volume.promtail_name }}/{{ log_volume.job_prefix }}_logs-sd.json"
       owner: root
       group: root
       mode: "0644"
@@ -38,40 +23,31 @@
     loop_control:
       loop_var: log_volume
 
-  - name: Create a local volume
-    docker_volume:
-      name: "grafana-promtail_storage"
+  - name: Build container volume list with log_directories
+    set_fact:
+      container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[1].name + ':' + item[1].dest+ ':ro' ] }) }}"
+    loop: "{{ containers.grafana_promtail|product(log_directories)|list }}"
 
-  - set_fact:
-      container_volumes_basic:
-      - "/var/log:/var/log:ro"
-      - "/run/log/journal:/run/log/journal:ro"
-      - "/etc/grafana/promtail:/etc/promtail"
-      - "grafana-promtail_storage:/tmp/promtail"
-
-  - set_fact:
-      container_volumes: "{{ (container_volumes|default([])) + [ item.name+':/run/log/'+item.name+':ro' ] }}"
-    loop: "{{ log_volumes }}"
+  - name: Build container volume list with log_volumes
+    set_fact:
+      container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[1].name + ':/run/log/' + item[1].name+ ':ro' ] }) }}"
+    loop: "{{ containers.grafana_promtail|product(log_volumes)|list }}"
 
   - name: Start container
     docker_container:
-      name: "grafana-promtail"
-      image: "grafana/promtail:latest"
+      name: "{{ item.name }}"
+      image: "{{ item.image }}"
       state: started
-      command: -config.file=/etc/promtail/local-config.yaml
+      hostname: "{{ item.name }}.{{ item.domain }}"
       purge_networks: yes
-      network_mode: host
-      volumes: "{{ container_volumes + container_volumes_basic }}"
+      networks:
+      - name: "{{ item.network }}"
+        ipv4_address: "{{ item.ipv4_address }}"
+        aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      command: -config.file=/etc/promtail/local-config.yaml
     register: container_start_results
-
-  - name: Setup firewall on internal zone
-    firewalld:
-      port: 9080/tcp
-      permanent: yes
-      immediate: yes
-      state: enabled
-      zone: internal
-    notify:
-    - reload firewalld
+    loop: "{{ container_infos }}"
 
   when: containers is defined and containers.grafana_promtail is defined

@@ -1,14 +1,21 @@
 ---
-privileged_container: false
-shipped_files: []
-generated_files: []
-template_files:
-- { container_path: "/etc/heimdal-kadmind.acl", host_dir: ".", host_file: "heimdal-kadmind.acl", template_file: "heimdal-kadmind.acl.j2", owner: "root", group: "root", mode: "0600" }
-- { container_path: "/etc/heimdal-kdc.conf", host_dir: ".", host_file: "heimdal-kdc.conf", template_file: "heimdal-kdc.conf.j2", owner: "root", group: "root", mode: "0600" }
-- { container_path: "/etc/heimdal-slaves", host_dir: ".", host_file: "heimdal-slaves", template_file: "heimdal-slaves.j2", owner: "root", group: "root", mode: "0600" }
-- { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/kdc.sh", host_dir: ".", host_file: "kdc.sh", template_file: "kdc.sh.j2", owner: "root", group: "root", mode: "0755" }
-persistent_volumes:
+eos_krb_config_base_directory: /etc/eos-docker
+eos_krb_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+eos_krb_generated_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+eos_krb_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "heimdal-kadmind.acl", dest: "/etc/heimdal-kadmind.acl", src: "heimdal-kadmind.acl.j2", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "heimdal-kdc.conf", dest: "/etc/heimdal-kdc.conf", src: "heimdal-kdc.conf.j2", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "heimdal-slaves", dest: "/etc/heimdal-slaves", src: "heimdal-slaves.j2", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "kdc.sh", dest: "/kdc.sh", src: "kdc.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+eos_krb_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+eos_krb_config_directories: []
+# - { name: "", dest: "", is_volume: true }
+eos_krb_persistent_volumes:
 - { name: "roothome", dest: "/root" }
 - { name: "heimdal", dest: "/var/heimdal" }
 - { name: "log", dest: "/var/log/heimdal" }

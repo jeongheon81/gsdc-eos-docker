@@ -5,12 +5,17 @@
 
 - block:
   - name: Setup fs
-    shell: docker exec -i {{ containers.eos_mgm[0].name }} /eos_mgm_fs_setup.sh {{ eos_fst_nodes|length }}
+    shell: docker exec -i {{ item.name }} /eos_mgm_fs_setup.sh {{ eos_fst_nodes|length }}
     run_once: true
+    when: item.name+'.'+item.domain == eos_mgm_prime_master
+    loop: "{{ containers.eos_mgm }}"
 
   - name: Create initialized holder
     file:
       path: /etc/eos-docker/MGM_FS_INITIALIZED
       state: touch
+    run_once: true
+    when: item.name+'.'+item.domain == eos_mgm_prime_master
+    loop: "{{ containers.eos_mgm }}"
 
   when: not initialized_holder_stat.stat.exists and containers is defined and containers.eos_mgm is defined and containers.eos_mgm|length > 0

@@ -27,7 +27,7 @@
           dest: /usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py
           mode: '0644'
         when: not nmcli_backup_stat.stat.exists and nmcli_stat.stat.exists
-      when: ansible_version["string"] is version("2.8.5", "<")
+      when: ansible_version["string"] is version("2.8.6", "<")
 
 - hosts: all
   gather_facts: yes
@@ -43,31 +43,31 @@
       changed_when: False
     - name: Get the space available in /var/lib/
       become: yes
-      shell: "echo $(( $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $4}' | sed 's/G//') + $(printf %.0f $(which docker >&/dev/null && docker image ls --format '{{ '{{' }}.Repository{{ '}}' }} {{ '{{' }}.Size{{ '}}' }}' {{ eos_container_image_name }} | cut -d ' ' -f 2  | sed 's/GB//' || echo)) ))"
+      shell: "echo $(( $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $4}' | numfmt --from iec) + $(printf %.0f $(which docker >&/dev/null && docker image ls --format '{{ '{{' }}.Repository{{ '}}' }} {{ '{{' }}.Size{{ '}}' }}' | grep '{{ container_image_name|join('\\|') }}' | cut -d ' ' -f 2 | sed 's/B/i/' | numfmt --from iec-i | paste -sd+ - | bc || echo)) ))"
       args:
         executable: /bin/bash
       register: var_lib_space_available
       changed_when: false
     - name: Fail if there is not enough space available in /var/lib/
-      when: (var_lib_space_available.stdout|int) < 8
+      when: (var_lib_space_available.stdout|int) < 8589934592
       fail:
         msg: |
           Not enough space available in /var/lib/.
-          Found {{ var_lib_space_available.stdout }} GB, required 8 GB.
+          Found {{ var_lib_space_available.stdout }} B, required 8 GB.
           Try)
             lvextend -L 10G $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $1}')
             xfs_growfs $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $6}')
     - name: Get the space available in home
       become: yes
-      shell: "df -BG ${HOME} | awk '!/^Filesystem/ {print $4}' | sed 's/G//'"
+      shell: "df -BG ${HOME} | awk '!/^Filesystem/ {print $4}' | numfmt --from iec"
       changed_when: false
       register: home_space_available
     - name: Fail if there is not enough space available in home
-      when: (home_space_available.stdout|int) < 6
+      when: (home_space_available.stdout|int) < 6442450944
       fail:
         msg: |
-          Not enough space available in /var/lib/.
-          Found {{ home_space_available.stdout }} GB, required 6 GB.
+          Not enough space available in ${HOME}.
+          Found {{ home_space_available.stdout }} B, required 6 GB.
           Try)
             lvextend -L 10G $(df -BG ${HOME} | awk '!/^Filesystem/ {print $1}')
             xfs_growfs $(df -BG ${HOME} | awk '!/^Filesystem/ {print $6}')

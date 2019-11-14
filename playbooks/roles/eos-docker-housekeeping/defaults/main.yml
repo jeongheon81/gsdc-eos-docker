@@ -90,7 +90,7 @@ eos_grafana_promtail_pipeline_stages:
           #     source: content
           # - template:
           #     source: timestamp
-          #     template: "{{ '{{' }} .Value {{ '}}' }}"
+          #     template: !unsafe "{{ '{{' }} .Value {{ '}}' }}"
   eos_proxy:
   - match:
       selector: '{service="eos-proxy",job=~".*xrootd\\.proxy\\.log"}'
@@ -151,7 +151,7 @@ eos_grafana_promtail_pipeline_stages:
               xrootd_log_type:
           - template:
               source: timestamp_us
-              template: '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+              template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
           - timestamp:
               source: timestamp_us
               format: UnixNs
@@ -218,7 +218,7 @@ eos_grafana_promtail_pipeline_stages:
               xrootd_log_type:
           - template:
               source: timestamp_us
-              template: '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+              template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
           - timestamp:
               source: timestamp_us
               format: UnixNs

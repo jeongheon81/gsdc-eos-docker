@@ -3,7 +3,8 @@
 # Start kdc
 if [ ! -e /var/run/kdc.pid ] || ! ps $(cat /var/run/kdc.pid) | grep kdc &>/dev/null ; then
   echo -n "Starting kdc... "
-  /usr/libexec/kdc --detach
+  #/usr/libexec/kdc --detach
+  /usr/libexec/kdc &
   echo Done.
 fi
 
@@ -15,7 +16,7 @@ if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} check &>/dev/null ; then
 fi
 
 # Populate KDC and generate keytab files
-echo -n "Populating kdc... "
+echo "Populating kdc... "
 if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get {{ eos_admin_user }} &>/dev/null ; then
   /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults {{ eos_admin_user }} | /usr/bin/tee -a /root/user.{{ eos_admin_user }}.log
   /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }}
@@ -37,3 +38,5 @@ if [ ! -e /root/eos.keytab ] ; then
   chown daemon:daemon /root/eos.keytab
 fi
 echo Done.
+
+wait

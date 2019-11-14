@@ -80,7 +80,8 @@
           'logs': eos_container_list[ansible_loop.index0].logs,
           'job_prefix': eos_container_list[ansible_loop.index0].name,
           'service': 'eos-'+eos_container_list[ansible_loop.index0].type[4:],
-          'pipeline_stages': eos_grafana_promtail_pipeline_stages[eos_container_list[ansible_loop.index0].type]|default([])
+          'pipeline_stages': eos_grafana_promtail_pipeline_stages[eos_container_list[ansible_loop.index0].type]|default([]),
+          'promtail_name': 'grafana-promtail-' + ansible_hostname
         }] }}"
     loop: "{{ log_volume_info_results.results }}"
     loop_control:

@@ -1,38 +1,54 @@
 
 
-docker rm -f grafana-server
-docker rm -f grafana-promtail
+docker rm -f grafana-01
+docker rm -f grafana-promtail-eos-kisti-01
 docker rm -f grafana-loki
 docker volume prune
 
 rm -rf /etc/grafana/
 
-
-docker rm -f eos-proxy-01 &
-docker rm -f eos-qdb-01 &
-docker rm -f eos-qdb-02 &
-docker rm -f eos-qdb-03 &
-docker rm -f eos-krb-01 &
-docker rm -f eos-mgm-01 &
-docker rm -f eos-mgm-02 &
-docker rm -f eos-fst-01 &
-docker rm -f eos-fst-02 &
-docker rm -f eos-fst-03 &
-docker rm -f eos-manager-01 &
+rm -rf /var/lib/docker/volumes/eos-fst-*_data/_data/*
+rm -rf /var/lib/docker/volumes/eos-qdb-*_data/_data/*
+docker rm -f eos-proxy-01
+docker rm -f eos-qdb-01
+docker rm -f eos-qdb-02
+docker rm -f eos-qdb-03
+docker rm -f eos-krb-01
+docker rm -f eos-mgm-01
+docker rm -f eos-mgm-02
+docker rm -f eos-fst-0001
+docker rm -f eos-fst-0002
+docker rm -f eos-fst-0003
+docker rm -f eos-manager-01
+docker volume prune
 
 rm -rf /etc/eos-docker/
+docker volume rm eos-fst-0001_data
+docker volume rm eos-fst-0002_data
+docker volume rm eos-fst-0003_data
+docker volume rm eos-qdb-01_qdb
+docker volume rm eos-qdb-02_qdb
+docker volume rm eos-qdb-03_qdb
+docker volume ls
+
+rm -rf /var/lib/docker/volumes/eos-fst-*_data/_data/*
+docker rm -f eos-fst-0004
+docker rm -f eos-fst-0005
+docker rm -f eos-fst-0006
+docker volume prune
+
+rm -rf /etc/eos-docker/
+docker volume rm eos-fst-0004_data
+docker volume rm eos-fst-0005_data
+docker volume rm eos-fst-0006_data
+docker volume ls
+
+
 rm -rf /etc/eos-docker/eos-mgm-*
 
 docker volume prune
 docker container prune
 
-docker volume rm eos-fst-01_data
-docker volume rm eos-fst-02_data
-docker volume rm eos-fst-03_data
-docker volume rm eos-qdb-01_qdb
-docker volume rm eos-qdb-02_qdb
-docker volume rm eos-qdb-03_qdb
-docker volume ls
 
 rm -f /etc/logrotate.d/eos-*_logs
 
@@ -44,27 +60,6 @@ docker rm -f eos-mgm-kisti01 &
 docker rm -f eos-mgm-kisti02 &
 docker rm -f eos-mq-kisti01 &
 rm -rf /etc/eos-docker/eos-m*
-
-firewall-cmd --permanent --direct --add-chain ipv4 filter DOCKER-USER
-
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 -d 224.0.0.0/4 -j RETURN # multi-cast
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 2 -d 134.75.125.31 -j RETURN
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 3 -d 192.168.125.31 -j RETURN
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 11 -s 134.75.125.0/24 ! -d 134.75.125.31 -j RETURN
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 996 -s 192.168.0.0/16 ! -d 192.168.125.31 -j LOG --log-prefix "DU_DROP: "
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 997 -s 192.168.0.0/16 ! -d 192.168.125.31 -j DROP
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 998 ! -d 134.75.125.31 -j LOG --log-prefix "DU_DROP: "
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 999 ! -d 134.75.125.31 -j DROP
-
-firewall-cmd --direct --get-all-rules
-
-firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 11 -o br1 -s 134.75.125.0/24 -j ACCEPT
-firewall-cmd --permanent --direct --get-all-rules
-
-firewall-cmd --permanent --direct --remove-rule ipv4 filter DOCKER-USER 11 -o br1 -s 134.75.125.0/24 -j ACCEPT
-
-firewall-cmd --reload
-
 
 redis-cli -p 7777 -h eos-qdb-01.eoscluster.sdfarm.kr -a "$(cat /etc/eos.keytab)" keys "eos-config*"
 redis-cli -p 7777 -h eos-qdb-01.eoscluster.sdfarm.kr keys "eos-config*"
@@ -87,9 +82,10 @@ docker exec -i eos-client-sut bash -c "echo 'export '"EOS_MGM_URL=root://eos-mgm
 
 EOS Console [root://localhost] |/> vid enable krb5
 EOS Console [root://localhost] |/> vid set map -krb5 <pwd> vuid:root vgid:root
-EOS Console [root://localhost] |/> vid set membership admin1 -uids daemon
-EOS Console [root://localhost] |/> vid set membership admin1 -gids daemon
-
+EOS Console [root://localhost] |/> vid set membership eos-admin -uids daemon
+EOS Console [root://localhost] |/> vid set membership eos-admin -gids daemon
+EOS Console [root://localhost] |/> vid set membership eos-admin -uids daemon,root
+EOS Console [root://localhost] |/> vid set membership eos-admin -gids daemon,root
 
 
 SUT
@@ -101,3 +97,20 @@ firewall-offline-cmd --set-default-zone=drop
 
 systemctl start firewalld
 yum install bash-completion
+
+
+
+yum install docker-ce-cli-19.03.2-3.el7.x86_64 docker-ce-19.03.2-3.el7.x86_64
+
+
+cat /etc/sudoers.d/kisti
+kisti        ALL=(ALL)       NOPASSWD: ALL
+
+
+eos -r root root -b fs add -m 4 d7159acf-cc61-4747-8848-7b0f5ac96ca4 eos-fst-0004.eoscluster.sdfarm.kr:1095 /data/disk0004 default rw
+eos -r root root -b fs add -m 5 1b35ec0f-211c-4452-a462-3266e7836378 eos-fst-0005.eoscluster.sdfarm.kr:1095 /data/disk0005 default rw
+eos -r root root -b fs add -m 6 c87dfeda-45ec-4b91-8fca-ea55a6ea8128 eos-fst-0006.eoscluster.sdfarm.kr:1095 /data/disk0006 default rw
+
+eos -r root root -b node set eos-fst-0004.eoscluster.sdfarm.kr:1095 on
+eos -r root root -b node set eos-fst-0005.eoscluster.sdfarm.kr:1095 on
+eos -r root root -b node set eos-fst-0006.eoscluster.sdfarm.kr:1095 on

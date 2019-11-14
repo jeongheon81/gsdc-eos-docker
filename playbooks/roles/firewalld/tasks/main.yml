@@ -56,6 +56,29 @@
   notify:
   - reload firewalld
 
+- name: Build firewall_forward_between_internal_zone_direct_rules
+  set_fact:
+    firewall_forward_between_internal_zone_direct_rules: >-
+      {% set final_result = [] -%}
+      {% if firewall_forward_enable_nat -%}
+      {%   for source in firewall_forward_nat_negative_sources|default([]) -%}
+      {{     final_result.append({ 'tag': 'between internal zone NAT '+source, 'rule': 'ipv4 nat POSTROUTING ' + loop.index|string + ' ! -s ' + source + ' -o '+ firewall_forward_nat_out_interface +' -j MASQUERADE' }) -}}
+      {%   endfor -%}
+      {% endif -%}
+      {{ final_result.append({ 'tag': 'between internal zone ESTABLISHED', 'rule': 'ipv4 filter FORWARD 0 -m state --state RELATED,ESTABLISHED -j ACCEPT' }) -}}
+      {%   for source in firewall_internal_zone_sources|default([]) -%}
+      {{     final_result.append({ 'tag': 'between internal zone '+source, 'rule': 'ipv4 filter FORWARD ' + loop.index|string + ' -s ' + source + ' -j ACCEPT' }) -}}
+      {%   endfor -%}
+      {{ final_result }}
+
+- name: Setup firewall forwarding between internal zone
+  import_tasks: tasks/firewall_by_direct.yml
+  vars:
+    firewall_direct_rule_permanent: yes
+    firewall_direct_rule_state: present
+    firewall_direct_rule_list: "{{ firewall_forward_between_internal_zone_direct_rules }}"
+  when: firewall_forward_between_internal_zone
+
 - name: Set drop as default policy
   shell: "if ! firewall-cmd --get-default-zone | grep drop ; then firewall-cmd --set-default-zone=drop && echo changed; else echo skipped; fi"
   args:

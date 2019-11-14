@@ -1,0 +1,175 @@
+---
+
+- name: Set empty initialization information variable
+  set_fact:
+    container_infos: []
+    need_shipped_files: {}
+
+- name: Initialize need_shipped_files flag
+  set_fact:
+    need_shipped_files: "{{ need_shipped_files | combine({ item.name: 'False'|bool }) }}"
+  loop: "{{ components }}"
+
+- name: Check initialized holder
+  stat: path={{ config_base_directory }}/{{ component.name }}/INITIALIZED
+  register: initialized_holder_stats
+  loop: "{{ components }}"
+  loop_control:
+    loop_var: component
+
+- name: Build initialization information of each container
+  set_fact:
+    container_infos: "{{ container_infos + [ item.component|combine({ 'is_initialized': item.stat.exists }) ] }}"
+  loop: "{{ initialized_holder_stats.results }}"
+
+- set_fact:
+    nfs_volume_names: "{{ container_infos|to_json|from_json|json_query('[].{ key: name, value: nfs_volumes[].name }')|items2dict }}"
+
+- name: Create config files directory
+  file:
+    path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name|dirname }}/"
+    state: directory
+    mode: u=rwX,g=rX,o=rX
+    recurse: yes
+  loop: "{{ container_infos|product(shipped_files + generated_files + template_files)|list }}"
+
+- name: Create config sub directory
+  file:
+    path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}/"
+    state: directory
+    mode: u=rwX,g=rX,o=rX
+    recurse: yes
+  loop: "{{ container_infos|product(config_directories)|list }}"
+
+- block:
+  - name: Check shipped files
+    stat: path={{ config_base_directory }}/{{ container_shipped_files_info[0].name }}/{{ container_shipped_files_info[1].name }}
+    register: shipped_files_stats
+    loop: "{{ container_infos|product(shipped_files)|list }}"
+    loop_control:
+      loop_var: container_shipped_files_info
+
+  - name: Build need_shipped_files
+    set_fact:
+      need_shipped_files: "{{ need_shipped_files | combine({ item.container_shipped_files_info[0].name: 'True'|bool }) }}"
+    when: not item.stat.exists
+    loop: "{{ shipped_files_stats.results }}"
+
+  - name: Start container for shipped files
+    docker_container:
+      name: "{{ item.name }}_temp"
+      image: "{{ item.image }}"
+      state: started
+      recreate: yes
+      interactive: yes
+      tty: yes
+      hostname: "{{ item.name }}.{{ item.domain }}"
+    when: not item.is_initialized or need_shipped_files[item.name]
+    loop: "{{ container_infos }}"
+
+  - name: Copy default shipped files
+    shell: |
+      if ! {{ item[0].is_initialized|string|lower }} || [ ! -e {{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }} ] ; then
+        docker cp {{ item[0].name }}_temp:{{ item[1].dest }} {{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }} &&
+        echo changed;
+      else
+        echo skipped;
+      fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    when: not item[0].is_initialized or need_shipped_files[item[0].name] or item[1].force
+    loop: "{{ container_infos|product(shipped_files)|list }}"
+
+  - name: Stop container for shipped files
+    docker_container:
+      name: "{{ item.name }}_temp"
+      state: absent
+    when: not item.is_initialized or need_shipped_files[item.name]
+    loop: "{{ container_infos }}"
+
+  when: shipped_files|length > 0
+
+- name: Copy generated files
+  copy:
+    src: "{{ item[1].src|dirname }}/{{ item[0].name }}.{{ item[0].domain }}/{{ item[1].src|basename }}"
+    dest: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
+    owner: "{{ item[1].owner }}"
+    group: "{{ item[1].group }}"
+    mode: "{{ item[1].mode }}"
+  when: not item[0].is_initialized or item[1].force
+  loop: "{{ container_infos|product(generated_files)|list }}"
+
+- name: Create template files
+  template:
+    src: "{{ item[1].src }}"
+    dest: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
+    owner: "{{ item[1].owner }}"
+    group: "{{ item[1].group }}"
+    mode: "{{ item[1].mode }}"
+  when: not item[0].is_initialized or item[1].force
+  loop: "{{ container_infos|product(template_files)|list }}"
+
+- name: Copy config files
+  copy:
+    src: "{{ item[1].src }}"
+    dest: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
+    owner: "{{ item[1].owner }}"
+    group: "{{ item[1].group }}"
+    mode: "{{ item[1].mode }}"
+  when: not item[0].is_initialized or item[1].force
+  loop: "{{ container_infos|product(config_files)|list }}"
+
+- name: Create initialized holder
+  file:
+    path: "{{ config_base_directory }}/{{ item.name }}/INITIALIZED"
+    state: touch
+  when: not item.is_initialized
+  loop: "{{ container_infos }}"
+
+- name: Create a local volume
+  docker_volume:
+    name: "{{ item[0].name }}_{{ item[1].name }}"
+  when: nfs_volume_names[item[0].name] is none or item[1].name not in nfs_volume_names[item[0].name]
+  loop: "{{ container_infos|product(persistent_volumes)|list }}"
+
+- name: Create a nfs volume
+  docker_volume:
+    name: "{{ item[0].name }}_{{ item[1].name }}"
+    driver_options:
+      type: nfs
+      device: "{{ item[1].device }}"
+      o: "{{ item[1].options }}"
+  loop: "{{ container_infos|subelements('nfs_volumes', skip_missing=True) }}"
+
+- name: Set empty container_volumes variable
+  set_fact:
+    container_volumes: {}
+
+- name: Build empty volume list of each container
+  set_fact:
+    container_volumes: "{{ container_volumes | combine( { item.name: [] } ) }}"
+  loop: "{{ container_infos }}"
+
+- name: Build container volume list with shipped_files, generated_files and template_files
+  set_fact:
+    container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ config_base_directory + '/' + item[0].name + '/' + item[1].name + ':' + item[1].dest ] }) }}"
+  when: item[1].is_volume
+  loop: "{{ container_infos|product(shipped_files + generated_files + template_files)|list }}"
+
+- name: Build container volume list with config_directories
+  set_fact:
+    container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ config_base_directory + '/' + item[0].name + '/' + item[1].name + ':' + item[1].dest ] }) }}"
+  when: item[1].is_volume
+  loop: "{{ container_infos|product(config_directories)|list }}"
+
+- name: Build container volume list with persistent_volumes
+  set_fact:
+    container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[0].name + '_' + item[1].name + ':' + item[1].dest ] }) }}"
+  loop: "{{ container_infos|product(persistent_volumes)|list }}"
+
+- name: Build container volume list with nfs_volumes
+  set_fact:
+    container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[0].name + '_' + item[1].name + ':' + item[1].dest ] }) }}"
+  loop: "{{ container_infos|subelements('nfs_volumes', skip_missing=True) }}"

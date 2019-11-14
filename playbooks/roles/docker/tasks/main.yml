@@ -111,13 +111,14 @@
 
 - name: Install Python packages
   pip:
-    name: "{{ item }}"
+    name:
+    - docker
+    - urllib3
+    state: latest
   register: install_packages
   until: install_packages is success
   retries: 5
   delay: 3
-  loop:
-  - docker
 
 - name: Add user(s) to "docker" group
   user:

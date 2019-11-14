@@ -1,14 +1,26 @@
 ---
 - block:
-  - set_fact:
-      eos_components: "{{ containers.eos_qdb }}"
+  # - set_fact:
+  #     eos_components: "{{ containers.eos_qdb }}"
 
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
+    vars:
+      components: "{{ containers.eos_qdb }}"
+      config_base_directory: "{{ eos_qdb_config_base_directory }}"
+      shipped_files: "{{ eos_qdb_shipped_files }}"
+      generated_files: "{{ eos_qdb_generated_files }}"
+      template_files: "{{ eos_qdb_template_files }}"
+      config_files: "{{ eos_qdb_config_files }}"
+      config_directories: "{{ eos_qdb_config_directories }}"
+      persistent_volumes: "{{ eos_qdb_persistent_volumes }}"
+      privileged_container: yes
+      entrypoint: "/eos_qdb_setup.sh"
+      command: ""
 
-  - name: Start service
-    shell: docker exec -i {{ item.item.name }} /eos_qdb_setup.sh
-    when: item.changed
-    loop: "{{ container_start_results.results }}"
+  # - name: Start service
+  #   shell: docker exec -i {{ item.item.name }} /eos_qdb_setup.sh
+  #   when: item.changed
+  #   loop: "{{ container_start_results.results }}"
 
   when: containers is defined and containers.eos_qdb is defined

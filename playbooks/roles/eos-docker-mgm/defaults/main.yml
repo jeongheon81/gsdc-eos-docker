@@ -1,20 +1,28 @@
 ---
-privileged_container: yes
-shipped_files: []
-generated_files:
-- { container_path: "/etc/eos.keytab", host_dir: ".", host_file: "eos.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "eos.keytab", owner: "daemon", group: "daemon", mode: "0400" }
-- { container_path: "/etc/eos.krb5.keytab", host_dir: ".", host_file: "eos.krb5.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "eos.krb5.keytab", owner: "daemon", group: "daemon", mode: "0600" }
-template_files:
-- { container_path: "/etc/sysconfig/eos", host_dir: "./sysconfig", host_file: "eos", template_file: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/etc/xrd.cf.mgm", host_dir: ".", host_file: "xrd.cf.mgm", template_file: "xrd.cf.mgm.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/etc/xrd.cf.mq", host_dir: ".", host_file: "xrd.cf.mq", template_file: "xrd.cf.mq.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/etc/xrd.cf.sync", host_dir: ".", host_file: "xrd.cf.sync", template_file: "xrd.cf.sync.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/eos_mgm_fs_setup.sh", host_dir: ".", host_file: "eos_mgm_fs_setup.sh", template_file: "eos_mgm_fs_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
-- { container_path: "/eos_mgm_setup.sh", host_dir: ".", host_file: "eos_mgm_setup.sh", template_file: "eos_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
-- { container_path: "/eos_mq_setup.sh", host_dir: ".", host_file: "eos_mq_setup.sh", template_file: "eos_mq_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
-- { container_path: "/eos_sync_setup.sh", host_dir: ".", host_file: "eos_sync_setup.sh", template_file: "eos_sync_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
-persistent_volumes:
+eos_mgm_config_base_directory: /etc/eos-docker
+eos_mgm_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+eos_mgm_generated_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+- { name: "eos.keytab", dest: "/etc/eos.keytab", src: "tmp/keytab/{{ eos_realm }}/eos.keytab", owner: "daemon", group: "daemon", mode: "0400", force: true , is_volume: true}
+- { name: "eos.krb5.keytab", dest: "/etc/eos.krb5.keytab", src: "tmp/keytab/{{ eos_realm }}/eos.krb5.keytab", owner: "daemon", group: "daemon", mode: "0600", force: true, is_volume: true }
+eos_mgm_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "xrd.cf.mgm", dest: "/etc/xrd.cf.mgm", src: "xrd.cf.mgm.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "xrd.cf.mq", dest: "/etc/xrd.cf.mq", src: "xrd.cf.mq.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "xrd.cf.sync", dest: "/etc/xrd.cf.sync", src: "xrd.cf.sync.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "eos_mgm_fs_setup.sh", dest: "/eos_mgm_fs_setup.sh", src: "eos_mgm_fs_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+- { name: "eos_mgm_setup.sh", dest: "/eos_mgm_setup.sh", src: "eos_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true , is_volume: true}
+- { name: "eos_mq_setup.sh", dest: "/eos_mq_setup.sh", src: "eos_mq_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+- { name: "eos_sync_setup.sh", dest: "/eos_sync_setup.sh", src: "eos_sync_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+- { name: "eos_mq_mgm_setup.sh", dest: "/eos_mq_mgm_setup.sh", src: "eos_mq_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+eos_mgm_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+eos_mgm_config_directories: []
+# - { name: "", dest: "", is_volume: true }
+eos_mgm_persistent_volumes:
 - { name: "roothome", dest: "/root" }
 - { name: "userhome", dest: "/home" }
 - { name: "eos", dest: "/var/eos" }

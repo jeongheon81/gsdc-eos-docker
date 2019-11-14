@@ -2,7 +2,7 @@
 # File: eos.example
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
-{% set xrd_roles = item[0].eos_component.xrd_roles %}
+{% set xrd_roles = item[0].xrd_roles %}
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -43,12 +43,12 @@ XRD_ROLES="{{ xrd_roles|join(' ') }}"
 # EOS Configuration
 # ------------------------------------------------------------------
 
-{% if item[0].eos_component.mgm_host is defined and item[0].eos_component.mgm_host_target is defined %}
+{% if item[0].mgm_host is defined and item[0].mgm_host_target is defined %}
 # The fully qualified hostname of current MGM
-export EOS_MGM_HOST={{ item[0].eos_component.mgm_host }}
+export EOS_MGM_HOST={{ item[0].mgm_host }}
 
 # The fully qualified hostname of target MGM
-export EOS_MGM_HOST_TARGET={{ item[0].eos_component.mgm_host_target }}
+export EOS_MGM_HOST_TARGET={{ item[0].mgm_host_target }}
 {% endif %}
 
 # The EOS instance name

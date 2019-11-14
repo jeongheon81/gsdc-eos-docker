@@ -2,8 +2,9 @@
 # - name: "Ansible | List all known variables and facts"
 #   debug:
 #     var: hostvars[inventory_hostname]
+# - debug: var=container_network_user_firewall_rules
 
-- name: create install information home directory
+- name: Create install information home directory
   file:
     path: "{{ install_info_home }}"
     state: directory

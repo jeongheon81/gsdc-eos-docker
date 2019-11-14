@@ -1,13 +1,20 @@
 ---
-privileged_container: yes
-shipped_files: []
-generated_files:
-- { container_path: "/etc/eos.keytab", host_dir: ".", host_file: "eos.keytab", src_base: "tmp/keytab/{{ eos_realm }}", src_file: "eos.keytab", owner: "daemon", group: "daemon", mode: "0400" }
-template_files:
-- { container_path: "/etc/xrd.cf.quarkdb", host_dir: ".", host_file: "xrd.cf.quarkdb", template_file: "xrd.cf.quarkdb.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/etc/krb5.conf", host_dir: ".", host_file: "krb5.conf", template_file: "krb5.conf.j2", owner: "root", group: "root", mode: "0644" }
-- { container_path: "/eos_qdb_setup.sh", host_dir: ".", host_file: "eos_qdb_setup.sh", template_file: "eos_qdb_setup.sh.j2", owner: "root", group: "root", mode: "0755" }
-persistent_volumes:
+eos_qdb_config_base_directory: /etc/eos-docker
+eos_qdb_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+eos_qdb_generated_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+- { name: "eos.keytab", dest: "/etc/eos.keytab", src: "tmp/keytab/{{ eos_realm }}/eos.keytab", owner: "daemon", group: "daemon", mode: "0400", force: true, is_volume: true }
+eos_qdb_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "xrd.cf.quarkdb", dest: "/etc/xrd.cf.quarkdb", src: "xrd.cf.quarkdb.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "eos_qdb_setup.sh", dest: "/eos_qdb_setup.sh", src: "eos_qdb_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+eos_qdb_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+eos_qdb_config_directories: []
+# - { name: "", dest: "", is_volume: true }
+eos_qdb_persistent_volumes:
 - { name: "roothome", dest: "/root" }
 - { name: "eos", dest: "/var/eos" }
 - { name: "spooleos", dest: "/var/spool/eos" }

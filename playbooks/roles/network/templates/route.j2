@@ -1,5 +1,5 @@
 {% if item is defined and item.list is defined -%}
-{% for route in item.list -%}
-{{ route }}
+{% for route in item.ipv4_list -%}
+{{ route.ip }} via {{ route.nh }}
 {% endfor -%}
 {% endif -%}
