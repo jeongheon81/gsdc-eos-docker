@@ -1,0 +1,2 @@
+---
+iptables_syslog_file: /var/log/syslog.iptables

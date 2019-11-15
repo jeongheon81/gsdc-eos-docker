@@ -1,0 +1,71 @@
+---
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/promtail/positions.yaml
+
+clients:
+  - url: http://{{ item[0].loki_address }}/api/prom/push
+
+scrape_configs:
+- job_name: syslog
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      service: syslog
+      job: messages
+      host: "{{ ansible_fqdn }}"
+      __path__: /var/log/messages
+  pipeline_stages:
+  - match:
+      selector: '{service="syslog",job="messages"}'
+      stages:
+      - regex:
+          expression: '^(?s)(?P<timestamp>\w{3} +\d{1,2} \d{2}:\d{2}:\d{2}) (?P<logsource>\S+?) (?P<logtag>\S+?)(:|\[(?P<pid>\S+?)\]:) (?P<content>.*)$'
+      - timestamp:
+          source: timestamp
+          format: Jan _2 15:04:05
+          location: "{{ iana_timezone }}"
+      - labels:
+          logsource:
+          logtag:
+          pid:
+      - output:
+          source: content
+- job_name: journal
+  journal:
+    path: /run/log/journal
+    labels:
+      service: journal
+      job: systemd-journal
+      host: "{{ ansible_fqdn }}"
+  relabel_configs:
+  - source_labels: ['__journal__systemd_unit']
+    target_label: 'unit'
+  - source_labels: ['__journal__systemd_session']
+    target_label: 'session'
+  pipeline_stages:
+  - match:
+      selector: '{unit=~"session-.+scope"}'
+      stages:
+      - template:
+          source: unit
+          template: 'session.scope'
+      - labels:
+          unit:
+{% for log_volume in log_volumes %}
+- job_name: "{{ log_volume.job_prefix }}_logs-sd"
+  file_sd_configs:
+  - files:
+    - /etc/promtail/{{ log_volume.job_prefix }}_logs-sd.json
+{%   if log_volume.pipeline_stages|length > 0 %}
+  pipeline_stages:
+  {{ log_volume.pipeline_stages| to_nice_yaml(indent=2) | trim | indent(2) }}
+  relabel_configs:
+  - action: labeldrop
+    regex: "timestamp"
+{%   endif %}
+{% endfor %}

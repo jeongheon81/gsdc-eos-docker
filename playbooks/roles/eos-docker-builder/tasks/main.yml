@@ -1,0 +1,15 @@
+---
+- name: Build EOS container image
+  import_tasks: tasks/docker_image_build.yml
+  vars:
+    build_home: "{{ eos_container_build_home }}"
+    build_files:
+    - { src: "Dockerfile", dest: "{{ eos_container_build_home }}/Dockerfile", force: yes }
+    - { src: "repos", dest: "{{ eos_container_build_home }}", force: yes }
+    - { src: "configs", dest: "{{ eos_container_build_home }}", force: yes }
+    - { src: "image_scripts", dest: "{{ eos_container_build_home }}", force: yes }
+    - { src: "dictionary", dest: "{{ eos_container_build_home }}", force: yes }
+    image_repo: "{{ eos_container_image_repo }}"
+    image_name: "{{ eos_container_image_name }}"
+    image_tag: "{{ eos_container_image_tag }}"
+    image_archive: "{{ eos_container_image_archive }}"

@@ -1,0 +1,24 @@
+---
+grafana_promtail_config_base_directory: /etc/grafana
+grafana_promtail_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+grafana_promtail_generated_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+grafana_promtail_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "local-config.yaml", dest: "", src: "local-config.yaml.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
+grafana_promtail_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+grafana_promtail_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "/etc/promtail", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+grafana_promtail_persistent_volumes:
+# - { name: "", dest: "" }
+- { name: "data", dest: "/tmp/promtail" }
+
+log_directories:
+- { name: "/var/log", dest: "/var/log" }
+- { name: "/run/log/journal", dest: "/run/log/journal" }
+
+log_volumes: []
+# - { name: "", mountpoint: "", logs: "", job_prefix: "", service: "", pipeline_stages: "", promtail_name: "" }

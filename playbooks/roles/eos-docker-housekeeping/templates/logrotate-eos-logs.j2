@@ -1,0 +1,16 @@
+{% for log in log_volume_info.eos_container.logs %}
+{{ log_volume_info.volume.Mountpoint }}/{{ log }}
+{% endfor %}
+{
+        createolddir 755 daemon daemon
+        olddir oldlog
+        notifempty
+        missingok
+        daily
+        copytruncate
+        create 644 daemon daemon
+        dateext
+        rotate 200
+        compress
+        delaycompress
+}

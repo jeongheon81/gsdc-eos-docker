@@ -1,0 +1,55 @@
+---
+- include_vars: dir=vaults
+  no_log: true
+
+- name: create ansible cfg and inventory file
+  become: no
+  template: src={{ item.src }} dest={{ item.dest }} mode={{ item.mode }}
+  loop:
+  - { src: "ansible.cfg.j2", dest: "{{ setup_root }}/tmp/ansible.cfg", mode: "0644" }
+  - { src: "inventory-hosts.j2", dest: "{{ setup_root }}/tmp/inventory-hosts", mode: "0644" }
+
+- name: create group_vars directory
+  become: no
+  file: path={{ setup_root }}/tmp/playbooks-group_vars state=directory mode=0755
+
+- name: create group_vars/all directory
+  become: no
+  file: path={{ setup_root }}/tmp/playbooks-group_vars/all state=directory mode=0755
+
+- name: create group_vars/all/vars.yml files
+  become: no
+  template: src={{ item.src }} dest={{ item.dest }} mode={{ item.mode }}
+  loop:
+  - { src: "playbooks-group_vars-all.yml.j2", dest: "{{ setup_root }}/tmp/playbooks-group_vars/all/vars.yml", mode: "0644" }
+
+- name: create group_vars/all/vault*.yml files
+  become: no
+  file: src={{ vault_base }}/{{ item }} dest={{ setup_root }}/tmp/playbooks-group_vars/all/{{ item }} state=link
+  loop: "{{ vault_files }}"
+
+- name: create group_vars/{group} directory
+  become: no
+  file: path={{ setup_root }}/tmp/playbooks-group_vars/{{ item.name }} state=directory mode=0755
+  loop: "{{ host_group|default([]) }}"
+  when: "item.group_vars is defined"
+
+- name: create group_vars/{group}/vars.yml files
+  become: no
+  template: src=playbooks-group_vars.yml.j2 dest={{ setup_root }}/tmp/playbooks-group_vars/{{ item.name }}/vars.yml mode=0644
+  loop: "{{ host_group|default([]) }}"
+  when: "item.group_vars is defined"
+
+- name: create host_vars directory
+  become: no
+  file: path={{ setup_root }}/tmp/playbooks-host_vars state=directory mode=0755
+
+- name: create host_vars/{host} directory
+  become: no
+  file: path={{ setup_root }}/tmp/playbooks-host_vars/{{ item }} state=directory mode=0755
+  loop: "{{ (host_group | default({})) | json_query('[*].hosts[?contains(keys(@),`host_vars`)].name') | flatten(levels=1) }}"
+
+- name: create host_vars/{host}/vars.yml files
+  become: no
+  template: src=playbooks-host_vars.yml.j2 dest={{ setup_root }}/tmp/playbooks-host_vars/{{ item.name }}/vars.yml mode=0644
+  loop: "{{ (host_group | default({})) | json_query('[*].hosts[?contains(keys(@),`host_vars`)]') | flatten(levels=1) }}"

@@ -1,0 +1,39 @@
+---
+- name: reload systemd
+  command: systemctl daemon-reload
+
+- name: reload network interface
+  shell: nmcli con reload
+  listen: "wait for new network settings"
+
+- name: restart NetworkManager
+  systemd: name=NetworkManager state=restarted
+  listen: "wait for new network settings"
+
+- name: restart network
+  systemd: name=network state=restarted
+  listen: "wait for new network settings"
+
+- name: reload firewalld
+  command: firewall-cmd --reload
+
+- name: restart chronyd
+  systemd: name=chronyd state=restarted
+
+- name: restart rsyslog
+  systemd: name=rsyslog state=restarted
+
+- name: restart docker
+  systemd: name=docker state=restarted
+
+- name: reload docker
+  systemd: name=docker state=reloaded
+
+- name: pause before waiting
+  pause: seconds=5
+  listen: "wait for new network settings"
+
+- name: wait for network enabled
+  wait_for: host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }} port={{ ansible_port }} state=started search_regex=OpenSSH delay=10 timeout=300
+  connection: local
+  listen: "wait for new network settings"

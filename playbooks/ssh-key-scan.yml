@@ -1,0 +1,23 @@
+---
+- name: store ssh public key
+  hosts: localhost
+  connection: local
+  become: no
+  tasks:
+  - name: scan ssh public key
+    become: no
+    shell: "ssh-keyscan -t rsa {{ item }}{{ ',' + item.split('.')[0] if not item|ipaddr else '' }}$(IP=$(dig +short {{ item }}); if [ -n \"$IP\" ] ; then echo \",$IP\"; fi)"
+    args:
+      executable: /bin/bash
+    ignore_errors: yes
+    when: ssh_keyscan|bool
+    changed_when: False
+    loop: "{{ groups['all'] }}"
+    register: ssh_keyscan_results
+  - name: update ssh public key
+    become: no
+    known_hosts:
+      name: "{{ item.item }}"
+      key: "{{ item.stdout }}"
+    when: ssh_keyscan|bool and item.rc == 0
+    loop: "{{ ssh_keyscan_results.results|default({}) }}"

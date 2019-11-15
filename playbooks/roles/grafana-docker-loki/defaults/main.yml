@@ -1,0 +1,17 @@
+---
+grafana_loki_config_base_directory: /etc/grafana
+grafana_loki_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+grafana_loki_generated_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+grafana_loki_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "local-config.yaml", dest: "", src: "local-config.yaml.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
+grafana_loki_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+grafana_loki_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "/etc/loki", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+grafana_loki_persistent_volumes:
+# - { name: "", dest: "" }
+- { name: "data", dest: "/tmp/loki" }

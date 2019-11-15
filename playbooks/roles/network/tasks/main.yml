@@ -1,0 +1,145 @@
+---
+- block:
+  - name: install needed network manager libs
+    package:
+      name:
+        - NetworkManager-glib
+        - nm-connection-editor
+        - libsemanage-python
+        - policycoreutils-python
+        - bridge-utils
+      state: present
+    register: install_packages
+    until: install_packages is success
+    retries: 5
+    delay: 3
+
+  - name: check bridge config before (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.conn_name }}
+    register: before_bridge_config_stats
+    loop: "{{ network_bridge }}"
+
+  - name: add bridge
+    nmcli: 
+      type: bridge
+      conn_name: "{{ item.conn_name }}"
+      ifname: "{{ item.ifname }}"
+      stp: "{{ item.stp }}"
+      ip4: "{{ item.ip4 }}"
+      gw4: "{{ item.gw4 }}"
+      mtu: "{{ item.mtu }}"
+      dns4: "{{ item.dns4|default(omit) }}"
+      dns4_search: "{{ item.dns4_search|default(omit) }}"
+      dns6: "{{ item.dns4|default(omit) }}"
+      dns6_search: "{{ item.dns4_search|default(omit) }}"
+      state: present
+    changed_when: false
+    loop: "{{ network_bridge }}"
+
+  - name: check bridge config after (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.item.conn_name }}
+    register: after_bridge_config_stat
+    changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
+    loop: "{{ before_bridge_config_stats.results }}"
+    notify:
+    - wait for new network settings
+
+  - name: check bridge config before (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.slave_conn_name }}
+    register: before_bridge_config_stats
+    loop: "{{ network_bridge }}"
+
+  - name: add uplink to bridge
+    nmcli:
+      type: bridge-slave
+      conn_name: "{{ item.slave_conn_name }}"
+      ifname: "{{ item.slave_ifname }}"
+      master: "{{ item.conn_name }}"
+      hairpin: no
+      mtu: "{{ item.mtu }}"
+      state: present
+    changed_when: false
+    loop: "{{ network_bridge }}"
+
+  - name: check bridge config after (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.item.slave_conn_name }}
+    register: after_bridge_config_stat
+    changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
+    loop: "{{ before_bridge_config_stats.results }}"
+    notify:
+    - wait for new network settings
+
+  - name: check bridge config before (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.slave_ifname }}
+    register: before_bridge_config_stats
+    loop: "{{ network_bridge }}"
+
+  - name: off conflict connection
+    nmcli:
+      type: "{{ item.conflict_type }}"
+      conn_name: "{{ item.conflict_conn_name }}"
+      autoconnect: no
+      mtu: "{{ item.mtu }}"
+      state: present
+    changed_when: false
+    loop: "{{ network_bridge }}"
+
+  - name: check bridge config after (nmcli module changed_when bug work around)
+    stat: path=/etc/sysconfig/network-scripts/ifcfg-{{ item.item.slave_ifname }}
+    register: after_bridge_config_stat
+    changed_when: item.stat.checksum is defined and item.stat.checksum != after_bridge_config_stat.stat.checksum
+    loop: "{{ before_bridge_config_stats.results }}"
+    notify:
+    - wait for new network settings
+
+  when: network_bridge is defined
+
+- block:
+  - name: Set ipv4 dns
+    shell: if ! nmcli -t connection show '{{ item.conn_name }}' | grep 'ipv4\.dns' | grep '{{ item.dns4|map('regex_escape', 'posix_basic')|list|join("' | grep '") }}' ; then nmcli connection modify '{{ item.conn_name }}' ipv4.dns '{{ item.dns4|join(' ') }}' && echo changed; else echo skipped; fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    when: item.dns4 is defined
+    loop: "{{ network_dns }}"
+    notify:
+    - wait for new network settings
+
+  - name: Set ipv4 dns-search
+    shell: if ! nmcli -t connection show '{{ item.conn_name }}' | grep 'ipv4\.dns-search' | grep '{{ item.dns4_search|map('regex_escape', 'posix_basic')|list|join("' | grep '") }}' ; then nmcli connection modify '{{ item.conn_name }}' ipv4.dns-search '{{ item.dns4_search|join(' ') }}' && echo changed; else echo skipped; fi
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    when: item.dns4_search is defined
+    loop: "{{ network_dns }}"
+    notify:
+    - wait for new network settings
+
+  when: network_dns is defined
+
+- block:
+  - name: Set ipv4 routes
+    shell: "if ! nmcli -t connection show '{{ item[0].conn_name }}' | grep 'ipv4\\.routes' | grep '{{ item[1].ip|regex_escape('posix_basic') }} {{ item[1].nh|regex_escape('posix_basic') }}' ; then nmcli connection modify '{{ item[0].conn_name }}' +ipv4.routes '{{ item[1].ip }} {{ item[1].nh }}' && echo changed; else echo skipped; fi"
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ network_routes|subelements('ipv4_list', skip_missing=True) }}"
+    notify:
+    - wait for new network settings
+
+  - name: Set ipv6 routes
+    shell: "if ! nmcli -t connection show '{{ item[0].conn_name }}' | grep 'ipv6\\.routes' | grep '{{ item[1].ip|regex_escape('posix_basic') }} {{ item[1].nh|regex_escape('posix_basic') }}' ; then nmcli connection modify '{{ item[0].conn_name }}' +ipv6.routes '{{ item[1].ip }} {{ item[1].nh }}' && echo changed; else echo skipped; fi"
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ network_routes|subelements('ipv6_list', skip_missing=True) }}"
+    notify:
+    - wait for new network settings
+
+  when: network_routes is defined
+
+- meta: flush_handlers

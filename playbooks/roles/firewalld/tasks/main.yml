@@ -1,0 +1,101 @@
+---
+- name: Install iptables
+  package: name=iptables state=installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Install firewalld
+  package: name=firewalld state=installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Check if iptables-services package is installed
+  yum: list=iptables-services
+  register: result
+
+- name: Disable iptables now and at boot
+  service: name=iptables state=stopped enabled=false masked=true
+  when: result.results[0].yumstate == 'installed'
+
+- name: Run firewalld now and at boot
+  service: name=firewalld state=started enabled=true
+
+- name: Add internal zone sources to firewalld
+  firewalld:
+    source: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: internal
+  loop: "{{ firewall_internal_zone_sources }}"
+  notify:
+  - reload firewalld
+
+- name: Add cooperation zone
+  firewalld:
+    zone: cooperation
+    state: present
+    permanent: yes
+  notify:
+  - reload firewalld
+
+- meta: flush_handlers
+
+- name: Add cooperation zone sources to firewalld
+  firewalld:
+    source: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: cooperation
+  loop: "{{ firewall_cooperation_zone_sources }}"
+  notify:
+  - reload firewalld
+
+- name: Build firewall_forward_between_internal_zone_direct_rules
+  set_fact:
+    firewall_forward_between_internal_zone_direct_rules: >-
+      {% set final_result = [] -%}
+      {% if firewall_forward_enable_nat -%}
+      {%   for source in firewall_forward_nat_negative_sources|default([]) -%}
+      {{     final_result.append({ 'tag': 'between internal zone NAT '+source, 'rule': 'ipv4 nat POSTROUTING ' + loop.index|string + ' ! -s ' + source + ' -o '+ firewall_forward_nat_out_interface +' -j MASQUERADE' }) -}}
+      {%   endfor -%}
+      {% endif -%}
+      {{ final_result.append({ 'tag': 'between internal zone ESTABLISHED', 'rule': 'ipv4 filter FORWARD 0 -m state --state RELATED,ESTABLISHED -j ACCEPT' }) -}}
+      {%   for source in firewall_internal_zone_sources|default([]) -%}
+      {{     final_result.append({ 'tag': 'between internal zone '+source, 'rule': 'ipv4 filter FORWARD ' + loop.index|string + ' -s ' + source + ' -j ACCEPT' }) -}}
+      {%   endfor -%}
+      {{ final_result }}
+
+- name: Setup firewall forwarding between internal zone
+  import_tasks: tasks/firewall_by_direct.yml
+  vars:
+    firewall_direct_rule_permanent: yes
+    firewall_direct_rule_state: present
+    firewall_direct_rule_list: "{{ firewall_forward_between_internal_zone_direct_rules }}"
+  when: firewall_forward_between_internal_zone
+
+- name: Set drop as default policy
+  shell: "if ! firewall-cmd --get-default-zone | grep drop ; then firewall-cmd --set-default-zone=drop && echo changed; else echo skipped; fi"
+  args:
+    executable: /bin/bash
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+
+- name: Create iptables syslog redirection config file
+  template: src=01_iptables.conf.j2 dest=/etc/rsyslog.d/01_iptables.conf owner=root group=root mode=0644
+  notify:
+  - restart rsyslog
+
+- name: Set logrotate for iptables syslog file
+  shell: "if ! grep '{{ iptables_syslog_file|replace('.', '\\.') }}' /etc/logrotate.d/syslog ; then sed '\\#{{ '{' }}#i{{ iptables_syslog_file }}' -i /etc/logrotate.d/syslog && echo changed; else echo skipped; fi"
+  args:
+    executable: /bin/bash
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+
+- meta: flush_handlers

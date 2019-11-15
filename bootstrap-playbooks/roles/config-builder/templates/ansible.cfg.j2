@@ -1,0 +1,9 @@
+{% if bootstrap is defined and bootstrap.ansible_cfg is defined and bootstrap.ansible_cfg is iterable -%}
+{%   for group_key, group_value in  bootstrap.ansible_cfg.items() -%}
+{{ "" }}
+[{{ group_key }}]
+{%     for key, value in  group_value.items() -%}
+{{ key }} = {{ value }}
+{%     endfor -%}
+{%   endfor -%}
+{% endif -%}

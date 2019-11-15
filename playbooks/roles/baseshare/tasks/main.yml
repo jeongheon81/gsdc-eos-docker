@@ -1,0 +1,31 @@
+---
+# - name: "Ansible | List all known variables and facts"
+#   debug:
+#     var: hostvars[inventory_hostname]
+# - debug: var=container_network_user_firewall_rules
+
+- name: Create install information home directory
+  file:
+    path: "{{ install_info_home }}"
+    state: directory
+    mode: 0700
+
+- name: Install base package
+  package:
+    name:
+    - yum-utils
+    state: installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Check timezone
+  shell: "timedatectl status | grep 'Time zone:' | awk '{ print $3 }'"
+  args:
+    executable: /bin/bash
+  changed_when: False
+  register: timezone_result
+
+- set_fact:
+    iana_timezone: "{{ timezone_result.stdout }}"

@@ -1,0 +1,7 @@
+---
+
+- name: '"{{ watch_title }}" - watch_status is finished'
+  debug:
+    msg: "Watched {{ watch_count }} times, {{ watch_lines }} lines"
+  failed_when: not watch_status.finished
+  tags: [ "no_print_skip_action" ]

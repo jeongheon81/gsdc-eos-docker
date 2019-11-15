@@ -1,0 +1,57 @@
+---
+- block:
+  - name: '"{{ watch_title }}" - watch log: {{ watch_command }}'
+    become: "{{ watch_become }}"
+    shell: '{{ watch_command }}'
+    register: watch_tail
+    failed_when: false
+    changed_when: false
+
+  - set_fact:
+      watch_output: '{{ watch_tail.stdout_lines | default([]) }}'
+  - set_fact:
+      watch_output_lines: '{{ watch_output | length | int }}'
+  - set_fact:
+      watch_lines: '{{ watch_lines|int + watch_output_lines|int }}'
+
+  tags: [ "no_print_action" ]
+
+
+- name: '"{{ watch_title }}" - {{ watch_file }} - {{ watch_output_lines }}({{ watch_lines }}) lines captured'
+  debug:
+    var: watch_output
+  when: ( watch_output_lines|int ) > 0
+  tags: [ "print_action" ]
+
+
+- block:
+  - name: '"{{ watch_title }}" - check {{ watch_job }} status'
+    become: "{{ watch_become }}"
+    async_status:
+      jid: '{{ job.ansible_job_id }}'
+    register: watch_status
+    vars:
+      job: '{{ lookup("vars", watch_job) }}'
+    when: job.ansible_job_id is defined
+    changed_when: false
+
+  - set_fact:
+      watch_count: '{{ watch_count | int + 1 }}'
+      watch_finished: '{{ watch_status.finished | bool }}'
+
+  - name: '"{{ watch_title }}" - timeout ({{ watch_timeout }} seconds)'
+    fail: 
+      msg: "Timeout of {{ watch_timeout }} seconds exceeded ({{ watch_retries }} retries)"
+    when: (not watch_finished) and (watch_count|int > watch_retries|int)
+
+  - name: '[{{ watch_title }}] - wait for {{ watch_poll }} seconds'
+    wait_for:
+      timeout: '{{ watch_poll|int }}'
+    when: not watch_finished
+
+  tags: [ "no_print_action" ]
+
+
+- name: '"{{ watch_title }}" - call itself recursively'
+  include_tasks: "{{ 'recursive.yml' if not watch_finished else 'end.yml' }}"
+  tags: [ "no_print_action" ]

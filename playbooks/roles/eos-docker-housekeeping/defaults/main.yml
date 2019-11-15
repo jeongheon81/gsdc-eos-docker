@@ -1,0 +1,269 @@
+---
+eos_log_files_default:
+  eos_krb:
+  - kdc.log
+  eos_qdb:
+  - qdb/xrootd.qdb.log
+  eos_proxy:
+  - proxy/xrootd.proxy.log
+  eos_mgm:
+  - mgm/xrootd.mgm.log
+  - mgm/Balancer.log
+  - mgm/Clients.log
+  - mgm/Converter.log
+  - mgm/DrainJob.log
+  - mgm/eosxd-logtraces.log
+  - mgm/eosxd-stacktraces.log
+  - mgm/error.log
+  - mgm/FileInspector.log
+  - mgm/GeoBalancer.log
+  - mgm/GeoTreeEngine.log
+  - mgm/GroupBalancer.log
+  - mgm/Grpc.log
+  - mgm/Http.log
+  - mgm/logbook.log
+  - mgm/LRU.log
+  - mgm/Master.log
+  - mgm/MetadataFlusher.log
+  - mgm/Recycle.log
+  - mgm/ReplicationTracker.log
+  - mgm/WFE::Job.log
+  - mgm/WFE.log
+  - mgm/ZMQ.log
+  - mq/xrootd.mq.log
+  - tx/transfer-archive.log
+  eos_fst:
+  - fst/xrootd.fst.log
+  - fst/eoscp.log
+
+eos_grafana_promtail_pipeline_stages:
+  eos_krb:
+  - match:
+      selector: '{service="eos-krb",job=~".*kdc\\.log"}'
+      stages:
+      - regex:
+          expression: '^(?s)(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02T15:04:05'
+      - output:
+          source: content
+  eos_qdb:
+  - match:
+      selector: '{service="eos-qdb",job=~".*xrootd\\.qdb\\.log"}'
+      stages:
+      - regex:
+          expression: '^(?s)(?P<xrootd_log_type>\[(?P<timestamp>\d+)\]) (?P<content>.*)$'
+      - labels:
+          xrootd_log_type:
+      - match:
+          selector: '{xrootd_log_type=~".+"}'
+          stages:
+          - template:
+              source: xrootd_log_type
+              template: "QDB"
+          - labels:
+              xrootd_log_type:
+          - timestamp:
+              source: timestamp
+              format: UnixMs
+              location: "{{ iana_timezone }}"
+          - output:
+              source: content
+      - match:
+          selector: '{xrootd_log_type=""}'
+          stages:
+          - template:
+              source: xrootd_log_type
+              template: "STARTUP"
+          - labels:
+              xrootd_log_type:
+          - regex:
+              expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+          - timestamp:
+              source: timestamp
+              format: '060102 15:04:05'
+              location: "{{ iana_timezone }}"
+              #action_on_failure: fudge
+          # bug on timestamp process, we remain time info
+          # - output:
+          #     source: content
+          # - template:
+          #     source: timestamp
+          #     template: !unsafe "{{ '{{' }} .Value {{ '}}' }}"
+  eos_proxy:
+  - match:
+      selector: '{service="eos-proxy",job=~".*xrootd\\.proxy\\.log"}'
+      stages:
+      - regex:
+          expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>\d{3} (?P<logtag>\S+):.*)$'
+      - labels:
+          xrootd_log_type: logtag
+      - match:
+          selector: '{xrootd_log_type=~".+"}'
+          stages:
+          - template:
+              source: xrootd_log_type
+              template: "PROXY"
+          - labels:
+              xrootd_log_type:
+              logtag:
+          - timestamp:
+              source: timestamp
+              format: '060102 15:04:05'
+              location: "{{ iana_timezone }}"
+          # bug on timestamp process, we remain time info
+          # - output:
+          #     source: content
+      - match:
+          selector: '{xrootd_log_type=""}'
+          stages:
+          - template:
+              source: xrootd_log_type
+              template: "STARTUP"
+          - labels:
+              xrootd_log_type:
+          - regex:
+              expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+          - timestamp:
+              source: timestamp
+              format: '060102 15:04:05'
+              location: "{{ iana_timezone }}"
+              #action_on_failure: fudge
+          # bug on timestamp process, we remain time info
+          # - output:
+          #     source: content
+  eos_mgm:
+  - match:
+      selector: '{service="eos-mgm",job=~".*xrootd\\.(mq|mgm)\\.log"}'
+      stages:
+      - regex:
+          expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>(?P<timestamp_us>time=\S+).*)$'
+      - labels:
+          xrootd_log_type: timestamp_us
+      - match:
+          selector: '{xrootd_log_type=~".+"}'
+          stages:
+          - template:
+              source: xrootd_log_type
+              template: "EOS-MGM"
+          - labels:
+              xrootd_log_type:
+          - template:
+              source: timestamp_us
+              template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+          - timestamp:
+              source: timestamp_us
+              format: UnixNs
+              location: "{{ iana_timezone }}"
+          # bug on timestamp process, we remain time info
+          # - output:
+          #     source: content
+      - match:
+          selector: '{xrootd_log_type=""}'
+          stages:
+          - regex:
+              expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>\d{3} (?P<logtag>\S+):.*)$'
+          - labels:
+              xrootd_log_type: logtag
+          - match:
+              selector: '{xrootd_log_type=~".+"}'
+              stages:
+              - template:
+                  source: xrootd_log_type
+                  template: "EOS"
+              - labels:
+                  xrootd_log_type:
+                  logtag:
+              - timestamp:
+                  source: timestamp
+                  format: '060102 15:04:05'
+                  location: "{{ iana_timezone }}"
+              # bug on timestamp process, we remain time info
+              # - output:
+              #     source: content
+          - match:
+              selector: '{xrootd_log_type=""}'
+              stages:
+              - template:
+                  source: xrootd_log_type
+                  template: "STARTUP"
+              - labels:
+                  xrootd_log_type:
+              - regex:
+                  expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+              - timestamp:
+                  source: timestamp
+                  format: '060102 15:04:05'
+                  location: "{{ iana_timezone }}"
+                  #action_on_failure: fudge
+              # bug on timestamp process, we remain time info
+              # - output:
+              #     source: content
+  eos_fst:
+  - match:
+      selector: '{service="eos-fst",job=~".*xrootd\\.fst\\.log"}'
+      stages:
+      - regex:
+          expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>(?P<timestamp_us>time=\S+).*)$'
+      - labels:
+          xrootd_log_type: timestamp_us
+      - match:
+          selector: '{xrootd_log_type=~".+"}'
+          stages:
+          - template:
+              source: xrootd_log_type
+              template: "EOS-FST"
+          - labels:
+              xrootd_log_type:
+          - template:
+              source: timestamp_us
+              template: !unsafe '{{ "{{" }} Replace .Value "." "" 1 {{ "}}" }}000'
+          - timestamp:
+              source: timestamp_us
+              format: UnixNs
+              location: "{{ iana_timezone }}"
+          # bug on timestamp process, we remain time info
+          # - output:
+          #     source: content
+      - match:
+          selector: '{xrootd_log_type=""}'
+          stages:
+          - regex:
+              expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>\d{3} (?P<logtag>\S+):.*)$'
+          - labels:
+              xrootd_log_type: logtag
+          - match:
+              selector: '{xrootd_log_type=~".+"}'
+              stages:
+              - template:
+                  source: xrootd_log_type
+                  template: "EOS"
+              - labels:
+                  xrootd_log_type:
+                  logtag:
+              - timestamp:
+                  source: timestamp
+                  format: '060102 15:04:05'
+                  location: "{{ iana_timezone }}"
+              # bug on timestamp process, we remain time info
+              # - output:
+              #     source: content
+          - match:
+              selector: '{xrootd_log_type=""}'
+              stages:
+              - template:
+                  source: xrootd_log_type
+                  template: "STARTUP"
+              - labels:
+                  xrootd_log_type:
+              - regex:
+                  expression: '^(?s)(?P<timestamp>\d{6} \d{2}:\d{2}:\d{2}) (?P<content>.*)$'
+              - timestamp:
+                  source: timestamp
+                  format: '060102 15:04:05'
+                  location: "{{ iana_timezone }}"
+                  #action_on_failure: fudge
+              # bug on timestamp process, we remain time info
+              # - output:
+              #     source: content

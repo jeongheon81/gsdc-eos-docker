@@ -1,0 +1,46 @@
+---
+- block:
+  - name: Setup container
+    include_tasks: tasks/container_setup.yml
+    vars:
+      components: "{{ containers.grafana_server }}"
+      config_base_directory: "{{ grafana_server_config_base_directory }}"
+      shipped_files: "{{ grafana_server_shipped_files }}"
+      generated_files: "{{ grafana_server_generated_files }}"
+      template_files: "{{ grafana_server_template_files }}"
+      config_files: "{{ grafana_server_config_files }}"
+      config_directories: "{{ grafana_server_config_directories }}"
+      persistent_volumes: "{{ grafana_server_persistent_volumes }}"
+
+  - name: Start container
+    docker_container:
+      name: "{{ item.name }}"
+      image: "{{ item.image }}"
+      state: started
+      hostname: "{{ item.name }}.{{ item.domain }}"
+      purge_networks: yes
+      networks:
+      - name: "{{ item.network }}"
+        ipv4_address: "{{ item.ipv4_address }}"
+        aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      env:
+        GF_INSTALL_PLUGINS: "{{ item.grafana_plugins|join(',')}}"
+    register: container_start_results
+    loop: "{{ container_infos }}"
+
+  # - name: Setup firewall
+  #   firewalld:
+  #     port: 3000/tcp
+  #     permanent: yes
+  #     immediate: yes
+  #     state: enabled
+  #     zone: "{{ item }}"
+  #   loop: 
+  #   - internal
+  #   - cooperation
+  #   notify:
+  #   - reload firewalld
+
+  when: containers is defined and containers.grafana_server is defined

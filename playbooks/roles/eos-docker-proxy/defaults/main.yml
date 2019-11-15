@@ -1,0 +1,27 @@
+---
+eos_proxy_config_base_directory: /etc/eos-docker
+eos_proxy_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+eos_proxy_generated_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+- { name: "eos.keytab", dest: "/etc/eos.keytab", src: "tmp/keytab/{{ eos_realm }}/eos.keytab", owner: "daemon", group: "daemon", mode: "0400", force: true, is_volume: true }
+eos_proxy_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "xrootd/xrootd-fwd-proxy.cfg", dest: "/etc/xrootd/xrootd-fwd-proxy.cfg", src: "xrootd-fwd-proxy.cfg.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
+- { name: "eos_proxy_setup.sh", dest: "/eos_proxy_setup.sh", src: "eos_proxy_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+eos_proxy_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+eos_proxy_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+- { name: "sysconfig", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+- { name: "xrootd", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+eos_proxy_persistent_volumes:
+# - { name: "", dest: "" }
+- { name: "roothome", dest: "/root" }
+- { name: "eos", dest: "/var/eos" }
+- { name: "spooleos", dest: "/var/spool/eos" }
+- { name: "spoolxrootd", dest: "/var/spool/xrootd" }
+- { name: "log", dest: "/var/log/eos" }

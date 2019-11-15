@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+id={{ item[0].fst_fsid }}
+
+UUID={{ item[0].fst_uuid }}
+DATADIR={{ item[0].data_dir }}
+SPACE={{ item[0].fst_space }}
+CONFIG={{ item[0].fst_status }}
+FSTHOSTNAME={{ item[0].name }}.{{ item[0].domain }}
+
+source /etc/sysconfig/eos
+export EOS_MGM_URL={{ eos_mgm_url_regular }}
+
+if [ ! -e /tmp/xrootd.fst.pid ] || ! ps $(cat /tmp/xrootd.fst.pid) | grep 'xrootd -n fst' &>/dev/null ; then
+  if [ -e /opt/eos/xrootd/bin/xrootd ]; then 
+    XROOTDEXE="/opt/eos/xrootd//bin/xrootd"
+  else
+    XROOTDEXE="/usr/bin/xrootd"
+  fi
+
+  cd /var/spool/eos/core
+  echo "Starting fst: {{ item[0].name }} ..."
+  #${XROOTDEXE} -n fst -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst.log -k fifo -s /tmp/xrootd.fst.pid -b -I {{ eos_xrootd_internet_address_protocol }} -Rdaemon
+  ${XROOTDEXE} -n fst -c /etc/xrd.cf.fst -l /var/log/eos/xrootd.fst.log -k fifo -s /tmp/xrootd.fst.pid -I {{ eos_xrootd_internet_address_protocol }} -Rdaemon &
+
+  if [ ! -e /root/INITIALIZED ] ; then
+    echo "Configuring fst: {{ item[0].name }} ..."
+    mkdir -p $DATADIR
+    echo "$UUID" > $DATADIR/.eosfsuuid
+    echo "${id}" > $DATADIR/.eosfsid
+    chown -R daemon:daemon $DATADIR
+    eos -r root root -b fs add -m ${id} $UUID $FSTHOSTNAME:1095 $DATADIR $SPACE $CONFIG 2>&1 | tee -a /root/INITIALIZED.log
+    eos -r root root -b node set $FSTHOSTNAME:1095 on 2>&1 | tee -a /root/INITIALIZED.log
+    echo "Configuration done for fst: {{ item[0].name }}"
+
+    touch /root/INITIALIZED
+  fi
+else
+  echo "Already started, PID: $(cat /tmp/xrootd.fst.pid)"
+fi
+
+wait

@@ -1,0 +1,24 @@
+---
+
+- include_tasks: tasks/container_setup.yml
+
+- name: Start container
+  docker_container:
+    name: "{{ item.name }}"
+    image: "{{ item.image }}"
+    state: started
+    interactive: yes
+    tty: yes
+    privileged: "{{ privileged_container }}"
+    hostname: "{{ item.name }}.{{ item.domain }}"
+    purge_networks: yes
+    networks:
+    - name: "{{ item.network }}"
+      ipv4_address: "{{ item.ipv4_address }}"
+      aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
+    volumes: "{{ container_volumes[item.name] }}"
+    etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+    entrypoint: "{{ entrypoint|default(omit) }}"
+    command: "{{ command|default(omit) }}"
+  register: container_start_results
+  loop: "{{ container_infos }}"

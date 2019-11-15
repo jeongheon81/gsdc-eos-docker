@@ -1,0 +1,12 @@
+---
+watch_title: async job
+watch_become: no
+watch_command: !unsafe 'tail -n +{{ watch_lines }} {{ watch_file }}'
+watch_file: /dev/null
+watch_lines_reset: yes
+watch_job: async_job
+watch_timeout: 1000
+watch_poll: 1
+
+watch_lines: 0
+watch_count: 0

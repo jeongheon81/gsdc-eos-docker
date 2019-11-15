@@ -1,0 +1,40 @@
+---
+  - name: upgrading host
+    yum: name=* state=latest
+    register: upgrade
+    when: package_upgrade|bool
+    tags:
+      - osupgrade
+
+  - name: rebooting host
+    become: yes
+    shell: sleep 2 && systemctl reboot
+    async: 1
+    poll: 0
+    ignore_errors: true
+    register: reboot
+    when: package_upgrade|bool and upgrade.changed
+    changed_when: upgrade.changed
+    tags:
+      - reboot
+
+  - name: waiting for host down
+    become: no
+    delegate_to: localhost
+    wait_for: host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }} port={{ ansible_port }} state=stopped timeout=600
+    when: package_upgrade|bool and reboot.changed
+    tags:
+      - wait_for_host
+
+  - name: waiting for host boot
+    wait_for: host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }} port={{ ansible_port }} state=started search_regex=OpenSSH delay=10 timeout=1800
+    connection: local
+    when: package_upgrade|bool and reboot.changed
+    tags:
+      - wait_for_host
+
+  - name: pausing
+    pause: minutes={{ pause_between_host_restarts | default('1') }}
+    when: package_upgrade|bool and reboot.changed
+    tags:
+      - wait_for_host

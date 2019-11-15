@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# Start kdc
+if [ ! -e /var/run/kdc.pid ] || ! ps $(cat /var/run/kdc.pid) | grep kdc &>/dev/null ; then
+  echo -n "Starting kdc... "
+  #/usr/libexec/kdc --detach
+  /usr/libexec/kdc &
+  echo Done.
+fi
+
+#Init the kdc store
+if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} check &>/dev/null ; then
+  echo -n "Initing kdc... "
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} init --realm-max-ticket-life=unlimited --realm-max-renewable-life=unlimited {{ eos_realm }} || (echo Failed. ; exit 1)
+  echo Done.
+fi
+
+# Populate KDC and generate keytab files
+echo "Populating kdc... "
+if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get {{ eos_admin_user }} &>/dev/null ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults {{ eos_admin_user }} | /usr/bin/tee -a /root/user.{{ eos_admin_user }}.log
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }}
+fi
+if [ ! -e /root/user.{{ eos_admin_user }}.keytab ] ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }}
+fi
+{% for eos_mgm_node in eos_mgm_nodes %}
+if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get host/{{ eos_mgm_node }} &>/dev/null ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/host.{{ eos_mgm_node }}.log
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }}
+fi
+if [ ! -e /root/host.{{ eos_mgm_node }}.keytab ] ; then
+  /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }}
+fi
+{% endfor %}
+if [ ! -e /root/eos.keytab ] ; then
+  yes | xrdsssadmin -k eos+ -u daemon -g daemon add /root/eos.keytab | /usr/bin/tee -a /root/eos.keytab.log
+  chown daemon:daemon /root/eos.keytab
+fi
+echo Done.
+
+wait

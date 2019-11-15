@@ -1,0 +1,4 @@
+---
+{% if item is defined and item.group_vars is defined -%}
+{{ item.group_vars | to_nice_yaml(indent=2) }}
+{% endif -%}

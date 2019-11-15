@@ -1,0 +1,37 @@
+---
+- name: Install chrony
+  package: name=chrony state=installed
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 3
+
+- name: Backup chrony config
+  shell: "if [ ! -e /etc/chrony.conf.backup ]; then /bin/cp /etc/chrony.conf /etc/chrony.conf.backup; fi"
+  args:
+    executable: /bin/bash
+    creates: "/etc/chrony.conf.backup"
+
+- name: Setup firewall chrony
+  import_tasks: tasks/firewall_by_service_on_internal.yml
+  vars:
+    firewall_service_permanent: yes
+    firewall_service_state: enabled
+    firewall_service_list: [ 'ntp' ]
+
+- name: Setup firewall chrony for security
+  import_tasks: tasks/firewall_by_direct.yml
+  vars:
+    firewall_direct_rule_permanent: yes
+    firewall_direct_rule_state: present
+    firewall_direct_rule_list: "{{ chrony_firewall_direct_rules }}"
+
+- name: Create chrony config file
+  template: src=chrony.conf.j2 dest=/etc/chrony.conf owner=root group=root mode=0644
+  notify:
+  - restart chronyd
+
+- name: Enable chrony service
+  systemd: name=chronyd state=started enabled=true
+
+- meta: flush_handlers

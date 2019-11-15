@@ -1,0 +1,18 @@
+---
+# https://github.com/lucasbasquerotto/ansible-live-output-demo/tree/master/roles/watch
+
+- name: '"{{ watch_title }}" - initialize watch status'
+  set_fact:
+    watch_count: 0
+    watch_retries: '{{ ( watch_timeout|int / watch_poll|int )|int }}'
+  tags: [ "no_print_action" ]
+
+- name: '"{{ watch_title }}" - initialize watch lines'
+  set_fact:
+    watch_lines: 0
+  when: watch_lines_reset|bool
+  tags: [ "no_print_action" ]
+
+- name: '"{{ watch_title }}" - checking {{ watch_job }} status until finished'
+  include_tasks: 'recursive.yml'
+  tags: [ "no_print_action" ]

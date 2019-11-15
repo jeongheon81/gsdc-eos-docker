@@ -1,0 +1,53 @@
+---
+- name: Setup prepare all
+  hosts: all
+  become: yes
+  any_errors_fatal: true
+  roles:
+  - baseshare
+  - firewalld
+  - network
+  - chrony
+  - docker
+  - cockpit
+  tags:
+  - base
+
+- name: Setup prepare eos_infra
+  hosts: eos_infra
+  become: yes
+  any_errors_fatal: true
+  roles:
+  - baseshare
+  - eos-docker-builder
+  tags:
+  - prepare
+
+- name: Install eos_infra
+  hosts: eos_infra
+  become: yes
+  any_errors_fatal: true
+  roles:
+  - baseshare
+  - eos-docker-krb
+  - eos-docker-qdb
+  - eos-docker-proxy
+  - eos-docker-mgm
+  - eos-docker-fst
+  - eos-docker-manager
+  tags:
+  - install
+
+- name: Setup post eos_infra
+  hosts: eos_infra
+  become: yes
+  any_errors_fatal: true
+  roles:
+  - baseshare
+  - eos-docker-config
+  - eos-docker-housekeeping
+  - grafana-docker-server
+  - grafana-docker-loki
+  - grafana-docker-promtail
+  tags:
+  - post

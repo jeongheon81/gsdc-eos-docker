@@ -1,0 +1,128 @@
+---
+- set_fact:
+    image_builder: "{{ hostvars | dict2items | json_query('[?type(value.containers)==`object`].key|[0]') }}"
+    image_name_with_repo: "{{ image_repo + '/' if image_repo is defined and image_repo != '' else '' }}{{ image_name }}"
+
+- block:
+  - name: Install gzip
+    package: name=gzip state=installed
+    register: install_packages
+    until: install_packages is success
+    retries: 5
+    delay: 3
+  
+  - name: Create build home directory if it does not exist
+    file:
+      path: "{{ item }}"
+      state: directory
+      mode: u=rwX,g=rX,o=rX
+    loop:
+    - "{{ build_home }}"
+
+  - name: Copy build files
+    copy: src={{ item.src }} dest={{ item.dest }} force={{ item.force|default(yes) }}
+    register: build_files_copy_result
+    loop: "{{ build_files }}"
+
+  when: containers is defined
+
+- name: Check container image on build host
+  docker_image_info:
+    name: "{{ image_name_with_repo }}:{{ image_tag }}"
+  register: image_info_result
+  run_once: true
+  delegate_to: "{{ image_builder }}"
+  when: containers is defined
+
+- block:
+  - name: Build container image
+    docker_image:
+      name: "{{ image_name_with_repo }}"
+      tag: "{{ image_tag|string }}"
+      build:
+        path: "{{ build_home }}"
+        pull: no
+        network: host
+      source: build
+    async: 2592000
+    poll: 0
+    register: image_build_job
+
+  - name: 'docker-image-builder : Watch docker-image-build job until finishes'
+    include_role:
+      name: async_job_watcher
+    vars:
+      watch_title: docker image build task
+      watch_become: yes
+      watch_command: !unsafe "df /var/lib/docker; docker image ls --all | head -n 3"
+      watch_file: stdout
+      watch_lines_reset: yes
+      watch_job: image_build_job
+      watch_timeout: 259200
+      watch_poll: 10
+
+  run_once: true
+  delegate_to: "{{ image_builder }}"
+  when: containers is defined and (image_info_result.images|length == 0 or build_files_copy_result.changed)
+
+- name: Check fetched container image
+  become: no
+  stat: "path=tmp/{{ image_archive }}"
+  register: check_local_image_archive_stat_result
+  changed_when: check_local_image_archive_stat_result.stat.exists == False or image_info_result.images|length == 0
+  run_once: true
+  delegate_to: localhost
+  when: containers is defined
+
+- block:
+  - name: Check saved container image
+    stat: "path={{ build_home }}/{{ image_archive }}"
+    register: check_remote_image_archive_stat_result
+    changed_when: check_remote_image_archive_stat_result.stat.exists == False or image_info_result.images|length == 0
+
+  - name: Save container image
+    shell: "docker save {{ image_name_with_repo }}:{{ image_tag }} | gzip > {{ build_home }}/{{ image_archive }}"
+    when: check_remote_image_archive_stat_result.stat.exists == False or image_info_result.images|length == 0
+
+  - name: Fetch container image
+    fetch:
+      src: "{{ build_home }}/{{ image_archive }}"
+      dest: "tmp/{{ image_archive }}"
+      flat: yes
+
+  run_once: true
+  delegate_to: "{{ image_builder }}"
+  when: containers is defined and (check_local_image_archive_stat_result.stat.exists == False or image_info_result.images|length == 0)
+
+- name: Check container image on all host
+  docker_image_info:
+    name: "{{ image_name_with_repo }}:{{ image_tag }}"
+  register: image_info_result
+  when: containers is defined
+
+- block:
+  - name: Copy container image
+    copy: src=tmp/{{ image_archive }} dest={{ build_home }}/{{ image_archive }}
+
+  - name: Load container image
+    shell: "gunzip --stdout {{ build_home }}/{{ image_archive }} | docker load"
+
+  when: containers is defined and image_info_result.images|length == 0
+
+- name: Set latest tag
+  shell: docker tag {{ image_name_with_repo }}:{{ image_tag }} {{ image_name_with_repo }}:latest
+  when: containers is defined
+
+- name: Check container image on all host for verify
+  docker_image_info:
+    name: "{{ image_name_with_repo }}:{{ image_tag }}"
+  register: image_info_result
+  when: containers is defined
+
+- set_fact:
+    number_of_container_image_info: "{{ hostvars | dict2items | json_query('[?type(value.image_info_result.images)==`array`].value.image_info_result.images[].RootFS') | unique | length }}"
+
+- name: Check identical image
+  assert:
+    that: number_of_container_image_info|int <= 1
+  run_once: true
