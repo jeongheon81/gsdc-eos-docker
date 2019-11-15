@@ -6,7 +6,7 @@
   tasks:
   - name: scan ssh public key
     become: no
-    shell: "ssh-keyscan -t rsa {{ item }},{{ item.split('.')[0] }}$(IP=$(dig +short {{ item }}); if [ -n \"$IP\" ] ; then echo \",$IP\"; fi)"
+    shell: "ssh-keyscan -t rsa {{ item }}{{ ',' + item.split('.')[0] if not item|ipaddr else '' }}$(IP=$(dig +short {{ item }}); if [ -n \"$IP\" ] ; then echo \",$IP\"; fi)"
     args:
       executable: /bin/bash
     ignore_errors: yes
