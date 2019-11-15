@@ -1,0 +1,1 @@
+git merge --no-commit --allow-unrelated-histories master
