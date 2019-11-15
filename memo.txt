@@ -114,3 +114,7 @@ eos -r root root -b fs add -m 6 c87dfeda-45ec-4b91-8fca-ea55a6ea8128 eos-fst-000
 eos -r root root -b node set eos-fst-0004.eoscluster.sdfarm.kr:1095 on
 eos -r root root -b node set eos-fst-0005.eoscluster.sdfarm.kr:1095 on
 eos -r root root -b node set eos-fst-0006.eoscluster.sdfarm.kr:1095 on
+
+git remote add github -t public-master git@github.com:jeongheon81/gsdc-eos-docker.git
+git push -u github public-master
+git remote show github

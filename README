@@ -1,3 +1,4 @@
+Tested only on CentOS 7.6
 USE:
 ./setup
 ./setup -i=0,1
