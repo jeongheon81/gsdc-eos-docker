@@ -1,6 +1,0 @@
-[quarkdb]
-name=QuarkDB
-baseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/
-gpgcheck=0
-enabled=1
-npriority=4

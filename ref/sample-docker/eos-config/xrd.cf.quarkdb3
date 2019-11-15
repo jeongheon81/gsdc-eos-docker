@@ -1,7 +1,0 @@
-if exec xrootd
-  xrd.port 7777
-  xrd.protocol redis:7777 /usr/lib64/libXrdQuarkDB.so
-  redis.mode raft
-  redis.database /var/quarkdb/node-03
-  redis.myself eos-qdb-kisti03.sdfarm.kr:7777
-fi
