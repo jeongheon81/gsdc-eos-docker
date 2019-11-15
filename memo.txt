@@ -118,3 +118,5 @@ eos -r root root -b node set eos-fst-0006.eoscluster.sdfarm.kr:1095 on
 git remote add github -t public-master git@github.com:jeongheon81/gsdc-eos-docker.git
 git push -u github public-master
 git remote show github
+git config --global merge.ours.driver true
+git config merge.ours.driver true

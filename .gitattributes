@@ -1,0 +1,3 @@
+config.yaml merge=ours
+memo.txt merge=ours
+*.dict binary
