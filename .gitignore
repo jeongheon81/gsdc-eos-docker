@@ -1,5 +1,7 @@
+.vscode/
+.VSCodeCounter/
+ref/
 *.retry
-.vscode
-.VSCodeCounter
 config.yaml
 memo.txt
+
