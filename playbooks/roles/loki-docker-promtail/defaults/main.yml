@@ -1,0 +1,532 @@
+---
+loki_promtail_config_base_directory: /etc/loki
+loki_promtail_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+loki_promtail_generated_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+loki_promtail_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "local-config.yaml", dest: "", src: "local-config.yaml.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
+loki_promtail_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+loki_promtail_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "/etc/promtail", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+loki_promtail_persistent_volumes: []
+# - { name: "", dest: "" }
+# - { name: "data", dest: "/tmp/promtail" }
+
+log_directories:
+- { name: "/var/log", dest: "/var/log" }
+- { name: "/run/log/journal", dest: "/run/log/journal" }
+- { name: "/etc/machine-id", dest: "/etc/machine-id" }
+- { name: "/var/lib/docker/containers", dest: "/var/lib/docker/containers"}
+- { name: "/var/lib/docker/volumes", dest: "/var/lib/docker/volumes"}
+
+log_volumes: []
+# - { name: "", mountpoint: "", logs: "", job_prefix: "", service: "", pipeline_stages: "", promtail_name: "" }
+
+
+loki_promtail_configs_default:
+  server:
+    http_listen_port: 9080
+    # grpc_listen_port: 9095
+    grpc_listen_port: 9096
+  clients:
+  - url: http://{{ loki_address }}/loki/api/v1/push
+    # tenant_id: "{{ loki_organization_id }}"
+    external_labels:
+      nodename: "{{ ansible_fqdn }}"
+  positions:
+    # filename: /tmp/promtail/positions.yaml
+    # filename: /var/log/positions.yaml
+    filename: /etc/promtail/positions.yaml
+
+  scrape_configs:
+  - job_name: syslog
+    syslog:
+      listen_address: 0.0.0.0:20514
+      labels:
+        job: syslog
+    relabel_configs:
+    - source_labels: [ '__syslog_message_hostname' ]
+      target_label: host
+    - source_labels: [ '__syslog_message_severity' ]
+      target_label: severity
+    - source_labels: [ '__syslog_message_facility' ]
+      target_label: facility
+    - source_labels: [ '__syslog_message_app_name' ]
+      target_label: app_name
+    - source_labels: [ '__syslog_message_proc_id' ]
+      target_label: pid
+    - source_labels: [ '__syslog_message_msg_id' ]
+      target_label: msg_id
+    pipeline_stages: 
+    - match:
+        selector: '{facility="cron"}'
+        stages:
+        - template:
+            source: facility
+            template: 'solaris-cron'
+        - labels:
+            facility:
+    - match:
+        selector: '{facility="9"}'
+        stages:
+        - template:
+            source: facility
+            template: 'cron'
+        - labels:
+            facility:
+
+  - job_name: journal
+    journal:
+      # path: /run/log/journal
+      labels:
+        job: systemd-journal
+    relabel_configs:
+    - source_labels: [ '__journal__hostname' ]
+      target_label: host
+    - source_labels: [ '__journal_priority' ]
+      target_label: severity
+    - source_labels: [ '__journal_syslog_facility' ]
+      target_label: facility
+    - source_labels: [ '__journal__comm' ]
+      target_label: process_name
+    - source_labels: [ '__journal__pid' ]
+      target_label: pid
+    - source_labels: [ '__journal_syslog_identifier' ]
+      target_label: tag
+    - source_labels: [ '__journal__systemd_unit' ]
+      target_label: unit
+    - source_labels: [ '__journal__systemd_session' ]
+      target_label: session
+    pipeline_stages: >-
+      {% set result = [] -%}
+      {{ result.append(
+         'match:
+            selector: "{unit=~\"session-.+scope\"}"
+            stages:
+            - template:
+                source: unit
+                template: session.scope
+            - labels:
+                unit:
+         '|from_yaml)
+      -}}
+      {% set severity = { 0:'emergency', 1:'alert', 2:'critical', 3:'error', 4:'warning', 5:'notice', 6:'informational', 7:'debug' } -%}
+      {% for key, value in severity|dictsort -%}
+      {{   result.append(
+            ('match:
+                selector: "{severity=\"'+key|string+'\"}"
+                stages:
+                - template:
+                    source: severity
+                    template: '+value|string+'
+                - labels:
+                    severity:
+            ')|from_yaml)
+      -}}
+      {% endfor -%}
+      {% set facility = {
+            0:  "kern",
+            1:  "user",
+            2:  "mail",
+            3:  "daemon",
+            4:  "auth",
+            5:  "syslog",
+            6:  "lpr",
+            7:  "news",
+            8:  "uucp",
+            9:  "cron",
+            10: "authpriv",
+            11: "ftp",
+            12: "ntp",
+            13: "security",
+            14: "console",
+            15: "solaris-cron",
+            16: "local0",
+            17: "local1",
+            18: "local2",
+            19: "local3",
+            20: "local4",
+            21: "local5",
+            22: "local6",
+            23: "local7",
+          }
+      -%}
+      {% for key, value in facility|dictsort -%}
+      {{   result.append(
+            ('match:
+                selector: "{facility=\"'+key|string+'\"}"
+                stages:
+                - template:
+                    source: facility
+                    template: '+value|string+'
+                - labels:
+                    facility:
+            ')|from_yaml)
+      -}}
+      {% endfor -%}
+      {{ result }}
+
+  - job_name: containers
+    file_sd_configs:
+    - files:
+      - /etc/promtail/container-targets.yaml
+    relabel_configs:
+    - source_labels: [ '__address__' ]
+      target_label: container_id
+    - source_labels: [ 'container_id' ]
+      target_label: __path__
+      replacement: /var/lib/docker/containers/$1*/*.log
+    pipeline_stages: >-
+      {% set result = [] -%}
+      {{ result.append('docker:'|from_yaml) -}}
+      {{ result.extend(loki_promtail_container_log_pipeline_stages|default([])) -}}
+      {{ result }}
+
+    # - match:
+    #     selector: '{severity="0"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'emergency'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="1"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'alert'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="2"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'critical'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="3"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'error'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="4"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'warning'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="5"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'notice'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="6"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'informational'
+    #     - labels:
+    #         severity:
+    # - match:
+    #     selector: '{severity="7"}'
+    #     stages:
+    #     - template:
+    #         source: severity
+    #         template: 'debug'
+    #     - labels:
+    #         severity:
+
+
+
+
+  # - job_name: syslog
+  #   static_configs:
+  #   - targets:
+  #       - localhost
+  #     labels:
+  #       service: syslog
+  #       job: messages
+  #       host: "{{ ansible_fqdn }}"
+  #       __path__: /var/log/messages
+  #   pipeline_stages:
+  #   - match:
+  #       selector: '{service="syslog",job="messages"}'
+  #       stages:
+  #       - regex:
+  #           expression: '^(?s)(?P<timestamp>\w{3} +\d{1,2} \d{2}:\d{2}:\d{2}) (?P<logsource>\S+?) (?P<logtag>\S+?)(:|\[(?P<pid>\S+?)\]:) (?P<content>.*)$'
+  #       - timestamp:
+  #           source: timestamp
+  #           format: Jan _2 15:04:05
+  #           location: "{{ iana_timezone }}"
+  #       - labels:
+  #           logsource:
+  #           logtag:
+  #           pid:
+  #       - output:
+  #           source: content
+
+  # - job_name: kubernetes-pods-name
+  #   kubernetes_sd_configs:
+  #   - role: pod
+  #   pipeline_stages:
+  #   - docker: {}
+  #   relabel_configs:
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_label_name
+  #     target_label: __service__
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_node_name
+  #     target_label: __host__
+  #   - action: drop
+  #     regex: ""
+  #     source_labels:
+  #     - __service__
+  #   - action: labelmap
+  #     regex: __meta_kubernetes_pod_label_(.+)
+  #   - action: replace
+  #     replacement: $1
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     - __service__
+  #     target_label: job
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     target_label: namespace
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_name
+  #     target_label: instance
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: container_name
+  #   - replacement: /var/log/pods/*$1/*.log
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_pod_uid
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: __path__
+
+  # - job_name: kubernetes-pods-app
+  #   kubernetes_sd_configs:
+  #   - role: pod
+  #   pipeline_stages:
+  #   - docker: {}
+  #   relabel_configs:
+  #   - action: drop
+  #     regex: .+
+  #     source_labels:
+  #     - __meta_kubernetes_pod_label_name
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_label_app
+  #     target_label: __service__
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_node_name
+  #     target_label: __host__
+  #   - action: drop
+  #     regex: ""
+  #     source_labels:
+  #     - __service__
+  #   - action: labelmap
+  #     regex: __meta_kubernetes_pod_label_(.+)
+  #   - action: replace
+  #     replacement: $1
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     - __service__
+  #     target_label: job
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     target_label: namespace
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_name
+  #     target_label: instance
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: container_name
+  #   - replacement: /var/log/pods/*$1/*.log
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_pod_uid
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: __path__
+
+  # - job_name: kubernetes-pods-direct-controllers
+  #   kubernetes_sd_configs:
+  #   - role: pod
+  #   pipeline_stages:
+  #   - docker: {}
+  #   relabel_configs:
+  #   - action: drop
+  #     regex: .+
+  #     separator: ""
+  #     source_labels:
+  #     - __meta_kubernetes_pod_label_name
+  #     - __meta_kubernetes_pod_label_app
+  #   - action: drop
+  #     regex: '[0-9a-z-.]+-[0-9a-f]{8,10}'
+  #     source_labels:
+  #     - __meta_kubernetes_pod_controller_name
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_controller_name
+  #     target_label: __service__
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_node_name
+  #     target_label: __host__
+  #   - action: drop
+  #     regex: ""
+  #     source_labels:
+  #     - __service__
+  #   - action: labelmap
+  #     regex: __meta_kubernetes_pod_label_(.+)
+  #   - action: replace
+  #     replacement: $1
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     - __service__
+  #     target_label: job
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     target_label: namespace
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_name
+  #     target_label: instance
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: container_name
+  #   - replacement: /var/log/pods/*$1/*.log
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_pod_uid
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: __path__
+
+  # - job_name: kubernetes-pods-indirect-controller
+  #   kubernetes_sd_configs:
+  #   - role: pod
+  #   pipeline_stages:
+  #   - docker: {}
+  #   relabel_configs:
+  #   - action: drop
+  #     regex: .+
+  #     separator: ""
+  #     source_labels:
+  #     - __meta_kubernetes_pod_label_name
+  #     - __meta_kubernetes_pod_label_app
+  #   - action: keep
+  #     regex: '[0-9a-z-.]+-[0-9a-f]{8,10}'
+  #     source_labels:
+  #     - __meta_kubernetes_pod_controller_name
+  #   - action: replace
+  #     regex: ([0-9a-z-.]+)-[0-9a-f]{8,10}
+  #     source_labels:
+  #     - __meta_kubernetes_pod_controller_name
+  #     target_label: __service__
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_node_name
+  #     target_label: __host__
+  #   - action: drop
+  #     regex: ""
+  #     source_labels:
+  #     - __service__
+  #   - action: labelmap
+  #     regex: __meta_kubernetes_pod_label_(.+)
+  #   - action: replace
+  #     replacement: $1
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     - __service__
+  #     target_label: job
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     target_label: namespace
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_name
+  #     target_label: instance
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: container_name
+  #   - replacement: /var/log/pods/*$1/*.log
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_pod_uid
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: __path__
+
+  # - job_name: kubernetes-pods-static
+  #   kubernetes_sd_configs:
+  #   - role: pod
+  #   pipeline_stages:
+  #   - docker: {}
+  #   relabel_configs:
+  #   - action: drop
+  #     regex: ""
+  #     source_labels:
+  #     - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_label_component
+  #     target_label: __service__
+  #   - source_labels:
+  #     - __meta_kubernetes_pod_node_name
+  #     target_label: __host__
+  #   - action: drop
+  #     regex: ""
+  #     source_labels:
+  #     - __service__
+  #   - action: labelmap
+  #     regex: __meta_kubernetes_pod_label_(.+)
+  #   - action: replace
+  #     replacement: $1
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     - __service__
+  #     target_label: job
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     target_label: namespace
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_name
+  #     target_label: instance
+  #   - action: replace
+  #     source_labels:
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: container_name
+  #   - replacement: /var/log/pods/*$1/*.log
+  #     separator: /
+  #     source_labels:
+  #     - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+  #     - __meta_kubernetes_pod_container_name
+  #     target_label: __path__

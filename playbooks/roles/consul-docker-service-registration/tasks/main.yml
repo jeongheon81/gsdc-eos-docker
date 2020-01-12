@@ -1,0 +1,69 @@
+---
+- block:
+
+  - set_fact:
+      consul_service_by_name: >-
+        {% set result = {} -%}
+        {% for service in consul_services|default([]) -%}
+        {{   result.update({ service.name: result[service.name]|default([]) + [ service ] }) -}}
+        {% endfor -%}
+        {{ result }}
+
+  - name: Create service write privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: service-write-{{ item.key }}
+      consul_acl_policy_rule: |
+        service "{{ item.key }}" {
+          policy = "write"
+        }
+      consul_acl_policy_description: "Access to the consul service."
+    loop: "{{ consul_service_by_name|dict2items }}"
+
+  - name: Get service token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: service-{{ item.key }}
+      consul_acl_token_description: "Service Token"
+      consul_acl_token_policy_names:
+      - service-write-{{ item.key }}
+    loop: "{{ consul_service_by_name|dict2items }}"
+
+  - set_fact:
+      consul_service_by_name: >-
+        {% set result = {} -%}
+        {% for service in consul_services|default([]) -%}
+        {{   service.update({ 'token': consul_acl_tokens['service-'+service.name] }) -}}
+        {{   result.update({ service.name: result[service.name]|default([]) + [ service ] }) -}}
+        {% endfor -%}
+        {{ result }}
+
+  - name: Copy config files 
+    copy:
+      content: "{{ { 'services': item[1].value }|to_nice_json }}"
+      dest: "{{ consul_server_config_base_directory|default('/etc/consul') }}/{{ item[0].name }}/config/50_service_{{ item[1].key }}.json"
+      owner: "{{ consul_uid|default(100) }}"
+      group: "{{ consul_gid|default(1000) }}"
+      mode: "0600"
+    register: create_service_config_file_results
+    loop: "{{ containers.consul_server|product(consul_service_by_name|dict2items)|list }}"
+
+  - set_fact:
+      reload_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_service_config_file_results.results -%}
+        {%   if item.changed -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Send config reload signal for service_config_file
+    shell: docker kill --signal=HUP {{ item }}
+    loop: "{{ reload_notifies|default([]) }}"
+
+  when: containers is defined and containers.consul_server is defined

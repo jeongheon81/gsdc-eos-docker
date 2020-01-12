@@ -1,0 +1,9 @@
+{
+  "acl": {
+    "tokens": {
+      "default": "{{ consul_acl_tokens['default-'+item] }}",
+      "agent": "{{ consul_acl_tokens['agent-'+item] }}",
+      "agent_master": "{{ consul_acl_tokens['agent-master-'+item] }}"
+    }
+  }
+}

@@ -19,5 +19,6 @@
     known_hosts:
       name: "{{ item.item }}"
       key: "{{ item.stdout }}"
+    ignore_errors: yes
     when: ssh_keyscan|bool and item.rc == 0
     loop: "{{ ssh_keyscan_results.results|default({}) }}"

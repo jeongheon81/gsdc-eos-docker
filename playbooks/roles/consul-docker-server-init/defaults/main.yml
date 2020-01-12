@@ -1,0 +1,25 @@
+# ---
+# consul_ui_config_base_directory: /etc/consul
+# consul_ui_shipped_files: []
+# # - { name: "", dest: "", force: false, is_volume: true }
+# consul_ui_generated_files: []
+# # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+# consul_ui_template_files:
+# # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+# - { name: "config/00_consul-config.json", dest: "", src: "consul-config.json.j2", owner: "{{ consul_uid }}", group: "{{ consul_gid }}", mode: "0644", force: true, is_volume: false }
+# - { name: "config/{{ consul_domain }}-agent-ca.pem", dest: "", src: "agent-ca.pem.j2", owner: "{{ consul_uid }}", group: "{{ consul_gid }}", mode: "0644", force: true, is_volume: false }
+# consul_ui_config_files: []
+# # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+# consul_ui_config_directories:
+# # - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: false }
+# - { name: "config", dest: "/consul/config", owner: "{{ consul_uid }}", group: "{{ consul_gid }}", mode: "0755", force: false, is_volume: true }
+# consul_ui_persistent_volumes:
+# # - { name: "", dest: "" }
+# - { name: "data", dest: "/consul/data" }
+# - { name: "roothome", dest: "/root" }
+
+# consul_configs_default: {}
+
+# consul_uid: "100"
+# consul_gid: "1000"

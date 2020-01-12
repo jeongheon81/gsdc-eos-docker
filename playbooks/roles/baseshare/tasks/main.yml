@@ -4,6 +4,13 @@
 #     var: hostvars[inventory_hostname]
 # - debug: var=container_network_user_firewall_rules
 
+- name: Check container network gateway address
+  assert:
+    that:
+    - network_bridge|json_query('[? ifname == `'+item.bridge_name+'` ].ip4|[0]') is match(item.gateway)
+    fail_msg: container network gateway address must be same the bridge address
+  loop: "{{ container_network|default([]) }}"
+
 - name: Create install information home directory
   file:
     path: "{{ install_info_home }}"

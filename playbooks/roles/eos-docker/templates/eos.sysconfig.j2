@@ -23,7 +23,7 @@
 # ************************************************************************
 
 # Should we run with another limit on the core file size other than the default?
-DAEMON_COREFILE_LIMIT=unlimited
+export DAEMON_COREFILE_LIMIT=unlimited
 
 # Preload jemalloc
 export LD_PRELOAD=/usr/lib64/libjemalloc.so.1
@@ -37,19 +37,11 @@ export KRB5RCACHETYPE=none
 # multiple xrd's running with different options to be controlled via
 # the same initd script
 
-XRD_ROLES="{{ xrd_roles|join(' ') }}"
+export XRD_ROLES="{{ xrd_roles|join(' ') }}"
 
 # ------------------------------------------------------------------
 # EOS Configuration
 # ------------------------------------------------------------------
-
-{% if item[0].mgm_host is defined and item[0].mgm_host_target is defined %}
-# The fully qualified hostname of current MGM
-export EOS_MGM_HOST={{ item[0].mgm_host }}
-
-# The fully qualified hostname of target MGM
-export EOS_MGM_HOST_TARGET={{ item[0].mgm_host_target }}
-{% endif %}
 
 # The EOS instance name
 export EOS_INSTANCE_NAME={{ eos_instance_name }}
@@ -68,11 +60,17 @@ export EOS_GEOTAG="{{ eos_geotag }}"
 export EOS_MGM_MASTER{{ loop.index }}={{ eos_mgm_node }}
 
 {% endfor %}
+
 # The alias which selects master 1 or 2
 export EOS_MGM_ALIAS={{ eos_mgm_alias }}
 
-# Define if sync/eossync should be started separately, not by MGM
-export EOS_START_SYNC_SEPARATELY=1
+{% if item[0].mgm_host is defined and item[0].mgm_host_target is defined %}
+# The fully qualified hostname of current MGM
+export EOS_MGM_HOST={{ item[0].mgm_host }}
+
+# The fully qualified hostname of target MGM
+export EOS_MGM_HOST_TARGET={{ item[0].mgm_host_target }}
+{% endif %}
 
 # Define if you want a namespace copy when doing a slave2master transition [default off]
 # export EOS_MGM_CP_ON_FAILOVER=1
@@ -102,10 +100,10 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export EOS_SECONDARY_GROUPS=0
 
 # Do subtree accounting on directories (set to 1 to enable)
-export EOS_NS_ACCOUNTING=1
+#export EOS_NS_ACCOUNTING=0
 
 # Do sync time propagation (set to 1 to enable)
-export EOS_SYNCTIME_ACCOUNTING=1
+#export EOS_SYNCTIME_ACCOUNTING=0
 
 # Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
 # export EOS_ALLOW_RAIN_RWM
@@ -122,6 +120,10 @@ export EOS_USE_SHARED_MUTEX=1
 # Duplicate all logging information to SYSLOG
 # export EOS_LOG_SYSLOG=0 ( set 1 or true to enable)
 
+# By default statvfs reports the total space if the path deepness is < 4
+# If you want to report only quota accouting you can define
+# EOS_MGM_STATVFS_ONLY_QUOTA=1
+
 # Enable the use of xrootd connection pool i.e. create/share different physical
 # connections for transfers to the same destination xrootd server. By default
 # this is disabled.
@@ -134,14 +136,26 @@ export EOS_USE_SHARED_MUTEX=1
 # The min value is 1 and the max 1024. By default this 1024.
 # export EOS_XRD_CONNECTION_POOL_SIZE=1024
 
-{% if eos_use_qdb|bool %}
+# Enable QoS support
+export EOS_ENABLE_QOS=""
+
+# Enable Converter Engine
+export EOS_CONVERTER_DRIVER=1
+
+# Define if sync/eossync should be started separately, not by MGM
+{% if ! eos_use_qdb|bool %}# {% endif -%}
+export EOS_START_SYNC_SEPARATELY=1
+
 # Enable QuarkDB HA setup
+{% if ! eos_use_qdb|bool %}# {% endif -%}
 export EOS_USE_QDB_MASTER=1
-{% endif %}
 
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------
+
+# Number of threads for transfer operations (Balance, Drain or Transfer actions)
+export EOS_FST_TRANSFER_THREAD_POOL=20
 
 # Disable 'sss' enforcement to allow generic TPC
 #export EOS_FST_NO_SSS_ENFORCEMENT=1
@@ -156,11 +170,17 @@ export EOS_USE_QDB_MASTER=1
 # Stream timeout for operations
 #export EOS_FST_STREAM_TIMEOUT=300
 
+# Specify in seconds how often FSTs should query for new delete operations
+export EOS_FST_DELETE_QUERY_INTERVAL=60
+
 # Disable fast boot and always do a full resync when a fs is booting
 # export EOS_FST_NO_FAST_BOOT=0 (default off)
 
 # Change minimum file system size setting - default is to have at least 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
+
+# Set number of connection retries
+export EOS_FST_CONNECTION_RETRY=1
 
 # Set S3 access key & secret key
 #export EOS_FST_S3_ACCESS_KEY=""
@@ -168,6 +188,9 @@ export EOS_USE_QDB_MASTER=1
 
 # Set S3 theoretical storage size 
 #export EOS_FST_S3_STORAGE_SIZE=1000000000000000
+
+# Set HTTPS X509 certificate path
+#export EOS_FST_HTTPS_X509_CERTIFICATE_PATH=""
 
 # Set the connection pool size for FST=>FST connections (default is 64 - range 1 to 1024)
 # EOS_FST_XRDIO_CONNECTION_POOL_SIZE=64
@@ -182,6 +205,10 @@ export EOS_USE_QDB_MASTER=1
 # the value is 10.
 # export EOS_FST_CALL_MANAGER_XRD_POOL_SIZE=10
 
+# If variable defined use asynchronous (double-buffered) reading in TPCs - By default
+# it is undefined = disabled
+# EOS_FST_TPC_READASYNC=1
+
 # The port the FST should run on
 #export EOS_FST_PORT=1095
 
@@ -193,7 +220,7 @@ export EOS_USE_QDB_MASTER=1
 export EOS_FUSE_MOUNTDIR=/eos/
 
 # The optional remote directory visiable unter the mount dir
-export EOS_FUSE_REMOTEDIR=/eos/
+#export EOS_FUSE_REMOTEDIR=/eos/
 
 # The MGM host from where to do the inital mount
 export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
@@ -223,10 +250,10 @@ export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
 #export EOS_FUSE_NO_MT=1
 
 # Enable FUSE read-ahead (default off)
-export EOS_FUSE_RDAHEAD=1
+#export EOS_FUSE_RDAHEAD=0
 
 # Configure FUSE read-ahead window (default 128k)
-export EOS_FUSE_RDAHEAD_WINDOW=131072
+# export EOS_FUSE_RDAHEAD_WINDOW=131072
 
 # Disable using access for access permission check (default on)
 # export EOS_FUSE_NOACCESS=0
@@ -473,9 +500,31 @@ export EOS_HTTP_THREADPOOL_SIZE=16
 # memory buffer size per connection 
 #export EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
 export EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
+
 # timeout after which an idel connection is considered to be closed (default 2 min)
 #export EOS_HTTP_CONNETION_TIMEOUT=120
 
+#-------------------------------------------------------------------------------
+# GRPC Configuration
+#-------------------------------------------------------------------------------
+
+# GRPC port - set to 0 to disable GRPC
+export EOS_MGM_GRPC_PORT=50051
+
+# GRPC security - define to enable SSL server
+#export EOS_MGM_GRPC_SSL_CERT
+#export EOS_MGM_GRPC_SSL_KEY
+#export EOS_MGM_GRPC_SSL_CA
+
+#-------------------------------------------------------------------------------
+# FUSEX Configuration
+#-------------------------------------------------------------------------------
+
+# Listener port of the ZMQ server used by FUSEx)
+# EOS_MGM_FUSEX_PORT=1100
+
+# Maximum number of 'listable' children
+# EOS_MGM_FUSEX_MAX_CHILDREN=32768
 
 # ------------------------------------------------------------------
 # Federation Configuration
@@ -518,6 +567,16 @@ export EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # max. time given to the test to finish
 #export EOS_TEST_TESTTIMESLICE=600
 
+#-------------------------------------------------------------------------------
+# QuarkDB Configuration
+#-------------------------------------------------------------------------------
+
+# QuarkDB Hostport
+# EOS_QUARKDB_HOSTPORT=localhost:9999
+
+# QuarkDB Password
+# EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
+
 # ------------------------------------------------------------------
 # Global Vstl Configuration
 # ------------------------------------------------------------------
@@ -545,7 +604,7 @@ export EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # ------------------------------------------------------------------
 
 # define the log file where you want to grep
-export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
+export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/xrootd.mgm.log"
 
 # define the log file regex you want to broad cast to all consoles
 export EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
@@ -554,10 +613,10 @@ export EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # Service Script aliasing for EL7 machines
 # ------------------------------------------------------------------
 
-which systemctl >& /dev/null
-if [ $? -eq 0 ]; then
-   alias service="service --skip-redirect"
-fi
+#which systemctl >& /dev/null
+#if [ $? -eq 0 ]; then
+#   alias service="service --skip-redirect"
+#fi
 
 # ------------------------------------------------------------------
 # MGM Namespace Preset Size - this can safe memory for large namespaces if you know an upper limit for the namespace size

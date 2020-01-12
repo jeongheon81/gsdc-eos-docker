@@ -43,7 +43,7 @@
       changed_when: False
     - name: Get the space available in /var/lib/
       become: yes
-      shell: "echo $(( $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $4}' | numfmt --from iec) + $(printf %.0f $(which docker >&/dev/null && docker image ls --format '{{ '{{' }}.Repository{{ '}}' }} {{ '{{' }}.Size{{ '}}' }}' | grep '{{ container_image_name|join('\\|') }}' | cut -d ' ' -f 2 | sed 's/B/i/' | numfmt --from iec-i | paste -sd+ - | bc || echo)) ))"
+      shell: "echo $(( $(df -BG /var/lib/ | awk '!/^Filesystem/ {print $4}' | numfmt --from iec) + $(printf %.0f $(which docker >&/dev/null && docker image ls --format '{{ '{{' }}.Repository{{ '}}' }}:{{ '{{' }}.Tag{{ '}}' }} {{ '{{' }}.Size{{ '}}' }}' | grep '{{ container_images|dict2items|json_query('[].value')|join('\\|') }}' | cut -d ' ' -f 2 | sed 's/B/i/' | numfmt --from iec-i | paste -sd+ - | bc || echo)) ))"
       args:
         executable: /bin/bash
       register: var_lib_space_available

@@ -1,0 +1,101 @@
+---
+- name: Create consul-agent write privileges policy
+  shell: docker exec -it {{ container_infos[0].name }} sh -c
+    'if ! consul acl policy list | grep "^consul-server:" ; then
+      echo -ne
+      "\n{% for node in consul_server_nodes + consul_ui_nodes -%}
+        node \"{{ node.split(".")[0] }}\" {\n  policy = \"write\"\n}\n
+      {%- endfor %}" |
+      consul acl policy create
+        -name consul-server
+        -description "Write privileges for node related actions "
+        -rules -
+      && echo changed;
+    else
+      if [
+        "$(consul acl policy read -name consul-server | awk "/Rules:/,0")"
+        !=
+        "$(echo -ne "Rules:\n\n
+          {%- for node in consul_server_nodes + consul_ui_nodes -%}
+            node \"{{ node.split(".")[0] }}\" {\n  policy = \"write\"\n}\n
+          {%- endfor %}\n"
+        )"
+      ] ; then
+        echo -ne
+        "\n{% for node in consul_server_nodes + consul_ui_nodes -%}
+          node \"{{ node.split(".")[0] }}\" {\n  policy = \"write\"\n}\n
+        {%- endfor %}" |
+        consul acl policy update
+          -name consul-server
+          -description "Write privileges for node related actions "
+          -rules -
+        && echo changed;
+      else
+        echo skipped;
+      fi
+    fi'
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+  run_once: true
+  when: consul_bootstrap_token is defined
+
+- block:
+  - name: Get agent token for consul ui nodes
+    shell: docker exec -it {{ containers.consul_server[0].name }} sh -c
+      'if ! consul acl token list | grep "Agent Token, {{ consul_ui_node.split(".")[0] }}" > /dev/null ; then
+        consul acl token create
+          -description "Agent Token, {{ consul_ui_node.split(".")[0] }}"
+          -policy-name consul-agent-{{ consul_ui_node.split(".")[0] }}
+        | grep "^SecretID:" | awk "{print \$2}"
+        && echo changed;
+      else
+        consul acl token read 
+          -id $(consul acl token list | grep -B 1 "^Description:[[:space:]]\+Agent Token, {{ consul_ui_node.split(".")[0] }}$"| grep "^AccessorID:" | awk "{print \$2}")
+        | grep "^SecretID:" | awk "{print \$2}"
+        && echo skipped;
+      fi'
+    register: get_consul_ui_agent_token_results
+    changed_when: get_consul_ui_agent_token_results.stdout_lines|length > 0 and get_consul_ui_agent_token_results.stdout_lines[-1] == 'changed'
+    loop: "{{ consul_ui_nodes }}"
+    loop_control:
+      loop_var: consul_ui_node
+
+  run_once: true
+  when: consul_bootstrap_token is defined and consul_ui_nodes is defined
+
+- block:
+  - name: Create ACL tokens config
+    template:
+      src: "acl-tokens.json.j2"
+      dest: "{{ consul_ui_config_base_directory }}/{{ item.consul_ui_node.split('.')[0] }}/config/01_acl-tokens.json"
+      owner: "{{ consul_uid }}"
+      group: "{{ consul_gid }}"
+      mode: "0640"
+    register: create_acl_tokens_config_results
+    loop: "{{ get_consul_ui_agent_token_results.results }}"
+
+  - name: Get roothome volume information
+    docker_volume_info:
+      name: "{{ item.consul_ui_node.split('.')[0] }}_roothome"
+    register: consul_roothome_volume_info_results
+    loop: "{{ get_consul_ui_agent_token_results.results }}"
+
+  - name: Create shell log-in profile
+    copy:
+      content: "export CONSUL_HTTP_TOKEN_FILE=/root/.agent_token"
+      dest: "{{ item.volume.Mountpoint }}/.profile"
+      owner: root
+      group: root
+      mode: "0600"
+    loop: "{{ consul_roothome_volume_info_results.results }}"
+
+  - name: Create bootstrap token files
+    copy:
+      content: "{{ item.item.stdout_lines[0] }}"
+      dest: "{{ item.volume.Mountpoint }}/.agent_token"
+      owner: root
+      group: root
+      mode: "0600"
+    loop: "{{ consul_roothome_volume_info_results.results }}"
+
+  when: get_consul_ui_agent_token_results is defined

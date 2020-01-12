@@ -6,9 +6,6 @@
 FROM centos:7
 MAINTAINER Elvin Sindrilaru, esindril@cern.ch, CERN 2017
 
-RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64
-RUN chmod +x /usr/local/bin/dumb-init
-
 # Add extra repositories
 ADD repos/*.repo /etc/yum.repos.d/
 
@@ -39,26 +36,30 @@ RUN rpm --rebuilddb && yum -y install \
     gdb gcc-c++ cmake3 libacl-devel perl-Test-Harness \
     rpm-build bzip2 automake autoconf libtool sudo vim \
     centos-release-scl-rh at \ 
-    protobuf3 cryptsetup e2fsprogs xfsprogs smartmontools && \
+    protobuf3 cryptsetup e2fsprogs xfsprogs smartmontools \
+    wget && \
     yum clean all && \
     rm -rf /var/cache/yum
 
 # Install new EOS from created repo - the ADD command will reset the docker cache,
 # and any commands after that point will be uncached.
-ENV EOSREPODIR="/repo/eos"
-ADD cc7_artifacts ${EOSREPODIR}
+# ENV EOSREPODIR="/repo/eos"
+# ADD cc7_artifacts ${EOSREPODIR}
 
 # Special packages, must be installed un-cached.
-RUN createrepo ${EOSREPODIR}; \
-    echo -e "[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://${EOSREPODIR}\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos.repo; \
-    rpm --rebuilddb; \
-    yum -y --nogpg install quarkdb quarkdb-debuginfo redis grid-hammer davix; \
+# RUN createrepo ${EOSREPODIR}; \
+#     echo -e "[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://${EOSREPODIR}\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos.repo; \
+RUN rpm --rebuilddb && \
+    yum -y --nogpg install quarkdb quarkdb-debuginfo redis grid-hammer davix && \
     yum -y --nogpg install \
     eos-server eos-testkeytab eos-archive eos-client \
     eos-debuginfo eos-fuse eos-fusex eos-test eos-ns-inspect \
-    xrootd-client ; \
+    xrootd-client && \
     yum clean all && \
     rm -rf /var/cache/yum
+
+    # xrootd xrootd-libs xrootd-client xrootd-client-libs xrootd-client-devel \
+    # xrootd-server xrootd-server-libs xrootd-server-devel xrootd-private-devel; \
 
 # *************
 # NOTE: !UGLY!*
@@ -90,4 +91,12 @@ RUN echo "*          soft    nofile    200000" >> /etc/security/limits.d/10-nofi
     echo "*          hard    nofile    200000" >> /etc/security/limits.d/10-nofile.conf
 
 # ENTRYPOINT ["/bin/bash"]
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+
+RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_x86_64
+RUN chmod +x /usr/local/bin/dumb-init
+
+ADD image_scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod a+x /usr/local/bin/*.sh
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]

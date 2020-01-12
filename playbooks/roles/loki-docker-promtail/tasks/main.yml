@@ -1,0 +1,100 @@
+---
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 9080/tcp
+  when: containers.loki_promtail[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
+
+- block:
+  - name: Setup container
+    include_tasks: tasks/container_setup.yml
+    vars:
+      components: "{{ containers.loki_promtail }}"
+      config_base_directory: "{{ loki_promtail_config_base_directory }}"
+      shipped_files: "{{ loki_promtail_shipped_files }}"
+      generated_files: "{{ loki_promtail_generated_files }}"
+      template_files: "{{ loki_promtail_template_files }}"
+      config_files: "{{ loki_promtail_config_files }}"
+      config_directories: "{{ loki_promtail_config_directories }}"
+      persistent_volumes: "{{ loki_promtail_persistent_volumes }}"
+
+  - name: Create container-targets file
+    shell: |
+      TARGETS="$(docker ps --format '- targets: ["{{ "{{" }}.ID{{ "}}" }}"]\n  labels:\n    job: containers\n    container_name: "{{ "{{" }}.Names{{ "}}" }}"' )"
+      if ! echo "$TARGETS" | cmp -s {{ loki_promtail_config_base_directory }}/{{ item.name }}/container-targets.yaml ; then
+        echo "$TARGETS" > {{ loki_promtail_config_base_directory }}/{{ item.name }}/container-targets.yaml &&
+        echo changed;
+      else
+        echo skipped;
+      fi
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ containers.loki_promtail }}"
+
+  - name: Create sd config files
+    template:
+      src: logs-sd.json.j2
+      dest: "{{ loki_promtail_config_base_directory }}/{{ log_volume.promtail_name }}/{{ log_volume.job_prefix }}_logs-sd.json"
+      owner: root
+      group: root
+      mode: "0644"
+    loop: "{{ log_volumes }}"
+    loop_control:
+      loop_var: log_volume
+
+  - name: Build container volume list with log_directories
+    set_fact:
+      container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[1].name + ':' + item[1].dest+ ':ro' ] }) }}"
+    loop: "{{ containers.loki_promtail|product(log_directories)|list }}"
+
+  - name: Build container volume list with log_volumes
+    set_fact:
+      container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[1].name + ':/run/log/' + item[1].name+ ':ro' ] }) }}"
+    loop: "{{ containers.loki_promtail|product(log_volumes)|list }}"
+
+  - name: Start container
+    docker_container:
+      name: "{{ item.name }}"
+      image: "{{ item.image }}"
+      state: started
+      purge_networks: yes
+      network_mode: host
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      command: -config.file=/etc/promtail/local-config.yaml
+    register: container_start_results
+    loop: "{{ container_infos }}"
+
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - name: Copy rsyslog config for promtail
+    copy:
+      content: |
+        action(type="omfwd" Target="localhost" Port="20514" Protocol="tcp" Template="RSYSLOG_SyslogProtocol23Format" TCP_Framing="octet-counted")
+      dest:  /etc/rsyslog.d/99_promtail.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart rsyslog
+
+  when: containers is defined and containers.loki_promtail is defined

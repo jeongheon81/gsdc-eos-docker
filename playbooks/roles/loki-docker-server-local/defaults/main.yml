@@ -1,0 +1,65 @@
+---
+loki_server_local_config_base_directory: /etc/loki
+loki_server_local_shipped_files: []
+# - { name: "", dest: "", force: false, is_volume: true }
+loki_server_local_generated_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
+loki_server_local_template_files:
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "local-config.yaml", dest: "", src: "local-config.yaml.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
+loki_server_local_config_files: []
+# - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+loki_server_local_config_directories:
+# - { name: "", dest: "", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+- { name: "", dest: "/etc/loki", owner: "root", group: "root", mode: "0755", force: false, is_volume: true }
+loki_server_local_persistent_volumes:
+# - { name: "", dest: "" }
+- { name: "data", dest: "/tmp/loki" }
+
+loki_local_configs_default: 
+  auth_enabled: false
+  server:
+    http_listen_port: 3100
+  ingester:
+    lifecycler:
+      address: 127.0.0.1
+      ring:
+        kvstore:
+          store: inmemory
+        replication_factor: 1
+      final_sleep: 0s
+    chunk_idle_period: 5m
+    chunk_retain_period: 30s
+  storage_config:
+    boltdb:
+      directory: /tmp/loki/index
+    filesystem:
+      directory: /tmp/loki/chunks
+  chunk_store_config:
+    max_look_back_period: 0
+  schema_config:
+    configs:
+    - from: "2020-01-01"
+      store: boltdb
+      object_store: filesystem
+      schema: v9
+      index:
+        prefix: index_
+        period: 168h
+  limits_config:
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    enforce_metric_name: false
+  table_manager:
+    chunk_tables_provisioning:
+      inactive_read_throughput: 0
+      inactive_write_throughput: 0
+      provisioned_read_throughput: 0
+      provisioned_write_throughput: 0
+    index_tables_provisioning:
+      inactive_read_throughput: 0
+      inactive_write_throughput: 0
+      provisioned_read_throughput: 0
+      provisioned_write_throughput: 0
+    retention_deletes_enabled: false
+    retention_period: 0

@@ -1,9 +1,14 @@
 ---
-
-- name: Set empty initialization information variable
+- name: Set empty variable for the result
   set_fact:
     container_infos: []
     need_shipped_files: {}
+    nfs_volume_names: {}
+    container_volumes: {}
+    create_shipped_file_results: {}
+    create_generated_file_results: {}
+    create_template_file_results: {}
+    create_config_file_results: {}
 
 - name: Initialize need_shipped_files flag
   set_fact:
@@ -34,20 +39,6 @@
     mode: "{{ item[1].mode }}"
   when: not item[0].is_initialized or item[1].force
   loop: "{{ container_infos|product(config_directories)|list }}"
-
-# - name: Create config files directory
-#   file:
-#     path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name|dirname }}/"
-#     state: directory
-#     mode: u=rwX,g=rX,o=rX
-#   loop: "{{ container_infos|product(shipped_files + generated_files + template_files)|list }}"
-
-# - name: Create config sub directory
-#   file:
-#     path: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
-#     state: directory
-#     mode: u=rwX,g=rX,o=rX
-#   loop: "{{ container_infos|product(config_directories)|list }}"
 
 - block:
   - name: Check shipped files
@@ -85,8 +76,8 @@
       fi
     args:
       executable: /bin/bash
-    register: command_result
-    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    register: create_shipped_file_results
+    changed_when: create_shipped_file_results.stdout_lines|length > 0 and create_shipped_file_results.stdout_lines[-1] == 'changed'
     when: not item[0].is_initialized or need_shipped_files[item[0].name] or item[1].force
     loop: "{{ container_infos|product(shipped_files)|list }}"
 
@@ -106,16 +97,23 @@
     owner: "{{ item[1].owner }}"
     group: "{{ item[1].group }}"
     mode: "{{ item[1].mode }}"
+  register: create_generated_file_results
   when: not item[0].is_initialized or item[1].force
   loop: "{{ container_infos|product(generated_files)|list }}"
 
 - name: Create template files
   template:
     src: "{{ item[1].src }}"
-    dest: "{{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}"
+    dest: >-
+      {% set vars_in_name = item[1].name|regex_findall('\$\((.*)\)') -%}
+      {% for var in vars_in_name -%}
+      {{   item[1].update({ 'name': item[1].name|replace('$('+var+')', item[0][var]) }) -}}
+      {% endfor -%}
+      {{ config_base_directory }}/{{ item[0].name }}/{{ item[1].name }}
     owner: "{{ item[1].owner }}"
     group: "{{ item[1].group }}"
     mode: "{{ item[1].mode }}"
+  register: create_template_file_results
   when: not item[0].is_initialized or item[1].force
   loop: "{{ container_infos|product(template_files)|list }}"
 
@@ -126,6 +124,7 @@
     owner: "{{ item[1].owner }}"
     group: "{{ item[1].group }}"
     mode: "{{ item[1].mode }}"
+  register: create_config_file_results
   when: not item[0].is_initialized or item[1].force
   loop: "{{ container_infos|product(config_files)|list }}"
 
@@ -150,10 +149,6 @@
       device: "{{ item[1].device }}"
       o: "{{ item[1].options }}"
   loop: "{{ container_infos|subelements('nfs_volumes', skip_missing=True) }}"
-
-- name: Set empty container_volumes variable
-  set_fact:
-    container_volumes: {}
 
 - name: Build empty volume list of each container
   set_fact:

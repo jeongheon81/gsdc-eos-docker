@@ -19,6 +19,7 @@ eos_qdb_persistent_volumes:
 # - { name: "", dest: "" }
 - { name: "roothome", dest: "/root" }
 - { name: "eos", dest: "/var/eos" }
+- { name: "quarkdb", dest: "/var/lib/quarkdb" }
 - { name: "spooleos", dest: "/var/spool/eos" }
 - { name: "spoolxrootd", dest: "/var/spool/xrootd" }
 - { name: "log", dest: "/var/log/eos" }

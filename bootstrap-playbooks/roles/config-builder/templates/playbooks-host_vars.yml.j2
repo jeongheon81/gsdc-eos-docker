@@ -1,4 +1,12 @@
 ---
 {% if item is defined and item.host_vars is defined -%}
-{{ item.host_vars | to_nice_yaml(indent=2) }}
+{# generate: ipv4_address for host network container -#}
+{%   for container_type, containers in item.host_vars.containers|default({})|dictsort -%}
+{%     for container in containers|default([]) -%}
+{%       if container.network_mode is defined and container.ipv4_address is not defined -%}
+{{         item.host_vars.containers[container_type][loop.index0].update({ 'ipv4_address': item.host_vars.network_bridge[0].ip4.split('/')[0] }) -}}
+{%       endif -%}
+{%     endfor -%}
+{%   endfor -%}
+{{   item.host_vars | to_nice_yaml(indent=2) }}
 {% endif -%}

@@ -2,15 +2,28 @@
 - block:
   - name: Setup firewall by direct
     shell: |
+      set -e;
       if {{ 'true' if firewall_direct_rule_state == 'present' else 'false' }} ; then
-        if ! firewall-cmd --direct --get-all-rules | grep '{{ item.tag }}' ; then
+        if ! firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" ; then
           firewall-cmd --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
         else
-          echo skipped;
+          if [ $(firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" | wc -l) -gt 1 ] ; then
+            while IFS="" read -r item || [ -n "$item" ] ; do
+              bash -c "firewall-cmd --direct --remove-rule $item" ;
+            done < <(firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}") &&
+            firewall-cmd --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+          elif ! firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" | grep "{{ item.rule }}" ; then
+            firewall-cmd --direct --remove-rule $(firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}") &&
+            firewall-cmd --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+          else
+            echo skipped;
+          fi
         fi
       else
-        if firewall-cmd --direct --get-all-rules | grep '{{ item.tag }}' ; then
-          firewall-cmd --direct --remove-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+        if firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" ; then
+          while IFS="" read -r item || [ -n "$item" ] ; do
+            bash -c "firewall-cmd --direct --remove-rule $item" && echo changed;
+          done < <(firewall-cmd --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}")
         else
           echo skipped;
         fi
@@ -23,15 +36,28 @@
 
   - name: Setup firewall by direct --permanent
     shell: |
+      set -e;
       if {{ 'true' if firewall_direct_rule_state == 'present' else 'false' }} ; then
-        if ! firewall-cmd --permanent --direct --get-all-rules | grep '{{ item.tag }}' ; then
+        if ! firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" ; then
           firewall-cmd --permanent --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
         else
-          echo skipped;
+          if [ $(firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" | wc -l) -gt 1 ] ; then
+            while IFS="" read -r item || [ -n "$item" ] ; do
+              bash -c "firewall-cmd --permanent --direct --remove-rule $item" ;
+            done < <(firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}") &&
+            firewall-cmd --permanent --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+          elif ! firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" | grep "{{ item.rule }}" ; then
+            firewall-cmd --permanent --direct --remove-rule $(firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}") &&
+            firewall-cmd --permanent --direct --add-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+          else
+            echo skipped;
+          fi
         fi
       else
-        if firewall-cmd --permanent --direct --get-all-rules | grep '{{ item.tag }}' ; then
-          firewall-cmd --permanent --direct --remove-rule {{ item.rule }} -m comment --comment '{{ item.tag }}' && echo changed;
+        if firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}" ; then
+          while IFS="" read -r item || [ -n "$item" ] ; do
+            bash -c "firewall-cmd --permanent --direct --remove-rule $item" && echo changed;
+          done < <(firewall-cmd --permanent --direct --get-all-rules | grep -- "--comment '{{ item.tag }}'\|--comment {{ item.tag }}")
         else
           echo skipped;
         fi

@@ -1,0 +1,25 @@
+---
+
+- block:
+  - name: Get consul_encrypt_key
+    shell: docker run --rm --name {{ containers.consul_server[0].name }}_temp -it {{ containers.consul_server[0].image }} keygen
+    register: get_consul_encrypt_key_result
+
+  - set_fact:
+      _consul_encrypt_key: "{{ get_consul_encrypt_key_result.stdout_lines[-1] }}"
+
+  - name: Create vars_consul_encrypt_key.yml
+    become: no
+    delegate_to: localhost
+    copy:
+      content: |
+        ---
+        {{ { "consul_encrypt_key": _consul_encrypt_key }|to_nice_yaml(indent=2) }}
+      dest: "{{ setup_root }}/tmp/playbooks-group_vars/all/vars_consul_encrypt_key.yml"
+      mode: "0644"
+
+  - set_fact:
+      consul_encrypt_key: "{{ _consul_encrypt_key }}"
+
+  run_once: true
+  when: consul_encrypt_key is not defined

@@ -1,4 +1,18 @@
 ---
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 3000/tcp
+  when: containers.grafana_server[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
+
 - block:
   - name: Setup container
     include_tasks: tasks/container_setup.yml
@@ -17,30 +31,39 @@
       name: "{{ item.name }}"
       image: "{{ item.image }}"
       state: started
-      hostname: "{{ item.name }}.{{ item.domain }}"
       purge_networks: yes
-      networks:
-      - name: "{{ item.network }}"
-        ipv4_address: "{{ item.ipv4_address }}"
-        aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      hostname: >-
+        {% if item.network_mode is not defined -%}
+          {{ item.name }}.{{ item.domain -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      networks: >-
+        {% if item.network_mode is not defined -%}
+          {{ [ {
+            'name': item.network,
+            'ipv4_address': item.ipv4_address,
+            'aliases': [ item.name ] + item.network_aliases|default([])
+          } ] -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
       volumes: "{{ container_volumes[item.name] }}"
       etc_hosts: "{{ item.etc_hosts|default(omit) }}"
       env:
         GF_INSTALL_PLUGINS: "{{ item.grafana_plugins|join(',')}}"
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/wget -q -O - http://localhost:3000/api/health > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
     register: container_start_results
     loop: "{{ container_infos }}"
-
-  # - name: Setup firewall
-  #   firewalld:
-  #     port: 3000/tcp
-  #     permanent: yes
-  #     immediate: yes
-  #     state: enabled
-  #     zone: "{{ item }}"
-  #   loop: 
-  #   - internal
-  #   - cooperation
-  #   notify:
-  #   - reload firewalld
 
   when: containers is defined and containers.grafana_server is defined

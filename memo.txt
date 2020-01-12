@@ -1,4 +1,17 @@
 
+systemctl stop puppet
+systemctl disable puppet
+systemctl stop iptables.service
+systemctl disable iptables.service
+systemctl mask iptables.service
+systemctl start firewalld.service
+systemctl enable firewalld.service
+lvextend -L 20G /dev/vg_centos_jbod_mgmt_01/lv_var
+xfs_growfs /dev/vg_centos_jbod_mgmt_01/lv_var
+sed 's/^-f 2/-f 1/' -i /etc/audit/rules.d/audit.rules
+sed 's/^-e 2/-e 1/' -i /etc/audit/rules.d/immutable.rules
+systemctl reboot
+
 
 docker rm -f grafana-01
 docker rm -f grafana-promtail-eos-kisti-01
@@ -115,8 +128,16 @@ eos -r root root -b node set eos-fst-0004.eoscluster.sdfarm.kr:1095 on
 eos -r root root -b node set eos-fst-0005.eoscluster.sdfarm.kr:1095 on
 eos -r root root -b node set eos-fst-0006.eoscluster.sdfarm.kr:1095 on
 
+git checkout --orphan public-master
+git remote add github -t public-master git@github.com:jeongheon81/gsdc-eos-docker.git
+git push -u github public-master
+
+
+
 git remote add github -t public-master git@github.com:jeongheon81/gsdc-eos-docker.git
 git push -u github public-master
 git remote show github
 git config --global merge.ours.driver true
 git config merge.ours.driver true
+
+

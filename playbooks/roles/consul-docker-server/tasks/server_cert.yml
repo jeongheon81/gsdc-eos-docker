@@ -1,0 +1,41 @@
+---
+- block:
+  - name: Get consul_agent_server_cert
+    shell: >-
+      docker run --rm --name {{ consul_server.name }}_temp -it {{ consul_server.image }}
+      sh -c "cd /root &&
+      echo -e {{ consul_agent_ca|quote }} > {{ consul_domain }}-agent-ca.pem && echo -e {{ consul_agent_ca_key|quote }} > {{ consul_domain }}-agent-ca-key.pem &&
+      consul tls cert create -server -days={{ consul_ca_days }} -domain {{ consul_domain }} -dc {{ consul_datacenter }}
+      {{ '-additional-dnsname='+ansible_fqdn if consul_server.network_mode is defined else '' }}
+      -additional-dnsname={{ consul_alias }}
+      -additional-dnsname={{ consul_server.name }}.{{ consul_server.domain }}
+      -additional-dnsname={{ consul_server.name }}.node.{{ consul_datacenter }}.{{ consul_domain }}
+      -additional-dnsname=consul.service.{{ consul_datacenter }}.{{ consul_domain }}
+      -additional-ipaddress={{ consul_server.ipv4_address }} > /dev/null &&
+      cat {{ consul_datacenter }}-server-{{ consul_domain }}-0.pem && cat {{ consul_datacenter }}-server-{{ consul_domain }}-0-key.pem"
+    register: get_consul_agent_server_cert_result
+
+  - set_fact:
+      _consul_agent_server_cert: "{{ 
+        consul_agent_server_cert|default({})|combine({
+            consul_server.name: {
+              'cert': get_consul_agent_server_cert_result.stdout|regex_search('(?s)-----BEGIN CERTIFICATE-----.*----END CERTIFICATE-----'),
+              'key':  get_consul_agent_server_cert_result.stdout|regex_search('(?s)-----BEGIN EC PRIVATE KEY-----.*-----END EC PRIVATE KEY-----')
+            }
+          })
+        }}"
+
+  - name: Create vars_consul_agent_server_cert.yml
+    become: no
+    delegate_to: localhost
+    copy:
+      content: |
+        ---
+        {{ { "consul_agent_server_cert": _consul_agent_server_cert }|to_nice_yaml(indent=2) }}
+      dest: "{{ setup_root }}/tmp/playbooks-group_vars/all/vars_consul_agent_server_cert.yml"
+      mode: "0644"
+
+  - set_fact:
+      consul_agent_server_cert: "{{ _consul_agent_server_cert }}"
+
+  when: consul_agent_server_cert is not defined or consul_agent_server_cert[consul_server.name] is not defined

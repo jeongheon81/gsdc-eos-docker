@@ -1,0 +1,40 @@
+---
+- block:
+  - set_fact:
+      consul_agent_node_names: "{{ container_infos|to_json|from_json|json_query('[].name')|list }}"
+
+  - name: Create ACL tokens config
+    template:
+      src: "acl-tokens.json.j2"
+      dest: "{{ consul_client_config_base_directory }}/{{ item }}/config/01_acl-tokens.json"
+      owner: "{{ consul_uid }}"
+      group: "{{ consul_gid }}"
+      mode: "0640"
+    register: create_acl_tokens_config_results
+    loop: "{{ container_infos|to_json|from_json|json_query('[].[ name ]|[]') }}"
+
+  - name: Get roothome volume information
+    docker_volume_info:
+      name: "{{ item }}_roothome"
+    register: consul_roothome_volume_info_results
+    loop: "{{ consul_agent_node_names }}"
+
+  - name: Create shell log-in profile
+    copy:
+      content: "export CONSUL_HTTP_TOKEN_FILE=/root/.consul_http_token"
+      dest: "{{ item.volume.Mountpoint }}/.profile"
+      owner: root
+      group: root
+      mode: "0600"
+    loop: "{{ consul_roothome_volume_info_results.results }}"
+
+  - name: Create default token files
+    copy:
+      content: "{{ consul_acl_tokens['default-'+item.item] }}"
+      dest: "{{ item.volume.Mountpoint }}/.consul_http_token"
+      owner: root
+      group: root
+      mode: "0600"
+    loop: "{{ consul_roothome_volume_info_results.results }}"
+
+  when: consul_acl_tokens is defined

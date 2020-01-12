@@ -1,0 +1,15 @@
+{% set combined_consul_configs = consul_configs_default|combine(item[0].consul_configs, recursive=True) %}
+{% for key in ['cert_file', 'key_file'] %}
+{%   if combined_consul_configs[key] is defined %}
+{%     set vars_in_config = combined_consul_configs[key]|regex_findall('\$\((.*)\)') %}
+{%     for var in vars_in_config %}
+{%       set _dummy = combined_consul_configs.update({ key: combined_consul_configs[key]|replace('$('+var+')', item[0][var]) }) %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+{% for key in ['bootstrap_expect'] %}
+{%   if combined_consul_configs[key] is defined %}
+{%     set _dummy = combined_consul_configs.update({ key: combined_consul_configs[key]|int }) %}
+{%   endif %}
+{% endfor %}
+{{ combined_consul_configs|to_nice_json }}
