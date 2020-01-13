@@ -1,4 +1,18 @@
 ---
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 7777/tcp
+  when: containers.eos_qdb[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
+
 - block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
