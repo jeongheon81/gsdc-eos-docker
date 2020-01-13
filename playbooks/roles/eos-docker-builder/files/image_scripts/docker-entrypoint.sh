@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o xtrace
+
 usage()
 {
   echo "Usage:"
@@ -11,7 +13,7 @@ usage()
   echo
 }
 
-XROOTD_LOG_EXTRA_OPTION=()
+XROOTD_LOG_EXTRA_OPTION=( '' )
 
 # full directory name of the script no matter where it is being called from
 get_script_path() {
@@ -65,7 +67,7 @@ run_qdb()
       esac
     done
 
-    if check_eos_initialized qdb ; then
+    if ! check_eos_initialized qdb ; then
       quarkdb-create "${DB_PATH[@]}" "${CLUSTER_ID[@]}" "${NODES[@]}"
       chown -R daemon:daemon "${DB_PATH[1]}"
 
@@ -276,8 +278,11 @@ launch_post_setup_script()
 }
 
 
-# shellcheck disable=SC1091
-source /etc/sysconfig/eos
+if [ -e /etc/sysconfig/eos ]; then
+  # shellcheck disable=SC1091
+  source /etc/sysconfig/eos
+fi
+
 export EOS_MGM_URL="root://${EOS_MGM_ALIAS}:1094"
 
 if [ -e /opt/eos/xrootd/bin/xrootd ]; then
@@ -285,6 +290,8 @@ if [ -e /opt/eos/xrootd/bin/xrootd ]; then
 else
   XROOTDEXE="/usr/bin/xrootd"
 fi
+
+RUN_EOS_CMD=( '' )
 
 ROLE=$1
 shift

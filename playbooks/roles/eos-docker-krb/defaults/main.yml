@@ -7,7 +7,7 @@ eos_krb_generated_files: []
 eos_krb_template_files:
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 - { name: "heimdal-kadmind.acl", dest: "/etc/heimdal-kadmind.acl", src: "heimdal-kadmind.acl.j2", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
-- { name: "heimdal-kdc.conf", dest: "/etc/heimdal-kdc.conf", src: "heimdal-kdc.conf.j2", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
+- { name: "heimdal-kdc.conf", dest: "/etc/heimdal-kdc.conf", src: "heimdal-kdc.conf.j2", owner: "root", group: "root", mode: "0600", force: true, is_volume: true }
 - { name: "heimdal-slaves", dest: "/etc/heimdal-slaves", src: "heimdal-slaves.j2", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 - { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
 - { name: "kdc.sh", dest: "/kdc.sh", src: "kdc.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }

@@ -26,7 +26,7 @@ group_vars_all:
   cockpit_rule_priority_base: 11
   container_domain: eoscluster.sdfarm.kr
   container_images:
-    eos: eos-local:v4.6.5-20200110135430
+    eos: eos-local:latest
     consul: consul:1.6
     consul_prometheus_exporter: prom/consul-exporter:v0.6.0
     nginx: nginx:1.17-alpine
@@ -57,7 +57,7 @@ group_vars_all:
   consul_allow_nodes: !unsafe "{{ eos_nodes }}"
   loki_address: 134.75.125.53:3100
   eos_prime_group: eos_infra_group_001
-  eos_prime_cluster_domain_name: !unsafe "{{ eoscluster.sdfarm.kr }}"
+  eos_prime_cluster_domain_name: !unsafe "{{ container_domain }}"
   eos_instance_name: gsdc
   eos_mail_cc: sahn@kisti.re.kr
   eos_admin_user: eos-admin
@@ -67,8 +67,10 @@ group_vars_all:
   eos_xrootd_internet_address_protocol: v4
   eos_realm: !unsafe "{{ eos_prime_cluster_domain_name|upper }}"
   eos_nodes: !unsafe "{{ eos_krb_nodes + eos_manager_nodes + eos_proxy_nodes + eos_mgm_nodes + eos_qdb_nodes + eos_fst_nodes }}"
-  eos_krb_master: !unsafe "eos-krb-01.{{ eos_prime_cluster_domain_name }}"
-  eos_krb_alias: !unsafe "eos-krb.{{ eos_prime_cluster_domain_name }}"
+  # eos_krb_master: !unsafe "eos-krb-01.{{ eos_prime_cluster_domain_name }}"
+  eos_krb_master: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
+  # eos_krb_alias: !unsafe "eos-krb.{{ eos_prime_cluster_domain_name }}"
+  eos_krb_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   eos_manager_alias: !unsafe "eos-manager.{{ eos_prime_cluster_domain_name }}"
   eos_proxy_alias: !unsafe "eos-proxy.{{ eos_prime_cluster_domain_name }}"
   eos_mgm_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
@@ -88,7 +90,7 @@ group_vars_all:
   eos_use_qdb: yes
   qdb_clusters: !unsafe "{{ eos_qdb_nodes }}"
   qdb_port: 7777
-  qdb_cluster_uuid: 689d996e-c5ee-4bdb-a9be-6689e52a4340
+  qdb_cluster_uuid: 49612085-f367-4a4d-a181-97706ec69d20
   qdb_redis_databases:
   - /var/lib/quarkdb/node-01
   - /var/lib/quarkdb/node-02
@@ -99,9 +101,9 @@ group_vars_all:
     realms:
     - name: EOSCLUSTER.SDFARM.KR
       config:
-        kdc: eos-krb-01.eoscluster.sdfarm.kr
-        admin_server: eos-krb-01.eoscluster.sdfarm.kr
-        master_kdc: eos-krb-01.eoscluster.sdfarm.kr
+        kdc: !unsafe "{{ eos_krb_master }}.eoscluster.sdfarm.kr"
+        admin_server: !unsafe "{{ eos_krb_master }}.eoscluster.sdfarm.kr"
+        master_kdc: !unsafe "{{ eos_krb_master }}.eoscluster.sdfarm.kr"
         default_domain: eoscluster.sdfarm.kr
     - name: SDFARM.KR
       config:
@@ -110,10 +112,6 @@ group_vars_all:
         - ipa2.sdfarm.kr
         - ipa.sdfarm.kr
         admin_server: ipa1.sdfarm.kr
-    - name: EOSCLUSTER.SUT.AC.TH
-      config:
-        kdc: eos-krb-01.eoscluster.sut.ac.th
-        admin_server: eos-krb-01.eoscluster.sut.ac.th
     domain_realms:
     - domain: .eoscluster.sdfarm.kr
       realm: EOSCLUSTER.SDFARM.KR
@@ -123,26 +121,14 @@ group_vars_all:
       realm: SDFARM.KR
     - domain: sdfarm.kr
       realm: SDFARM.KR
-    - domain: .eoscluster.sut.ac.th
-      realm: EOSCLUSTER.SUT.AC.TH
-    - domain: eoscluster.sut.ac.th
-      realm: EOSCLUSTER.SUT.AC.TH
     capaths:
     - realm: EOSCLUSTER.SDFARM.KR
       config:
       - target_realm: SDFARM.KR
         next_realm: "."
-      - target_realm: EOSCLUSTER.SUT.AC.TH
-        next_realm: "."
-    - realm: EOSCLUSTER.SUT.AC.TH
-      config:
-      - target_realm: EOSCLUSTER.SDFARM.KR
-        next_realm: "."
   krb5_cross_realm_authentication_password_id:
   - target_realm: SDFARM.KR
     password_id: 1
-  - target_realm: EOSCLUSTER.SUT.AC.TH
-    password_id: 2
   admin:
     id: !unsafe "{{ vault_admin.id }}"
     password: !unsafe "{{ vault_admin.password }}"
@@ -158,7 +144,8 @@ host_default: &host_default
 container_default: &container_default
   network: !unsafe "{{ container_domain }}"
   domain: !unsafe "{{ container_domain }}"
-  etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+  etc_hosts: !unsafe "{{ container_etc_hosts_hostserver.all }}"
+  # etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn] }}"
 
 eos_container_default: &eos_container_default
   <<: *container_default
@@ -255,6 +242,51 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_krb:
+        - name: eos-krb-01
+          <<: *eos_container_default
+          network_mode: host
+          krb_realm: !unsafe "{{ eos_realm }}"
+        eos_mgm:
+        - name: eos-mgm-01
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - mq
+          - mgm
+          mgm_host: !unsafe "{{ eos_mgm_masters[0] }}"
+          mgm_host_target: !unsafe "{{ eos_mgm_masters[1] }}"
+        eos_fst:
+        - name: eos-fst-0001
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0002
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
+        eos_manager:
+        - name: eos-manager-01
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
+          logs:
+          - fuse/fuse.main.log
 
   - name: jbod-mgmt-02.sdfarm.kr
     <<: *host_default
@@ -290,6 +322,34 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_qdb:
+        - name: eos-qdb-01
+          <<: *eos_container_default
+          network_mode: host
+          redis_database: /var/lib/quarkdb/qdb-01
+        eos_fst:
+        - name: eos-fst-0003
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0004
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
   - name: jbod-mgmt-03.sdfarm.kr
     <<: *host_default
@@ -325,6 +385,29 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_fst:
+        - name: eos-fst-0005
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0006
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
 - name: eos_infra_dc01_rack02
   group_vars:
@@ -364,6 +447,38 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_mgm:
+        - name: eos-mgm-02
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - mq
+          - mgm
+          mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
+          mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
+        eos_fst:
+        - name: eos-fst-0007
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0008
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
   - name: jbod-mgmt-05.sdfarm.kr
     <<: *host_default
@@ -399,6 +514,34 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_qdb:
+        - name: eos-qdb-02
+          <<: *eos_container_default
+          network_mode: host
+          redis_database: /var/lib/quarkdb/qdb-02
+        eos_fst:
+        - name: eos-fst-0009
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0010
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
   - name: jbod-mgmt-06.sdfarm.kr
     <<: *host_default
@@ -434,6 +577,29 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_fst:
+        - name: eos-fst-0011
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0011
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0012
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0012
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
 - name: eos_infra_dc01_rack03
   group_vars:
@@ -473,6 +639,38 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_mgm:
+        - name: eos-mgm-03
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - mq
+          - mgm
+          mgm_host: !unsafe "{{ eos_mgm_masters[2] }}"
+          mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
+        eos_fst:
+        - name: eos-fst-0013
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0014
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
   - name: jbod-mgmt-08.sdfarm.kr
     <<: *host_default
@@ -508,6 +706,34 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_qdb:
+        - name: eos-qdb-03
+          <<: *eos_container_default
+          network_mode: host
+          redis_database: /var/lib/quarkdb/qdb-03
+        eos_fst:
+        - name: eos-fst-0015
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0016
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
   - name: jbod-mgmt-09.sdfarm.kr
     <<: *host_default
@@ -543,15 +769,36 @@ host_group:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
           etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+        eos_proxy:
+        - name: eos-proxy-01
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - proxy
+        eos_fst:
+        - name: eos-fst-0017
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8081
+        - name: eos-fst-0018
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - fst
+          data_dir: /data/disk0001
+          fst_fsid: 1
+          fst_uuid: a
+          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
+          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
+          fst_port: 8082
 
-        # eos_krb:
-        # - name: eos-krb-01
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.30
-        #   network_aliases:
-        #   - eos-krb
-        #   - !unsafe "{{ eos_krb_alias }}"
-        #   krb_realm: !unsafe "{{ eos_realm }}"
         # eos_qdb:
         # - name: eos-qdb-01
         #   <<: *eos_container_default
@@ -777,6 +1024,7 @@ host_group:
     eos_mgm_masters:
     - !unsafe "{{ eos_mgm_prime_master }}"
     - !unsafe "eos-mgm-02.{{ container_domain }}"
+    - !unsafe "eos-mgm-03.{{ container_domain }}"
   children:
   - name: eos_infra_dc01_rack01
   - name: eos_infra_dc01_rack02
@@ -875,5 +1123,19 @@ group_vars_all_auto: >-
   {{   result.update({ 'all': pre_result_all|flatten|to_json|from_json|json_query('[?network_aliases]')|subelements('network_aliases', skip_missing=True)|to_json|from_json|json_query('[*].{ key: [1], value: [0].ipv4_address }') }) -}}
   {{   final_result.update({ 'container_etc_hosts_aliases_items': result }) -}}
   {{   final_result.update({ 'container_etc_hosts_aliases': '{% set result = {} %}{% for key in container_etc_hosts_aliases_items  %}{{ result.update({ key: container_etc_hosts_aliases_items[key]|items2dict }) }}{% endfor %}{{ result }}' }) -}}
+  {# generate: container_etc_hosts_hostserver -#}
+  {%   set result = {} -%}
+  {%   set pre_result_all = [] -%}
+  {%   for group in host_group|default({}) -%}
+  {%     for host in group.hosts|default({}) -%}
+  {%       if host.host_vars.containers is defined -%}
+  {%         set container_domain = host.host_vars.container_domain|default(group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
+  {{         pre_result_all.append( { 'key': host.name.split('.')[0]+'.'+container_domain, 'value': host.host_vars.network_bridge[0].ip4.split('/')[0] } ) -}}
+  {%       endif -%}
+  {%     endfor -%}
+  {%   endfor -%}
+  {{   result.update({ 'all': pre_result_all }) -}}
+  {{   final_result.update({ 'container_etc_hosts_hostserver_items': result }) -}}
+  {{   final_result.update({ 'container_etc_hosts_hostserver': '{% set result = {} %}{% for key in container_etc_hosts_hostserver_items  %}{{ result.update({ key: container_etc_hosts_hostserver_items[key]|items2dict }) }}{% endfor %}{{ result }}' }) -}}
   {# -#}
   {{ final_result }}

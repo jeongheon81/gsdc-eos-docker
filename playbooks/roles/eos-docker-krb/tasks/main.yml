@@ -1,8 +1,22 @@
 ---
-- block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_krb }}"
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 88/tcp
+  - 88/udp
+  - 750/udp
+  - 750/tcp
+  when: containers.eos_krb[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
 
+- block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,36 +29,124 @@
       config_directories: "{{ eos_krb_config_directories }}"
       persistent_volumes: "{{ eos_krb_persistent_volumes }}"
       privileged_container: false
-      entrypoint: "/kdc.sh"
-      command: ""
+      entrypoint: [ "/usr/local/bin/kdc-docker-entrypoint.sh" ]
+      command: []
 
-  # - name: Start service
-  #   shell: docker exec -i {{ item.item.name }} /kdc.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
 
-  - name: Wait keytab generation
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - name: Init the kdc store
     shell: |
-      count=0
-      success=0
-      while [ $count -lt 5 ]; do
-        sleep 1
-        if docker logs {{ item.name }} 2>&1 | grep --color=never -Pzo '(?s)Populating kdc.*Done.' ; then
-          success=1
-          break;
+      docker exec -it {{ item.name }} bash -c '
+        if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} check &>/dev/null ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} init --realm-max-ticket-life=unlimited --realm-max-renewable-life=unlimited {{ eos_realm }} &&
+          echo changed;
+        else
+          echo skipped;
         fi
-        count=$(( $count + 1 ));
-      done
-      if [ $success -ne 1 ]; then
-        >&2 echo FAILED
-      fi
-    register: wait_keytab
-    until: wait_keytab is success
-    retries: 5
-    delay: 3
-    changed_when: false
-    failed_when: "'FAILED' in wait_keytab.stderr"
+      '
+    args:
+      executable: /bin/bash
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
+
+  - name: Generate eos_admin_user keytab files
+    shell: |
+      docker exec -it {{ containers.eos_krb[0].name }} bash -c '
+        if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get {{ eos_admin_user }} &>/dev/null ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults {{ eos_admin_user }} | /usr/bin/tee -a /root/user.{{ eos_admin_user }}.log &&
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }} &&
+          echo changed;
+        elif [ ! -e /root/user.{{ eos_admin_user }}.keytab ] ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/user.{{ eos_admin_user }}.keytab {{ eos_admin_user }} &&
+          echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+      # creates:
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    run_once: true
+
+  - name: Generate eos_mgm_nodes keytab files
+    shell: |
+      docker exec -it {{ containers.eos_krb[0].name }} bash -c '
+        if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get host/{{ eos_mgm_node }} &>/dev/null ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/host.{{ eos_mgm_node }}.log &&
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }} &&
+          echo changed;
+        elif [ ! -e /root/host.{{ eos_mgm_node }}.keytab ] ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }} &&
+          echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+      # creates:
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ eos_mgm_nodes }}"
+    loop_control:
+      loop_var: eos_mgm_node
+    run_once: true
+
+  - name: Generate eos keytab files
+    shell: |
+      docker exec -it {{ containers.eos_krb[0].name }} bash -c '
+        if [ ! -e /root/eos.keytab ] ; then
+          yes | xrdsssadmin -k eos+ -u daemon -g daemon add /root/eos.keytab | /usr/bin/tee -a /root/eos.keytab.log &&
+          chown daemon:daemon /root/eos.keytab &&
+          echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+      # creates:
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    run_once: true
+
+  # - name: Wait keytab generation
+  #   shell: |
+  #     count=0
+  #     success=0
+  #     while [ $count -lt 5 ]; do
+  #       sleep 1
+  #       if docker logs {{ item.name }} 2>&1 | grep --color=never -Pzo '(?s)Populating kdc.*Done.' ; then
+  #         success=1
+  #         break;
+  #       fi
+  #       count=$(( $count + 1 ));
+  #     done
+  #     if [ $success -ne 1 ]; then
+  #       >&2 echo FAILED
+  #     fi
+  #   register: wait_keytab
+  #   until: wait_keytab is success
+  #   retries: 5
+  #   delay: 3
+  #   changed_when: false
+  #   failed_when: "'FAILED' in wait_keytab.stderr"
+  #   loop: "{{ container_infos }}"
 
   - name: Copy keytab files
     shell: |

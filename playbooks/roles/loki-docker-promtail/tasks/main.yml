@@ -8,7 +8,7 @@
     zone: internal
   loop: 
   - 9080/tcp
-  when: containers.loki_promtail[0].network_mode is defined
+  when: containers is defined and containers.loki_promtail is defined
   notify:
   - reload firewalld
 - meta: flush_handlers

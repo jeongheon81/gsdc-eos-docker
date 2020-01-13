@@ -97,6 +97,7 @@ RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/
 RUN chmod +x /usr/local/bin/dumb-init
 
 ADD image_scripts/docker-entrypoint.sh /usr/local/bin/
+ADD image_scripts/kdc-docker-entrypoint.sh /usr/local/bin/
 RUN chmod a+x /usr/local/bin/*.sh
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
