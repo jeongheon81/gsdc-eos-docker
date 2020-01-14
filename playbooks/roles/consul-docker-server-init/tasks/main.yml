@@ -1,7 +1,7 @@
 ---
 - set_fact:
-    consul_ui_node_names: "{{ consul_client_nodes|default([])|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
-    consul_client_node_names: "{{ consul_client_nodes|default([])|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
+    consul_ui_node_names: "{{ consul_client_names|default([])|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
+    consul_client_node_names: "{{ consul_client_names|default([])|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
 
 - block:
   - name: Create agent read privileges policy

@@ -74,7 +74,7 @@
 
 - block:
   - set_fact:
-      consul_server_node_names: "{{ consul_server_nodes|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
+      consul_server_node_names: "{{ consul_server_names|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
 
   - name: Create all node read privileges policy
     include_tasks: tasks/consul_acl_policy.yml

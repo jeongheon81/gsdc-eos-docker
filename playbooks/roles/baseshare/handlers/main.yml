@@ -37,3 +37,15 @@
   wait_for: host={{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }} port={{ ansible_port }} state=started search_regex=OpenSSH delay=10 timeout=300
   connection: local
   listen: "wait for new network settings"
+
+- name: renew container log scrap targets file
+  shell: |
+    TARGETS="$(docker container ls --format '- targets: ["{{ "{{" }}.ID{{ "}}" }}"]\n  labels:\n    job: containers\n    container_name: "{{ "{{" }}.Names{{ "}}" }}"' )"
+    if ! echo "$TARGETS" | cmp -s {{ loki_promtail_config_base_directory|default('/etc/loki') }}/loki-promtail-{{ ansible_hostname }}/container-targets.yaml ; then
+      echo "$TARGETS" > {{ loki_promtail_config_base_directory|default('/etc/loki') }}/loki-promtail-{{ ansible_hostname }}/container-targets.yaml &&
+      echo changed;
+    else
+      echo skipped;
+    fi
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'

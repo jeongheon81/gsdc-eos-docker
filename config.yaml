@@ -67,6 +67,7 @@ group_vars_all:
   eos_xrootd_internet_address_protocol: v4
   eos_realm: !unsafe "{{ eos_prime_cluster_domain_name|upper }}"
   eos_nodes: !unsafe "{{ eos_krb_nodes + eos_manager_nodes + eos_proxy_nodes + eos_mgm_nodes + eos_qdb_nodes + eos_fst_nodes }}"
+  eos_node_names: !unsafe "{{ eos_krb_names + eos_manager_names + eos_proxy_names + eos_mgm_names + eos_qdb_names + eos_fst_names }}"
   # eos_krb_master: !unsafe "eos-krb-01.{{ eos_prime_cluster_domain_name }}"
   eos_krb_master: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   # eos_krb_alias: !unsafe "eos-krb.{{ eos_prime_cluster_domain_name }}"
@@ -144,8 +145,7 @@ host_default: &host_default
 container_default: &container_default
   network: !unsafe "{{ container_domain }}"
   domain: !unsafe "{{ container_domain }}"
-  etc_hosts: !unsafe "{{ container_etc_hosts_hostserver.all }}"
-  # etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn] }}"
+  etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|combine(container_etc_hosts_hostserver.all) }}"
 
 eos_container_default: &eos_container_default
   <<: *container_default
@@ -1038,25 +1038,33 @@ host_group:
 group_vars_all_auto: >-
   {% set final_result = {} -%}
   {% set eos_cluster_domain_names = [] -%}
-  {# generate: eos_krb_nodes, eos_manager_nodes, eos_proxy_nodes, eos_mgm_nodes, eos_qdb_nodes, eos_fst_nodes, grafana_server_nodes, consul_ui_nodes, consul_server_nodes, consul_client_nodes, loki_cassandra_nodes, loki_server_nodes, memcached_server_nodes -#}
+  {# generate: <container_type>_nodes, <container_type>_names -#}
   {% for container_type in ['consul_server', 'consul_client', 'grafana_server', 'eos_krb', 'eos_manager', 'eos_proxy', 'eos_mgm', 'eos_qdb', 'eos_fst'] -%}
-  {%   set result = [] -%}
-  {%   for group in host_group|default({}) -%}
-  {%     for host in group.hosts|default({}) -%}
-  {%       if host.host_vars.containers is defined -%}
+  {%   set result_nodes = [] -%}
+  {%   set result_names = [] -%}
+  {%   for group in host_group|default([]) -%}
+  {%     for host in group.hosts|default([]) -%}
+  {%       for container in host.host_vars.containers[container_type]|default([]) -%}
   {%         set container_domain = host.host_vars.container_domain|default(group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
-  {{         result.append(host.host_vars.containers[container_type]|default([])|to_json|from_json|json_query('[].join(`.`, [ name, `'+container_domain+'` ])')) -}}
+  {%         if container.network_mode is defined and container.network_mode == 'host' -%}
+  {{           result_nodes.append(host.name.split('.')[0]+'.'+container_domain) -}}
+  {%         else -%}
+  {{           result_nodes.append(container.name+'.'+container_domain) -}}
+  {%         endif -%}
+  {{         result_names.append(container.name+'.'+container_domain) -}}
   {%         if container_type is match('eos_') -%}
   {{           eos_cluster_domain_names.append(container_domain) -}}
   {%         endif -%}
-  {%       endif -%}
+  {%       endfor -%}
   {%     endfor -%}
   {%   endfor -%}
-  {{   final_result.update({ container_type+'_nodes': result|flatten }) -}}
+  {{   final_result.update({ container_type+'_nodes': result_nodes }) -}}
+  {{   final_result.update({ container_type+'_names': result_names }) -}}
   {% endfor -%}
   {# generate: container_etc_hosts -#}
   {%   set result = {} -%}
   {%   set pre_result_all = [] -%}
+  {%   set pre_result_all_name = [] -%}
   {%   for group in host_group|default({}) -%}
   {%     for host in group.hosts|default({}) -%}
   {%       set pre_result = [] -%}
@@ -1064,35 +1072,40 @@ group_vars_all_auto: >-
   {%         for other_host in other_group.hosts|default({}) -%}
   {%           if other_host.name != host.name -%}
   {%             if other_host.host_vars.containers is defined -%}
-  {%               set containers = other_host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].ipv4_address]')|items2dict -%}
+  {%               set containers = other_host.host_vars.containers|dict2items|to_json|from_json|json_query('[? !value[*].network_mode && value[*].ipv4_address ]')|items2dict -%}
   {%               set container_aliases = other_host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].ipv4_address]|[?value[*].network_aliases]')|items2dict -%}
   {{               pre_result.append( containers|to_json|from_json|json_query('*[*][{ name: name, domain: domain, ipv4_address: ipv4_address, network_aliases: network_aliases }]|[]|[]') ) -}}
   {%               set containers = other_host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].network_mode]')|items2dict -%}
-  {%               for container_name in containers|to_json|from_json|json_query('*[?network_mode == `host`][ name ]|[]|[]') -%}
+  {%               for container in containers|to_json|from_json|json_query('*[?network_mode == `host`]|[]|[]') -%}
   {%                 set container_domain = other_host.host_vars.container_domain|default(other_group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
-  {{                 pre_result.append( { 'name': container_name, 'domain': container_domain, 'ipv4_address': other_host.host_vars.network_bridge[0].ip4.split('/')[0] } ) -}}
+  {{                 pre_result.append( { 'name': other_host.name.split('.')[0], 'domain': container_domain, 'ipv4_address': container.ipv4_address|default(other_host.host_vars.network_bridge[0].ip4.split('/')[0]) } ) -}}
   {%               endfor -%}
   {%             endif -%}
-  {{             pre_result.append( { 'name': other_host.name.split('.')[0], 'domain': other_host.name.split('.')[1:]|join('.'), 'ipv4_address': other_host.host_vars.network_bridge[0].ip4.split('/')[0] } ) -}}
   {%           endif -%}
   {%         endfor -%}
   {%       endfor -%}
   {{       result.update({ host.name: pre_result|flatten|to_json|from_json|json_query('[*].{ key: join(`.`,[name, domain]), value: ipv4_address }') }) -}}
   {{       result.update({ host.name: pre_result|flatten|to_json|from_json|json_query('[?network_aliases]')|subelements('network_aliases', skip_missing=True)|to_json|from_json|json_query('[*].{ key: [1], value: [0].ipv4_address }')|default([], true)|union(result[host.name]) }) -}}
   {%       if host.host_vars.containers is defined -%}
-  {%         set containers = host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].ipv4_address]')|items2dict -%}
-  {{         pre_result_all.append( containers|to_json|from_json|json_query('*[*][{ name: name, domain: domain, ipv4_address: ipv4_address, network_aliases: network_aliases }]|[]|[]') ) -}}
+  {%         set containers = host.host_vars.containers|dict2items|to_json|from_json|json_query('[? !value[*].network_mode && value[*].ipv4_address ]')|items2dict -%}
+  {%         set ets_hosts_item = containers|to_json|from_json|json_query('*[*][{ name: name, domain: domain, ipv4_address: ipv4_address, network_aliases: network_aliases }]|[]|[]') -%}
+  {{         pre_result_all.append(ets_hosts_item) -}}
+  {{         pre_result_all_name.append(ets_hosts_item) -}}
   {%         set containers = host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].network_mode]')|items2dict -%}
-  {%         for container_name in containers|to_json|from_json|json_query('*[?network_mode == `host`][ name ]|[]|[]') -%}
+  {%         for container in containers|to_json|from_json|json_query('*[?network_mode == `host`]|[]|[]') -%}
   {%           set container_domain = host.host_vars.container_domain|default(group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
-  {{           pre_result_all.append( { 'name': container_name, 'domain': container_domain, 'ipv4_address': host.host_vars.network_bridge[0].ip4.split('/')[0] } ) -}}
+  {%           set ets_hosts_item = { 'name': host.name.split('.')[0], 'domain': container_domain, 'ipv4_address': container.ipv4_address|default(host.host_vars.network_bridge[0].ip4.split('/')[0]) } -%}
+  {{           pre_result_all.append(ets_hosts_item) -}}
+  {{           pre_result_all_name.append(ets_hosts_item) -}}
+  {{           pre_result_all_name.append( { 'name': container.name, 'domain': container_domain, 'ipv4_address': container.ipv4_address|default(host.host_vars.network_bridge[0].ip4.split('/')[0]) } ) -}}
   {%         endfor -%}
   {%       endif -%}
-  {{       pre_result_all.append( { 'name': host.name.split('.')[0], 'domain': host.name.split('.')[1:]|join('.'), 'ipv4_address': host.host_vars.network_bridge[0].ip4.split('/')[0] } ) -}}
   {%     endfor -%}
   {%   endfor -%}
   {{   result.update({ 'all': pre_result_all|flatten|to_json|from_json|json_query('[*].{ key: join(`.`,[name, domain]), value: ipv4_address }') }) -}}
   {{   result.update({ 'all': pre_result_all|flatten|to_json|from_json|json_query('[?network_aliases]')|subelements('network_aliases', skip_missing=True)|to_json|from_json|json_query('[*].{ key: [1], value: [0].ipv4_address }')|default([], true)|union(result['all']) }) -}}
+  {{   result.update({ 'all_name': pre_result_all_name|flatten|to_json|from_json|json_query('[*].{ key: join(`.`,[name, domain]), value: ipv4_address }') }) -}}
+  {{   result.update({ 'all_name': pre_result_all_name|flatten|to_json|from_json|json_query('[?network_aliases]')|subelements('network_aliases', skip_missing=True)|to_json|from_json|json_query('[*].{ key: [1], value: [0].ipv4_address }')|default([], true)|union(result['all_name']) }) -}}
   {{   final_result.update({ 'container_etc_hosts_items': result }) -}}
   {{   final_result.update({ 'container_etc_hosts': '{% set result = {} %}{% for key in container_etc_hosts_items  %}{{ result.update({ key: container_etc_hosts_items[key]|items2dict|combine(container_etc_hosts_static[key]|default({}))|combine(container_etc_hosts_static["all"]|default({})) }) }}{% endfor %}{{ result }}' }) -}}
   {# generate: container_etc_hosts_aliases -#}
@@ -1106,7 +1119,7 @@ group_vars_all_auto: >-
   {%           if other_host.name != host.name -%}
   {%             if other_host.host_vars.containers is defined -%}
   {%               set container_domain = other_host.host_vars.container_domain|default(other_group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
-  {%               set containers = other_host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].ipv4_address]|[?value[*].network_aliases]')|items2dict -%}
+  {%               set containers = other_host.host_vars.containers|dict2items|to_json|from_json|json_query('[? !value[*].network_mode && value[*].ipv4_address ]|[?value[*].network_aliases]')|items2dict -%}
   {{               pre_result.append( containers|to_json|from_json|json_query('*[*][{ network_aliases: network_aliases, ipv4_address: ipv4_address }]|[]|[]') ) -}}
   {%             endif -%}
   {%           endif -%}
@@ -1115,7 +1128,7 @@ group_vars_all_auto: >-
   {{       result.update({ host.name: pre_result|flatten|to_json|from_json|json_query('[?network_aliases]')|subelements('network_aliases', skip_missing=True)|to_json|from_json|json_query('[*].{ key: [1], value: [0].ipv4_address }') }) -}}
   {%       if host.host_vars.containers is defined -%}
   {%         set container_domain = host.host_vars.container_domain|default(group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
-  {%         set containers = host.host_vars.containers|dict2items|to_json|from_json|json_query('[?value[*].ipv4_address]|[?value[*].network_aliases]')|items2dict-%}
+  {%         set containers = host.host_vars.containers|dict2items|to_json|from_json|json_query('[? !value[*].network_mode && value[*].ipv4_address ]|[?value[*].network_aliases]')|items2dict-%}
   {{         pre_result_all.append( containers|to_json|from_json|json_query('*[*][{ network_aliases: network_aliases, ipv4_address: ipv4_address }]|[]|[]') ) -}}
   {%       endif -%}
   {%     endfor -%}

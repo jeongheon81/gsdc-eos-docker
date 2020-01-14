@@ -35,12 +35,7 @@ consul_configs_default:
   domain: "{{ consul_domain|default('consul') }}."
   datacenter: "{{ consul_datacenter|default('dc1') }}"
   primary_datacenter: "{{ consul_primary_datacenter|default('dc1') }}"
-  retry_join: >-
-    {% set result = [] -%}
-    {% for node in consul_server_nodes|default([]) -%}
-    {{   result.append(container_etc_hosts.all[node]+':8301') -}}
-    {% endfor -%}
-    {{ result }}
+  retry_join: "{{ consul_server_nodes|default([])|product(['8301'])|map('join',':')|list }}"
   performance:
     raft_multiplier: 1
   telemetry:

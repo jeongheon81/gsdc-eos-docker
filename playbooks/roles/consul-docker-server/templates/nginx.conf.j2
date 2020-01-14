@@ -32,7 +32,7 @@ http {
             proxy_pass      http://127.0.0.1:8500;
             allow {{ item[0].ipv4_address }}/32;
             allow {{ ansible_default_ipv4.address }}/32;
-            {% for node in consul_allow_nodes -%}
+            {% for node in consul_allow_nodes|default([]) -%}
               allow {{ container_etc_hosts.all[node] }}/32;
             {% endfor -%}
             deny all;

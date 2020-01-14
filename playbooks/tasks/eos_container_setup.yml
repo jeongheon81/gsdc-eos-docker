@@ -40,3 +40,5 @@
     stop_timeout: 30
   register: container_start_results
   loop: "{{ container_infos }}"
+  notify:
+  - renew container log scrap targets file

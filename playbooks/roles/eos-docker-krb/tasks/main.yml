@@ -168,28 +168,34 @@
       path: "{{ playbook_dir }}/tmp/keytab/{{ item[0].krb_realm }}/{{ item[1] }}/"
       state: directory
       mode: u=rwX,g=rX,o=rX
-    loop: "{{ container_infos|product(eos_nodes)|list }}"
+    loop: "{{ container_infos|product(eos_node_names)|list }}"
     delegate_to: 127.0.0.1
+
+  - set_fact:
+      eos_mgm_nodes_and_names: "{{ eos_mgm_nodes_and_names|default([]) + [dict(node=item[0], name=item[1])] }}"
+    loop: "{{ eos_mgm_nodes|zip(eos_mgm_names)|list }}"
 
   - name: Fetch mgm server keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].name }}/host.{{ item[1] }}.keytab"
-      dest: "tmp/keytab/{{ item[0].krb_realm }}/{{ item[1] }}/eos.krb5.keytab"
+      src: "/etc/eos-docker/{{ item[0].name }}/host.{{ item[1].node }}.keytab"
+      dest: "tmp/keytab/{{ item[0].krb_realm }}/{{ item[1].name }}/eos.krb5.keytab"
       flat: yes
-    loop: "{{ container_infos|product(eos_mgm_nodes)|list }}"
+    loop: "{{ container_infos|product(eos_mgm_nodes_and_names)|list }}"
 
   - name: Fetch user keytab files
     fetch:
       src: "/etc/eos-docker/{{ item[0].name }}/user.{{ eos_admin_user }}.keytab"
       dest: "tmp/keytab/{{ item[0].krb_realm }}/{{ item[1] }}/{{ eos_admin_user }}.keytab"
       flat: yes
-    loop: "{{ container_infos|product(eos_manager_nodes)|list }}"
+    loop: "{{ container_infos|product(eos_manager_names)|list }}"
 
   - name: Fetch eos keytab files
     fetch:
       src: "/etc/eos-docker/{{ item[0].name }}/eos.keytab"
       dest: "tmp/keytab/{{ item[0].krb_realm }}/{{ item[1] }}/eos.keytab"
       flat: yes
-    loop: "{{ container_infos|product(eos_nodes)|list }}"
+    loop: "{{ container_infos|product(eos_node_names)|list }}"
 
   when: containers is defined and containers.eos_krb is defined
+
+- meta: flush_handlers

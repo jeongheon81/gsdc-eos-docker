@@ -31,12 +31,7 @@
       - -i
       - "{{ qdb_cluster_uuid }}"
       - -n
-      - "{% set result = [] -%}
-          {% for node in qdb_clusters -%}
-            {{ result.append(container_etc_hosts.all[node]) -}}
-          {% endfor -%}
-          {{ result|product([ qdb_port ])|map('join', ':')|join(',') }}"
-      # - "{{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(',') }}"
+      - "{{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(',') }}"
 
   - set_fact:
       restart_notifies: >-
@@ -53,3 +48,5 @@
     loop: "{{ restart_notifies|default([]) }}"
 
   when: containers is defined and containers.eos_qdb is defined
+
+- meta: flush_handlers

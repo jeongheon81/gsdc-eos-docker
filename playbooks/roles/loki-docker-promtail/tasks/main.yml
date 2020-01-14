@@ -28,7 +28,7 @@
 
   - name: Create container-targets file
     shell: |
-      TARGETS="$(docker ps --format '- targets: ["{{ "{{" }}.ID{{ "}}" }}"]\n  labels:\n    job: containers\n    container_name: "{{ "{{" }}.Names{{ "}}" }}"' )"
+      TARGETS="$(docker container ls --format '- targets: ["{{ "{{" }}.ID{{ "}}" }}"]\n  labels:\n    job: containers\n    container_name: "{{ "{{" }}.Names{{ "}}" }}"' )"
       if ! echo "$TARGETS" | cmp -s {{ loki_promtail_config_base_directory }}/{{ item.name }}/container-targets.yaml ; then
         echo "$TARGETS" > {{ loki_promtail_config_base_directory }}/{{ item.name }}/container-targets.yaml &&
         echo changed;

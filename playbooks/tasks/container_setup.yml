@@ -176,3 +176,28 @@
   set_fact:
     container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[0].name + '_' + item[1].name + ':' + item[1].dest ] }) }}"
   loop: "{{ container_infos|subelements('nfs_volumes', skip_missing=True) }}"
+
+- block:
+  - set_fact:
+      log_volume_info_results: { 'results': [] }
+
+  - name: Get log volume information
+    docker_volume_info:
+      name: "{{ item.name }}_log"
+    register: log_volume_info_results
+    loop: "{{ container_infos }}"
+
+  - name: Create container log base directory
+    file:
+      path: /var/log/container
+      state: directory
+      mode: 0755
+
+  - name: Create link to container log volume
+    file:
+      src: "{{ item.volume.Mountpoint }}"
+      dest: "/var/log/container/{{ item.item.name }}"
+      state: link
+    loop: "{{ log_volume_info_results.results }}"
+
+  when: persistent_volumes|json_query('[?name == `log`].name|[0]') == 'log'

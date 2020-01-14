@@ -4,6 +4,11 @@
 #     var: hostvars[inventory_hostname]
 # - debug: var=container_network_user_firewall_rules
 
+# - set_fact:
+#     eos_mgm_nodes_and_names: "{{ eos_mgm_nodes_and_names|default([]) + [dict(node=item[0], name=item[1])] }}"
+#   loop: "{{ eos_mgm_nodes|zip(eos_mgm_names)|list }}"
+# - debug: var=eos_mgm_nodes_and_names
+
 - name: Check container network gateway address
   assert:
     that:

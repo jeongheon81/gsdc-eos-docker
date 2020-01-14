@@ -93,11 +93,10 @@ RUN echo "*          soft    nofile    200000" >> /etc/security/limits.d/10-nofi
 # ENTRYPOINT ["/bin/bash"]
 
 
-RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_x86_64
-RUN chmod +x /usr/local/bin/dumb-init
+RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_x86_64 && \
+    chmod +x /usr/local/bin/dumb-init
 
-ADD image_scripts/docker-entrypoint.sh /usr/local/bin/
-ADD image_scripts/kdc-docker-entrypoint.sh /usr/local/bin/
+ADD image_scripts/*docker-entrypoint.sh /usr/local/bin/
 RUN chmod a+x /usr/local/bin/*.sh
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
