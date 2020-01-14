@@ -38,7 +38,7 @@
   connection: local
   listen: "wait for new network settings"
 
-- name: renew container log scrap targets file
+- name: renew container log scrap SD targets file
   shell: |
     TARGETS="$(docker container ls --format '- targets: ["{{ "{{" }}.ID{{ "}}" }}"]\n  labels:\n    job: containers\n    container_name: "{{ "{{" }}.Names{{ "}}" }}"' )"
     if ! echo "$TARGETS" | cmp -s {{ loki_promtail_config_base_directory|default('/etc/loki') }}/loki-promtail-{{ ansible_hostname }}/container-targets.yaml ; then
@@ -49,3 +49,25 @@
     fi
   register: command_result
   changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+  listen: "renew container log scrap targets file"
+
+- name: renew container-log-volume scrap SD targets file
+  shell: |
+    TARGETS="$(docker volume ls --format '{{ "{{" }} .Name {{ "}}" }}' | grep '_log$' | sed 's/_log$//g' )"
+    TARGETS_SD=""
+    for target in $TARGETS; do
+      if [ $(find /var/log/container/$target/ -maxdepth 1 -type d | wc -l) -gt 1 ]; then
+        TARGETS_SD="${TARGETS_SD}\n- targets: ['${target}_log']\n  labels:\n    job: container-log-volume\n    container_name: ${target}\n    __path__: /var/log/container/$target/*/*.log\n" ;
+      else 
+        TARGETS_SD="${TARGETS_SD}\n- targets: ['${target}_log']\n  labels:\n    job: container-log-volume\n    container_name: ${target}\n    __path__: /var/log/container/$target/*.log\n" ;
+      fi
+    done
+    if ! echo -e "$TARGETS_SD" | cmp -s {{ loki_promtail_config_base_directory|default('/etc/loki') }}/{{ ansible_hostname }}/container-log-volume-targets.yaml ; then
+      echo -e "$TARGETS_SD" > {{ loki_promtail_config_base_directory|default('/etc/loki') }}/{{ ansible_hostname }}/container-log-volume-targets.yaml &&
+      echo changed;
+    else
+      echo skipped;
+    fi
+  register: command_result
+  changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+  listen: "renew container log scrap targets file"

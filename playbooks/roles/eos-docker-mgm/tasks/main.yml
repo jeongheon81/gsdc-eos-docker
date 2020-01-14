@@ -1,8 +1,23 @@
 ---
-- block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_mgm }}"
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 50051/tcp
+  - 1094/tcp
+  - 1097/tcp
+  - 8000/tcp
+  - 1100/tcp
+  when: containers.eos_mgm[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
 
+- block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,17 +30,21 @@
       config_directories: "{{ eos_mgm_config_directories }}"
       persistent_volumes: "{{ eos_mgm_persistent_volumes }}"
       privileged_container: yes
-      entrypoint: "/eos_mq_mgm_setup.sh"
-      command: ""
+      command:
+      - mgm
 
-  # - name: Start service mq
-  #   shell: docker exec -i {{ item.item.name }} /eos_mq_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results + create_generated_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
 
-  # - name: Start service mgm
-  #   shell: docker exec -i {{ item.item.name }} /eos_mgm_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
 
   when: containers is defined and containers.eos_mgm is defined

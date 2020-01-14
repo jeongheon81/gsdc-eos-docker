@@ -72,17 +72,23 @@ group_vars_all:
   eos_krb_master: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   # eos_krb_alias: !unsafe "eos-krb.{{ eos_prime_cluster_domain_name }}"
   eos_krb_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
-  eos_manager_alias: !unsafe "eos-manager.{{ eos_prime_cluster_domain_name }}"
-  eos_proxy_alias: !unsafe "eos-proxy.{{ eos_prime_cluster_domain_name }}"
-  eos_mgm_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
-  eos_qdb_alias: !unsafe "eos-qdb.{{ eos_prime_cluster_domain_name }}"
-  eos_mgm_prime_master: !unsafe "eos-mgm-01.{{ eos_prime_cluster_domain_name }}"
+  # eos_manager_alias: !unsafe "eos-manager.{{ eos_prime_cluster_domain_name }}"
+  eos_manager_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
+  # eos_proxy_alias: !unsafe "eos-proxy.{{ eos_prime_cluster_domain_name }}"
+  eos_proxy_alias: !unsafe "jbod-mgmt-09.{{ eos_prime_cluster_domain_name }}"
+  # eos_mgm_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
+  eos_mgm_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
+  # eos_qdb_alias: !unsafe "eos-qdb.{{ eos_prime_cluster_domain_name }}"
+  eos_qdb_alias: !unsafe "jbod-mgmt-02.{{ eos_prime_cluster_domain_name }}"
+  # eos_mgm_prime_master: !unsafe "eos-mgm-01.{{ eos_prime_cluster_domain_name }}"
+  eos_mgm_prime_master: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   eos_mgm_masters:
   - !unsafe "{{ eos_mgm_prime_master }}"
   - !unsafe "{{ eos_mgm_prime_master }}"
   eos_mgm_url_regular: !unsafe "root://{{ eos_mgm_alias }}:1094"
   eos_mgm_url_proxied: !unsafe "root://{{ eos_proxy_alias }}:1094//root://{{ eos_mgm_alias }}:1094"
-  eos_mq_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
+  # eos_mq_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
+  eos_mq_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
   eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
   eos_default_fs_space_name: default
@@ -1023,8 +1029,8 @@ host_group:
     #   {%- endraw -%}
     eos_mgm_masters:
     - !unsafe "{{ eos_mgm_prime_master }}"
-    - !unsafe "eos-mgm-02.{{ container_domain }}"
-    - !unsafe "eos-mgm-03.{{ container_domain }}"
+    - !unsafe "jbod-mgmt-04.{{ container_domain }}"
+    - !unsafe "jbod-mgmt-07.{{ container_domain }}"
   children:
   - name: eos_infra_dc01_rack01
   - name: eos_infra_dc01_rack02
@@ -1061,6 +1067,7 @@ group_vars_all_auto: >-
   {{   final_result.update({ container_type+'_nodes': result_nodes }) -}}
   {{   final_result.update({ container_type+'_names': result_names }) -}}
   {% endfor -%}
+  {{ final_result.update({ 'eos_cluster_domain_names': eos_cluster_domain_names }) -}}
   {# generate: container_etc_hosts -#}
   {%   set result = {} -%}
   {%   set pre_result_all = [] -%}

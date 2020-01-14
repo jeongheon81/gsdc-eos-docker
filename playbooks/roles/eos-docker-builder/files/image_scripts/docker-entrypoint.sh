@@ -114,7 +114,7 @@ run_mq()
         touch /var/eos/eos.mq.master
       fi
     else
-      if [[ "$XRD_ROLES" == *"mq"* ]]; then
+      if [[ "$XRD_ROLES" == *"mq"* ]] && [ -e /var/eos/eos.mq.master ]; then
         unlink /var/eos/eos.mq.master
       fi
     fi
@@ -159,7 +159,7 @@ run_mgm()
         touch /var/eos/eos.mgm.rw
       fi
     else
-      if [[ "$XRD_ROLES" == *"mgm"* ]]; then
+      if [[ "$XRD_ROLES" == *"mgm"* ]]  && [ -e /var/eos/eos.mgm.rw ]; then
         unlink /var/eos/eos.mgm.rw
       fi
     fi

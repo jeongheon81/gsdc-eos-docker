@@ -143,11 +143,11 @@ export EOS_ENABLE_QOS=""
 export EOS_CONVERTER_DRIVER=1
 
 # Define if sync/eossync should be started separately, not by MGM
-{% if ! eos_use_qdb|bool %}# {% endif -%}
+{% if not eos_use_qdb|bool %}# {% endif -%}
 export EOS_START_SYNC_SEPARATELY=1
 
 # Enable QuarkDB HA setup
-{% if ! eos_use_qdb|bool %}# {% endif -%}
+{% if not eos_use_qdb|bool %}# {% endif -%}
 export EOS_USE_QDB_MASTER=1
 
 # ------------------------------------------------------------------

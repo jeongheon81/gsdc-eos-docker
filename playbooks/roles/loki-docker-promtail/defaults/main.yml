@@ -7,6 +7,7 @@ loki_promtail_generated_files: []
 loki_promtail_template_files:
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 - { name: "local-config.yaml", dest: "", src: "local-config.yaml.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
+# - { name: "container-log-volume-targets.yaml", dest: "", src: "container-log-volume-targets.yaml.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
 loki_promtail_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 loki_promtail_config_directories:
@@ -185,6 +186,12 @@ loki_promtail_configs_default:
       {{ result.append('docker:'|from_yaml) -}}
       {{ result.extend(loki_promtail_container_log_pipeline_stages|default([])) -}}
       {{ result }}
+
+  - job_name: container log volume
+    file_sd_configs:
+    - files:
+      - /etc/promtail/container-log-volume-targets.yaml
+
 
     # - match:
     #     selector: '{severity="0"}'

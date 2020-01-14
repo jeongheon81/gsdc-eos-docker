@@ -13,6 +13,22 @@ sed 's/^-e 2/-e 1/' -i /etc/audit/rules.d/immutable.rules
 systemctl reboot
 
 
+docker rm -f consul-{01..09}-nginx-proxy-sidecar
+docker rm -f consul-{01..09}-consul-exporter-sidecar
+docker rm -f consul-{01..09}
+docker rm -f grafana-01
+docker rm -f loki-01
+docker rm -f loki-promtail-$(hostname -s)
+docker rm -f eos-krb-01
+docker rm -f eos-qdb-{01..03}
+yes | docker container prune
+yes | docker volume prune
+
+rm -rf /etc/consul/*
+rm -rf /etc/loki/*
+rm -rf /etc/grafana/*
+rm -rf /etc/eos-docker/*
+
 docker rm -f grafana-01
 docker rm -f grafana-promtail-eos-kisti-01
 docker rm -f grafana-loki

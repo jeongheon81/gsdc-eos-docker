@@ -20,12 +20,12 @@
   roles:
   - baseshare
   # - eos-docker-builder
-  - consul-docker-server
-  - consul-docker-server-init
-  - consul-docker-client
+  # - consul-docker-server
+  # - consul-docker-server-init
+  # - consul-docker-client
   # - eos-docker-housekeeping
-  - grafana-docker-server
-  - loki-docker-server-local
+  # - grafana-docker-server
+  # - loki-docker-server-local
   - loki-docker-promtail
   tags:
   - prepare
@@ -37,9 +37,9 @@
   roles:
   - baseshare
   # - eos-docker-krb
-  - eos-docker-qdb
+  # - eos-docker-qdb
   # - eos-docker-proxy
-  # - eos-docker-mgm
+  - eos-docker-mgm
   # - eos-docker-fst
   # - eos-docker-manager
   tags:
