@@ -13,21 +13,55 @@ sed 's/^-e 2/-e 1/' -i /etc/audit/rules.d/immutable.rules
 systemctl reboot
 
 
+https://github.com/cern-eos/eos/blob/master/fst/tools/eosfstregister
+
 docker rm -f consul-{01..09}-nginx-proxy-sidecar
 docker rm -f consul-{01..09}-consul-exporter-sidecar
 docker rm -f consul-{01..09}
 docker rm -f grafana-01
 docker rm -f loki-01
 docker rm -f loki-promtail-$(hostname -s)
-docker rm -f eos-krb-01
-docker rm -f eos-qdb-{01..03}
 yes | docker container prune
 yes | docker volume prune
-
 rm -rf /etc/consul/*
 rm -rf /etc/loki/*
 rm -rf /etc/grafana/*
+
+
+docker rm -f eos-krb-01
+docker rm -f eos-proxy-01
+docker rm -f eos-qdb-{01..03}
+docker rm -f eos-mgm-{01..03}
+docker rm -f eos-fst-{0001..0018}
+yes | docker container prune
+yes | docker volume prune
 rm -rf /etc/eos-docker/*
+
+
+
+export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
+
+chown -R daemon:daemon /jbod/*
+eosfstregister /jbod/ default:84
+
+
+    if [ -e /etc/eos.keytab ]; then
+      chown daemon /etc/eos.keytab
+      chmod 400 /etc/eos.keytab
+    fi
+    mkdir -p /var/eos/md /var/eos/config /var/eos/report
+    chmod 700 /var/eos/md /var/eos/config
+    chmod 755 /var/eos /var/eos/report
+    mkdir -p /var/spool/eos/core/${2} /var/spool/eos/admin
+    mkdir -p /var/log/eos /var/eos/config/${EOS_MGM_HOST}
+    touch /var/eos/config/${EOS_MGM_HOST}/default.eoscf
+    chown -R daemon /var/spool/eos /var/spool/eos/admin /var/log/eos
+    find /var/eos/ -maxdepth 1 -mindepth 1 -not -path "/var/eos/fs" -not -path "/var/eos/fusex" -type d -exec chown -R daemon {} \;
+    chmod -R 775 /var/spool/eos
+    mkdir -p /var/eos/auth /var/eos/stage
+    chown daemon /var/eos/auth /var/eos/stage
+    setfacl -m default:u:daemon:r /var/eos/auth/
+
 
 docker rm -f grafana-01
 docker rm -f grafana-promtail-eos-kisti-01

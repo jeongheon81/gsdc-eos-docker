@@ -91,9 +91,9 @@ group_vars_all:
   eos_mq_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
   eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
-  eos_default_fs_space_name: default
-  eos_default_fs_insertion_status: rw
-  eos_default_number_of_fst: !unsafe "{{ eos_fst_nodes|length }}"
+  # eos_default_fs_space_name: default
+  # eos_default_fs_insertion_status: rw
+  # eos_default_number_of_fst: !unsafe "{{ eos_fst_nodes|length }}"
   eos_use_qdb: yes
   qdb_clusters: !unsafe "{{ eos_qdb_nodes }}"
   qdb_port: 7777
@@ -190,6 +190,9 @@ host_group:
 - name: eos_infra_dc01_rack01
   group_vars:
     eos_geotag: kisti::gsdc::g01
+    eos_mgm_masters:
+    - !unsafe "{{ eos_mgm_prime_master }}"
+    - !unsafe "jbod-mgmt-04.{{ container_domain }}"
   hosts:
   - name: jbod-mgmt-01.sdfarm.kr
     <<: *host_default
@@ -268,23 +271,19 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0002
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
         eos_manager:
         - name: eos-manager-01
           <<: *eos_container_default
@@ -339,23 +338,19 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0004
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
   - name: jbod-mgmt-03.sdfarm.kr
     <<: *host_default
@@ -397,27 +392,26 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0006
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
 - name: eos_infra_dc01_rack02
   group_vars:
     eos_geotag: kisti::gsdc::g02
+    eos_mgm_masters:
+    - !unsafe "{{ eos_mgm_prime_master }}"
+    - !unsafe "jbod-mgmt-04.{{ container_domain }}"
   hosts:
   - name: jbod-mgmt-04.sdfarm.kr
     <<: *host_default
@@ -468,23 +462,19 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0008
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
   - name: jbod-mgmt-05.sdfarm.kr
     <<: *host_default
@@ -531,23 +521,19 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0010
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
   - name: jbod-mgmt-06.sdfarm.kr
     <<: *host_default
@@ -589,27 +575,26 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0011
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0012
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0012
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
 - name: eos_infra_dc01_rack03
   group_vars:
     eos_geotag: kisti::gsdc::g03
+    eos_mgm_masters:
+    - !unsafe "{{ eos_mgm_prime_master }}"
+    - !unsafe "jbod-mgmt-07.{{ container_domain }}"
   hosts:
   - name: jbod-mgmt-07.sdfarm.kr
     <<: *host_default
@@ -652,7 +637,7 @@ host_group:
           xrd_roles:
           - mq
           - mgm
-          mgm_host: !unsafe "{{ eos_mgm_masters[2] }}"
+          mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
           mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
         eos_fst:
         - name: eos-fst-0013
@@ -660,23 +645,19 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0014
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
   - name: jbod-mgmt-08.sdfarm.kr
     <<: *host_default
@@ -723,23 +704,19 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0016
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
 
   - name: jbod-mgmt-09.sdfarm.kr
     <<: *host_default
@@ -787,23 +764,21 @@ host_group:
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8081
+          data_directories:
+          - { name: "/jbod-a", dest: "/jbod" }
+          fst_xrd_port: 1095
+          fst_http_port: 8001
         - name: eos-fst-0018
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - fst
-          data_dir: /data/disk0001
-          fst_fsid: 1
-          fst_uuid: a
-          fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-          fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-          fst_port: 8082
+          data_directories:
+          - { name: "/jbod-b", dest: "/jbod" }
+          fst_xrd_port: 1096
+          fst_http_port: 8002
+
+
 
         # eos_qdb:
         # - name: eos-qdb-01
@@ -1027,10 +1002,6 @@ host_group:
     #   {% endfor -%}
     #   {{ final_result }}
     #   {%- endraw -%}
-    eos_mgm_masters:
-    - !unsafe "{{ eos_mgm_prime_master }}"
-    - !unsafe "jbod-mgmt-04.{{ container_domain }}"
-    - !unsafe "jbod-mgmt-07.{{ container_domain }}"
   children:
   - name: eos_infra_dc01_rack01
   - name: eos_infra_dc01_rack02

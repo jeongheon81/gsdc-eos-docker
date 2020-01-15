@@ -1,0 +1,31 @@
+---
+- block:
+  - name: Check initialized holder
+    stat: path=/etc/eos-docker/{{ fst.name }}/FST_FS_INITIALIZED
+    register: initialized_holder_stats
+    loop: "{{ containers.eos_fst }}"
+    loop_control:
+      loop_var: fst
+
+  - name: Register disk
+    shell: |
+      docker exec -it {{ item.fst.name }} bash -c '
+        export EOS_MGM_URL={{ eos_mgm_url_regular }} ;
+        {% for data_directory in item.fst.data_directories %}
+        chown -R daemon:daemon {{ data_directory.dest }}/*
+        eosfstregister --port {{ item.fst.fst_xrd_port }} {{ data_directory.dest }}/ default:$(ls -al {{ data_directory.dest }}/ | grep daemon  | wc -l) | /usr/bin/tee -a /root/FST_FS_INITIALIZED.log ;
+        {% endfor %}
+      '
+    args:
+      executable: /bin/bash
+    when: not item.stat.exists
+    loop: "{{ initialized_holder_stats.results }}"
+
+  - name: Create initialized holder
+    file:
+      path: "/etc/eos-docker/{{ item.fst.name }}/FST_FS_INITIALIZED"
+      state: touch
+    when: not item.stat.exists
+    loop: "{{ initialized_holder_stats.results }}"
+
+  when: containers is defined and containers.eos_fst is defined and containers.eos_fst|length > 0

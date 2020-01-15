@@ -30,8 +30,15 @@
       config_directories: "{{ eos_mgm_config_directories }}"
       persistent_volumes: "{{ eos_mgm_persistent_volumes }}"
       privileged_container: yes
+      env:
+        NODE_FQDN: "{{ ansible_hostname+'.'+container_domain if item.network_mode is defined and item.network_mode == 'host' else omit }}"
       command:
       - mgm
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/eos -b ns || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
 
   - set_fact:
       restart_notifies: >-
@@ -46,5 +53,50 @@
   - name: Restart by config files
     shell: docker restart {{ item }}
     loop: "{{ restart_notifies|default([]) }}"
+
+  - name: Create eos admin user
+    shell: |
+      docker exec -it {{ item.name }} bash -c '
+        set -o errexit;
+        if ! grep {{ eos_admin_user }} /etc/passwd &>/dev/null ; then
+          if ! grep {{ eos_admin_user }} /etc/group &>/dev/null ; then
+            groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }} ;
+          fi &&
+          useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }} &&
+          echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ container_infos }}"
+
+  - name: Init default mgm setup
+    shell: |
+      docker exec -it {{ item.name }} bash -c '
+        set -o errexit;
+        if [ ! -e /root/INITIALIZED_mgm ] ; then
+          if [ "{{ eos_mgm_masters[0] }}" == "{{ ansible_hostname+"."+item.domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}" ] ; then
+            eos -b vid enable sss | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            eos -b vid enable krb5 | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            eos -b chmod 2777 "/eos/{{ eos_instance_name }}/" | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            eos -b vid set membership {{ eos_admin_user }} +sudo | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            touch /root/INITIALIZED_mgm ;
+            echo changed;
+          else
+            echo skipped;
+          fi
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ container_infos }}"
 
   when: containers is defined and containers.eos_mgm is defined

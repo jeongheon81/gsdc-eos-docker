@@ -62,8 +62,8 @@
         TARGETS_SD="${TARGETS_SD}\n- targets: ['${target}_log']\n  labels:\n    job: container-log-volume\n    container_name: ${target}\n    __path__: /var/log/container/$target/*.log\n" ;
       fi
     done
-    if ! echo -e "$TARGETS_SD" | cmp -s {{ loki_promtail_config_base_directory|default('/etc/loki') }}/{{ ansible_hostname }}/container-log-volume-targets.yaml ; then
-      echo -e "$TARGETS_SD" > {{ loki_promtail_config_base_directory|default('/etc/loki') }}/{{ ansible_hostname }}/container-log-volume-targets.yaml &&
+    if ! echo -e "$TARGETS_SD" | cmp -s {{ loki_promtail_config_base_directory|default('/etc/loki') }}/loki-promtail-{{ ansible_hostname }}/container-log-volume-targets.yaml ; then
+      echo -e "$TARGETS_SD" > {{ loki_promtail_config_base_directory|default('/etc/loki') }}/loki-promtail-{{ ansible_hostname }}/container-log-volume-targets.yaml &&
       echo changed;
     else
       echo skipped;

@@ -1,8 +1,5 @@
 ---
 - block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_manager }}"
-
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,10 +12,58 @@
       config_directories: "{{ eos_manager_config_directories }}"
       persistent_volumes: "{{ eos_manager_persistent_volumes }}"
       privileged_container: yes
+      entrypoint:
+      - /usr/local/bin/dumb-init
+      - --
+      - /bin/bash --login
 
-  - name: Setup service
-    shell: docker exec -i {{ item.item.name }} /eos_manager_setup.sh
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results + create_generated_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - name: Init default manager setup
+    shell: |
+      docker exec -it {{ item.name }} bash -c '
+        set -o errexit;
+        if [ ! -e /root/INITIALIZED_manager ] ; then
+            export EOS_MGM_URL={{ eos_mgm_url_regular }} ;
+            kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
+            {% for eos_mgm_node in eos_mgm_nodes %}
+            kvno host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
+            {% endfor %}
+            if ! grep "EOS_MGM_URL=" /root/.bashrc &>/dev/null ; then
+              echo "export EOS_MGM_URL={{ eos_mgm_url_regular }}" >> /root/.bashrc ;
+              echo "export XrdSecPROTOCOL=sss" >> /root/.bashrc ;
+              echo "kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }}" >> /root/.bashrc ;
+            {% for eos_mgm_node in eos_mgm_nodes %}
+              echo "kvno host/{{ eos_mgm_node }}" >> /root/.bashrc ;
+            {% endfor %}
+            fi
+            touch /root/INITIALIZED_manager ;
+            echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+    register: copy_command_result
+    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ container_infos }}"
+
+  - name: Restart by setup
+    shell: docker restart {{ item.item.name }}
     when: item.changed
-    loop: "{{ container_start_results.results }}"
+    loop: "{{ copy_command_result.results }}"
 
   when: containers is defined and containers.eos_manager is defined

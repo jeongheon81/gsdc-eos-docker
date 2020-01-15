@@ -35,8 +35,10 @@
       {% endif %}
     volumes: "{{ container_volumes[item.name] }}"
     etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+    env: "{{ env|default(omit) }}"
     entrypoint: "{{ entrypoint|default(omit) }}"
     command: "{{ command|default(omit) }}"
+    healthcheck: "{{ healthcheck|default(omit) }}"
     stop_timeout: 30
   register: container_start_results
   loop: "{{ container_infos }}"

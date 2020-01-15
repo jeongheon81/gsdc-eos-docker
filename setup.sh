@@ -7,8 +7,8 @@
 export ANSIBLE_FORKS="9"
 export ANSIBLE_FORCE_COLOR=true
 
-STEP_NAMES=( bootstrap ssh-key-scan requirements-check packages-upgrade base prepare install post )
-INCLUDE_CSV='0,1,2,3,4,5,6,7'
+STEP_NAMES=( bootstrap ssh-key-scan requirements-check packages-upgrade base prepare install registration post )
+INCLUDE_CSV='0,1,2,3,4,5,6,7,8'
 VERBOSITY=''
 RETRY=false
 
@@ -337,6 +337,19 @@ __main() {
 
   # run post
   if [[ ${included["7"]} -eq 1 ]] ; then
+    echo '# Running post ...'
+    limit=(  )
+    if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then
+      limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
+    fi
+    # shellcheck disable=SC2086
+    ansible-playbook ${VERBOSITY} -f 1 -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}" --tags=registration ${limit[@]+"limit[@]"}
+    echo '* ... done'
+    echo -e '\n\n\n'
+  fi
+
+  # run post
+  if [[ ${included["8"]} -eq 1 ]] ; then
     echo '# Running post ...'
     limit=(  )
     if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then

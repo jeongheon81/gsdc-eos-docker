@@ -177,6 +177,11 @@
     container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[0].name + '_' + item[1].name + ':' + item[1].dest ] }) }}"
   loop: "{{ container_infos|subelements('nfs_volumes', skip_missing=True) }}"
 
+- name: Build container volume list with data_directories
+  set_fact:
+    container_volumes: "{{ container_volumes | combine({ item[0].name: container_volumes[item[0].name] + [ item[1].name + ':' + item[1].dest ] }) }}"
+  loop: "{{ container_infos|subelements('data_directories', skip_missing=True) }}"
+
 - block:
   - set_fact:
       log_volume_info_results: { 'results': [] }

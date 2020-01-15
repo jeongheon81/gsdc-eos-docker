@@ -37,7 +37,7 @@ RUN rpm --rebuilddb && yum -y install \
     rpm-build bzip2 automake autoconf libtool sudo vim \
     centos-release-scl-rh at \ 
     protobuf3 cryptsetup e2fsprogs xfsprogs smartmontools \
-    wget && \
+    wget bind-utils && \
     yum clean all && \
     rm -rf /var/cache/yum
 
@@ -99,4 +99,5 @@ RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/
 ADD image_scripts/*docker-entrypoint.sh /usr/local/bin/
 RUN chmod a+x /usr/local/bin/*.sh
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
+# ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

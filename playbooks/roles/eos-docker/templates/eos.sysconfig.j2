@@ -72,6 +72,9 @@ export EOS_MGM_HOST={{ item[0].mgm_host }}
 export EOS_MGM_HOST_TARGET={{ item[0].mgm_host_target }}
 {% endif %}
 
+# The URL address of MGM
+export EOS_MGM_URL="root://${EOS_MGM_ALIAS}:1094"
+
 # Define if you want a namespace copy when doing a slave2master transition [default off]
 # export EOS_MGM_CP_ON_FAILOVER=1
 
@@ -210,7 +213,7 @@ export EOS_FST_CONNECTION_RETRY=1
 # EOS_FST_TPC_READASYNC=1
 
 # The port the FST should run on
-#export EOS_FST_PORT=1095
+#export EOS_FST_PORT={{ item[0].fst_xrd_port|default('1095') }}
 
 # ------------------------------------------------------------------
 # FUSE Configuration
@@ -488,7 +491,7 @@ export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
 #export EOS_MGM_HTTP_PORT=8000 
 
 # FST
-#export EOS_FST_HTTP_PORT=8001
+export EOS_FST_HTTP_PORT={{ item[0].fst_http_port|default('8001') }} 
 
 # HTTP uses by default one thread per connection
 #export EOS_HTTP_THREADPOOL="threads"
