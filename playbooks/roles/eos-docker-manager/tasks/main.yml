@@ -35,35 +35,36 @@
     shell: |
       docker exec -it {{ item.name }} bash -c '
         set -o errexit;
+        set -o pipefail;
         if [ ! -e /root/INITIALIZED_manager ] ; then
-            export EOS_MGM_URL={{ eos_mgm_url_regular }} ;
-            kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
-            {% for eos_mgm_node in eos_mgm_nodes %}
-            kvno host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
-            {% endfor %}
-            if ! grep "EOS_MGM_URL=" /root/.bashrc &>/dev/null ; then
-              echo "export EOS_MGM_URL={{ eos_mgm_url_regular }}" >> /root/.bashrc ;
-              echo "export XrdSecPROTOCOL=sss" >> /root/.bashrc ;
-              echo "kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }}" >> /root/.bashrc ;
-            {% for eos_mgm_node in eos_mgm_nodes %}
-              echo "kvno host/{{ eos_mgm_node }}" >> /root/.bashrc ;
-            {% endfor %}
-            fi
-            touch /root/INITIALIZED_manager ;
-            echo changed;
+          export EOS_MGM_URL={{ eos_mgm_url_regular }} ;
+          kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
+          {% for eos_mgm_node in eos_mgm_nodes %}
+          kvno host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
+          {% endfor %}
+          if ! grep "EOS_MGM_URL=" /root/.bashrc &>/dev/null ; then
+            echo "export EOS_MGM_URL={{ eos_mgm_url_regular }}" >> /root/.bashrc ;
+            echo "export XrdSecPROTOCOL=sss" >> /root/.bashrc ;
+            echo "kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }}" >> /root/.bashrc ;
+          {% for eos_mgm_node in eos_mgm_nodes %}
+            echo "kvno host/{{ eos_mgm_node }}" >> /root/.bashrc ;
+          {% endfor %}
+          fi
+          touch /root/INITIALIZED_manager ;
+          echo changed;
         else
           echo skipped;
         fi
       '
     args:
       executable: /bin/bash
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
   - name: Restart by setup
     shell: docker restart {{ item.item.name }}
     when: item.changed
-    loop: "{{ copy_command_result.results }}"
+    loop: "{{ command_result.results }}"
 
   when: containers is defined and containers.eos_manager is defined

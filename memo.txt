@@ -29,6 +29,7 @@ rm -rf /etc/grafana/*
 
 
 docker rm -f eos-krb-01
+docker rm -f eos-manager-01
 docker rm -f eos-proxy-01
 docker rm -f eos-qdb-{01..03}
 docker rm -f eos-mgm-{01..03}

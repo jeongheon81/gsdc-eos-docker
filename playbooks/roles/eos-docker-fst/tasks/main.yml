@@ -52,6 +52,7 @@
     shell: |
       docker exec -it {{ item.name }} bash -c '
         set -o errexit;
+        set -o pipefail;
         if [ ! -e /root/INITIALIZED_fst ] ; then
           eos -b node set {{ ansible_hostname+"."+container_domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}:{{ item.fst_xrd_port }} on | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
           touch /root/INITIALIZED_fst ;
@@ -62,8 +63,8 @@
       '
     args:
       executable: /bin/bash
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
   when: containers is defined and containers.eos_fst is defined

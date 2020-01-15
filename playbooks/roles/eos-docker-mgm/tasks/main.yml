@@ -58,6 +58,7 @@
     shell: |
       docker exec -it {{ item.name }} bash -c '
         set -o errexit;
+        set -o pipefail;
         if ! grep {{ eos_admin_user }} /etc/passwd &>/dev/null ; then
           if ! grep {{ eos_admin_user }} /etc/group &>/dev/null ; then
             groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }} ;
@@ -70,14 +71,15 @@
       '
     args:
       executable: /bin/bash
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
   - name: Init default mgm setup
     shell: |
       docker exec -it {{ item.name }} bash -c '
         set -o errexit;
+        set -o pipefail;
         if [ ! -e /root/INITIALIZED_mgm ] ; then
           if [ "{{ eos_mgm_masters[0] }}" == "{{ ansible_hostname+"."+item.domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}" ] ; then
             eos -b vid enable sss | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
@@ -95,8 +97,8 @@
       '
     args:
       executable: /bin/bash
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
   when: containers is defined and containers.eos_mgm is defined

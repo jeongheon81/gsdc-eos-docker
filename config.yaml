@@ -108,9 +108,9 @@ group_vars_all:
     realms:
     - name: EOSCLUSTER.SDFARM.KR
       config:
-        kdc: !unsafe "{{ eos_krb_master }}.eoscluster.sdfarm.kr"
-        admin_server: !unsafe "{{ eos_krb_master }}.eoscluster.sdfarm.kr"
-        master_kdc: !unsafe "{{ eos_krb_master }}.eoscluster.sdfarm.kr"
+        kdc: !unsafe "{{ eos_krb_master }}"
+        admin_server: !unsafe "{{ eos_krb_master }}"
+        master_kdc: !unsafe "{{ eos_krb_master }}"
         default_domain: eoscluster.sdfarm.kr
     - name: SDFARM.KR
       config:
@@ -128,6 +128,8 @@ group_vars_all:
       realm: SDFARM.KR
     - domain: sdfarm.kr
       realm: SDFARM.KR
+    - domain: !unsafe "{{ ansible_fqdn }}"
+      realm: EOSCLUSTER.SDFARM.KR
     capaths:
     - realm: EOSCLUSTER.SDFARM.KR
       config:

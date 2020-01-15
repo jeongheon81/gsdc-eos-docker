@@ -63,8 +63,8 @@
       '
     args:
       executable: /bin/bash
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
   - name: Generate eos_admin_user keytab files
@@ -84,8 +84,8 @@
     args:
       executable: /bin/bash
       # creates:
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     run_once: true
 
   - name: Generate eos_mgm_nodes keytab files
@@ -105,8 +105,8 @@
     args:
       executable: /bin/bash
       # creates:
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ eos_mgm_nodes }}"
     loop_control:
       loop_var: eos_mgm_node
@@ -126,8 +126,8 @@
     args:
       executable: /bin/bash
       # creates:
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     run_once: true
 
   # - name: Wait keytab generation
@@ -163,8 +163,8 @@
       fi
     args:
       executable: /bin/bash
-    register: copy_command_result
-    changed_when: copy_command_result.stdout_lines|length > 0 and copy_command_result.stdout_lines[-1] == 'changed'
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos|product( ['host']|product(eos_mgm_nodes)|map('join', '.')|list + [ 'user.'+eos_admin_user, 'eos' ] )|list }}"
 
   - name: Create keytab files directory
