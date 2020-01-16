@@ -48,14 +48,20 @@
     shell: docker restart {{ item }}
     loop: "{{ restart_notifies|default([]) }}"
 
+  # TODO:
+  - set_fact:
+      eos_mgm_prime_master_container_host: "jbod-mgmt-01.sdfarm.kr"
+      eos_mgm_prime_master_container_name: "eos-mgm-01"
+
   - name: Init default fst setup
     shell: |
-      docker exec -it {{ item.name }} bash -c '
+      docker exec -it {{ eos_mgm_prime_master_container_name }} bash -c '
         set -o errexit;
         set -o pipefail;
-        if [ ! -e /root/INITIALIZED_fst ] ; then
-          eos -b node set {{ ansible_hostname+"."+container_domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}:{{ item.fst_xrd_port }} on | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
-          touch /root/INITIALIZED_fst ;
+        if [ ! -e /root/INITIALIZED_{{ item.name }} ] ; then
+          export XrdSecPROTOCOL=sss ;
+          eos -b node set {{ ansible_hostname+"."+container_domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}:{{ item.fst_xrd_port }} on | /usr/bin/tee -a /root/INITIALIZED_{{ item.name }}.log ;
+          touch /root/INITIALIZED_{{ item.name }} ;
           echo changed;
         else
           echo skipped;
@@ -66,5 +72,6 @@
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
+    delegate_to: "{{ eos_mgm_prime_master_container_host }}"
 
   when: containers is defined and containers.eos_fst is defined

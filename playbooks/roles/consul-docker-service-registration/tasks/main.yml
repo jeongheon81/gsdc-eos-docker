@@ -1,7 +1,11 @@
 ---
-- block:
+- set_fact:
+    _consul_server_docker_host_name: "{{ hostvars|dict2items|json_query('[?type(value.containers.consul_server)==`array`].key|[0]') }}"
+    consul_service_by_name: {}
 
+- block:
   - set_fact:
+      _consul_server_container_name: "{{ hostvars[_consul_server_docker_host_name].containers.consul_server[0].name }}"
       consul_service_by_name: >-
         {% set result = {} -%}
         {% for service in consul_services|default([]) -%}
@@ -12,7 +16,8 @@
   - name: Create service write privileges policy
     include_tasks: tasks/consul_acl_policy.yml
     vars:
-      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_server_docker_host_name: "{{ _consul_server_docker_host_name|default(omit) }}"
+      consul_server_container_name: "{{ _consul_server_container_name|default(omit) }}"
       consul_acl_policy_state: present
       consul_acl_policy_name: service-write-{{ item.key }}
       consul_acl_policy_rule: |
@@ -25,7 +30,8 @@
   - name: Get service token
     include_tasks: tasks/consul_acl_token.yml
     vars:
-      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_server_docker_host_name: "{{ _consul_server_docker_host_name|default(omit) }}"
+      consul_server_container_name: "{{ _consul_server_container_name|default(omit) }}"
       consul_acl_token_state: present
       consul_acl_token_name: service-{{ item.key }}
       consul_acl_token_description: "Service Token"
@@ -50,7 +56,7 @@
       group: "{{ consul_gid|default(1000) }}"
       mode: "0600"
     register: create_service_config_file_results
-    loop: "{{ containers.consul_server|product(consul_service_by_name|dict2items)|list }}"
+    loop: "{{ (containers.consul_server|default([]) + containers.consul_client|default([])) | product(consul_service_by_name|dict2items) | list }}"
 
   - set_fact:
       reload_notifies: >-
@@ -66,4 +72,4 @@
     shell: docker kill --signal=HUP {{ item }}
     loop: "{{ reload_notifies|default([]) }}"
 
-  when: containers is defined and containers.consul_server is defined
+  when: consul_services is defined and _consul_server_docker_host_name is not none and _consul_server_docker_host_name != ''

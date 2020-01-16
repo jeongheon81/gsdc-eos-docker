@@ -1,6 +1,7 @@
 ---
 - block:
   # - set_fact:
+  #     consul_server_docker_host_name: "{{ consul_server }}"
   #     consul_server_container_name: "{{ containers.consul_server[0].name }}"
   #     consul_acl_policy_state: present
   #     consul_acl_policy_name: consul-agent-{{ item.split('.')[0] }}
@@ -37,6 +38,7 @@
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     when: consul_acl_policy_state == 'present'
+    delegate_to: "{{ consul_server_docker_host_name|default(omit) }}"
 
   when: containers is defined and containers.consul_server is defined and consul_bootstrap_token is defined
 

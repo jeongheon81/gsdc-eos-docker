@@ -1,0 +1,82 @@
+https://github.com/salrashid123/grpc_curl
+https://gitlab.cern.ch/eos/grpc-proto/blob/master/protobuf/Rpc.proto
+
+
+yum install protobuf protobuf-compiler protobuf-python
+
+
+cat  > eos.proto << '__EOF__'
+syntax = "proto2";
+
+package eos.rpc;
+
+service Eos {
+  // Replies to a ping
+  rpc Ping (PingRequest) returns (PingReply) {}  
+}
+
+message PingRequest {
+  required string authkey = 1;
+  required bytes message = 2;
+}
+
+message PingReply {
+  required bytes message = 1;
+}
+
+__EOF__
+
+protoc --python_out=./ eos.proto
+
+
+cat  > out.py << '__EOF__'
+import eos_pb2
+import binascii
+
+req = eos_pb2.PingRequest(authkey='', message='ping')
+msg = binascii.b2a_hex(req.SerializeToString())
+frame =  '00' + hex(len(msg)/2).lstrip("0x").zfill(8) + msg
+print frame
+__EOF__
+
+python out.py
+
+00000000080a00120470696e67
+
+echo '0a00120470696e67'  | xxd -r -p | protoc --decode_raw
+
+echo '0a00120470696e67' | awk '{printf("%c",$0)}' | hexdump -Cv
+
+echo 'hello' | hexdump -Cv | hexdump -R
+
+echo '00000000080a00120470696e67' | hexdump -R | curl -v --raw -X POST --http2 -H "Content-Type: application/grpc" -H "TE: trailers"  --data-binary @- http://134.75.125.59:50051/eos.rpc.Eos/Ping
+echo '00000000080a00120470696e67' | hexdump -R | curl -v --raw -X POST -H "Content-Type: application/grpc" -H "TE: trailers"  --data-binary @- http://134.75.125.59:50051/eos.rpc.Eos/Ping
+
+echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R | hexdump -Cv
+echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R | curl --raw -X POST --http2 -H "Content-Type: application/grpc" -H "TE: trailers"  --data-binary @- http://134.75.125.59:50051/eos.rpc.Eos/Ping 2> /dev/null | xxd -p
+
+echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R > frame.bin
+curl -v --raw -X POST --http2 -H "Content-Type: application/grpc" -H "TE: trailers" --data-binary @frame.bin http://134.75.125.59:50051/eos.rpc.Eos/Ping
+
+pip install grpcio
+pip install grpcio-tools
+
+python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. eos.proto
+
+cat  > client.py << '__EOF__'
+#!/usr/bin/python
+
+import grpc
+import eos_pb2
+import eos_pb2_grpc
+
+
+_TIMEOUT_SECONDS = 1
+
+channel = grpc.insecure_channel('134.75.125.59:50051')
+stub = eos_pb2_grpc.EosStub(channel)
+response = stub.Ping(eos_pb2.PingRequest(authkey='', message='ping'), _TIMEOUT_SECONDS)
+print response
+__EOF__
+
+python client.py

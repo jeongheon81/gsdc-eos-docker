@@ -19,14 +19,14 @@
   any_errors_fatal: true
   roles:
   - baseshare
-  - eos-docker-builder
+  # - eos-docker-builder
   # - consul-docker-server
   # - consul-docker-server-init
   # - consul-docker-client
   # - eos-docker-housekeeping
   # - grafana-docker-server
   # - loki-docker-server-local
-  # - loki-docker-promtail
+  - loki-docker-promtail
   tags:
   - prepare
 
@@ -39,16 +39,17 @@
   # - eos-docker-krb
   # - eos-docker-qdb
   # - eos-docker-proxy
-  # - eos-docker-mgm
-  # - eos-docker-fst
+  - eos-docker-mgm
+  - eos-docker-fst
   - eos-docker-manager
+  - consul-docker-service-registration
   tags:
   - install
 
 - name: Register data disk
   hosts: eos_infra_all
   become: yes
-  serial: 1
+  # serial: 1
   any_errors_fatal: true
   roles:
   - baseshare

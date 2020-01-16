@@ -222,5 +222,7 @@
 
   when: containers is defined and containers.consul_server is defined
 
-# dig @134.75.123.55 -p 8600 consul.service.gsdc-01.consul.monitoring.sdfarm.kr
-# dig @134.75.123.55 -p 8600 loki-cassandra.service.gsdc-01.consul.monitoring.sdfarm.kr
+# dig @134.75.125.55 -p 8600 consul.service.gsdc-01.consul.eoscluster.sdfarm.kr
+# dig @134.75.125.55 -p 8600 _consul._tcp.service.gsdc-01.consul.eoscluster.sdfarm.kr SRV
+# dig @134.75.125.55 -p 8600 _cassandra._tag.service.gsdc-01.consul.eoscluster.sdfarm.kr SRV
+# dig @134.75.125.55 -p 8600 -x 134.75.125.53

@@ -101,4 +101,43 @@
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
+  - set_fact:
+      eos_mgm_infos: []
+
+  - set_fact:
+      eos_mgm_infos: >-
+        {% set replication_mode = 'slave' -%}
+        {% set node_fqdn = item.name+"."+item.domain -%}
+        {% if item.network_mode is defined and item.network_mode == "host" -%}
+          {% set node_fqdn = ansible_hostname+"."+item.domain -%}
+        {% endif -%}
+        {% if eos_mgm_masters[0] == node_fqdn -%}
+          {% set replication_mode = 'master' -%}
+        {% endif -%}
+        {{ eos_mgm_infos + [ item|combine({ 'replication_mode': replication_mode }) ] }}
+    loop: "{{ containers.eos_mgm }}"
+
+  - set_fact:
+      consul_services: "{{ consul_services|default([]) +
+        [{
+          'id': item.name,
+          'name': 'eos-mgm',
+          'tags': [
+            item.name,
+            item.replication_mode
+          ],
+          'meta': {},
+          'address': item.ipv4_address,
+          'port': 1094,
+          'enable_tag_override': true,
+          'checks': [
+            {
+              'args': ['/bin/sh', '-c', 'echo ''00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67'' | hexdump -R | curl --raw -X POST --http2 -H ''Content-Type: application/grpc'' -H ''TE: trailers'' --data-binary @- http://'+item.ipv4_address+':50051/eos.rpc.Eos/Ping 2> /dev/null | xxd -p' ],
+              'interval': '10s',
+              'timeout': '20s'
+            }
+          ]
+        }] }}"
+    loop: "{{ eos_mgm_infos }}"
+
   when: containers is defined and containers.eos_mgm is defined

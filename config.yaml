@@ -286,14 +286,6 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
-        eos_manager:
-        - name: eos-manager-01
-          <<: *eos_container_default
-          network_mode: host
-          xrd_roles:
-          - eosxd
-          logs:
-          - fuse/fuse.main.log
 
   - name: jbod-mgmt-02.sdfarm.kr
     <<: *host_default
@@ -407,6 +399,14 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-01
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
+          logs:
+          - fuse/fuse.main.log
 
 - name: eos_infra_dc01_rack02
   group_vars:
@@ -779,138 +779,6 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
-
-
-
-        # eos_qdb:
-        # - name: eos-qdb-01
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.35
-        #   network_aliases: &qdb_network_aliases
-        #   - eos-qdb
-        #   - !unsafe "{{ eos_qdb_alias }}"
-        #   redis_database: /var/lib/quarkdb/qdb-01
-        # - name: eos-qdb-02
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.36
-        #   network_aliases: *qdb_network_aliases
-        #   redis_database: /var/lib/quarkdb/qdb-02
-        # - name: eos-qdb-03
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.37
-        #   network_aliases: *qdb_network_aliases
-        #   redis_database: /var/lib/quarkdb/qdb-03
-        # eos_proxy:
-        # - name: eos-proxy-01
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.34
-        #   network_aliases:
-        #   - eos-proxy
-        #   - !unsafe "{{ eos_proxy_alias }}"
-        #   xrd_roles:
-        #   - proxy
-        # eos_mgm:
-        # - name: eos-mgm-01
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.23
-        #   network_aliases:
-        #   - eos-mgm
-        #   - !unsafe "{{ eos_mgm_alias }}"
-        #   xrd_roles:
-        #   - mq
-        #   - mgm
-        #   mgm_host: !unsafe "{{ eos_mgm_masters[0] }}"
-        #   mgm_host_target: !unsafe "{{ eos_mgm_masters[1] }}"
-        # - name: eos-mgm-02
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.24
-        #   xrd_roles:
-        #   - mq
-        #   - mgm
-        #   mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
-        #   mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
-        # eos_fst:
-        # - name: eos-fst-0001
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.38
-        #   xrd_roles:
-        #   - fst
-        #   data_dir: /data/disk0001
-        #   nfs_volumes:
-        #   - name: data
-        #     dest: /data
-        #     device: :/ifs/service/eos_kisti/fst01
-        #     options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=3
-        #   fst_fsid: 1
-        #   fst_uuid: 627bcd30-1af6-4525-a0c9-8a958a863b91
-        #   fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-        #   fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        # - name: eos-fst-0002
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.39
-        #   xrd_roles:
-        #   - fst
-        #   data_dir: /data/disk0002
-        #   nfs_volumes:
-        #   - name: data
-        #     dest: /data
-        #     device: :/ifs/service/eos_kisti/fst02
-        #     options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=3
-        #   fst_fsid: 2
-        #   fst_uuid: 7469a2ee-ecbf-4a46-ac42-9d1f1adaa7e3
-        #   fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-        #   fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        # - name: eos-fst-0003
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.40
-        #   xrd_roles:
-        #   - fst
-        #   data_dir: /data/disk0003
-        #   nfs_volumes:
-        #   - name: data
-        #     dest: /data
-        #     device: :/ifs/service/eos_kisti/fst03
-        #     options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=3
-        #   fst_fsid: 3
-        #   fst_uuid: 7b30fa24-5b9a-426d-9af8-98a62c341e19
-        #   fst_space: !unsafe "{{ eos_default_fs_space_name }}"
-        #   fst_status: !unsafe "{{ eos_default_fs_insertion_status }}"
-        # eos_manager:
-        # - name: eos-manager-01
-        #   <<: *eos_container_default
-        #   ipv4_address: 134.75.125.20
-        #   network_aliases:
-        #   - eos-manager
-        #   - !unsafe "{{ eos_manager_alias }}"
-        #   xrd_roles:
-        #   - eosxd
-        #   logs:
-        #   - fuse/fuse.main.log
-        # grafana_server:
-        # - name: grafana-01
-        #   <<: *container_default
-        #   image: !unsafe "{{ container_images.grafana }}"
-        #   ipv4_address: 134.75.125.50
-        #   nfs_volumes:
-        #   - name: data
-        #     dest: /var/lib/grafana
-        #     device: :/ifs/service/eos_kisti/grafana-01
-        #     options: addr=pool0.gsn3.sdfarm.kr,rw,nfsvers=4
-        #   grafana_plugins:
-        #   - grafana-clock-panel
-        #   - grafana-piechart-panel
-        #   loki_address: 134.75.125.51:3100
-        # grafana_loki:
-        # - name: grafana-loki
-        #   <<: *container_default
-        #   image: !unsafe "{{ container_images.loki }}"
-        #   ipv4_address: 134.75.125.51
-        # grafana_promtail:
-        # - name: grafana-promtail-eos-kisti-01
-        #   <<: *container_default
-        #   image: !unsafe "{{ container_images.promtail }}"
-        #   ipv4_address: 134.75.125.52
-        #   loki_address: 134.75.125.51:3100
 - name: eos_infra_dc01
   group_vars:
     firewall_internal_zone_sources:
@@ -980,9 +848,9 @@ host_group:
     #   {% set final_result = [] -%}
     #   {{ final_result.append({ 'tag': 'related established', 'rule': 'ipv4 filter DOCKER-USER 1 -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN' }) -}}
     #   {{ final_result.append({ 'tag': 'icmp', 'rule': 'ipv4 filter DOCKER-USER 2 -p icmp -j RETURN' }) -}}
-    #   {{ final_result.append({ 'tag': 'null', 'rule': 'ipv4 filter DOCKER-USER 4 -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m limit --limit 5/min -j LOG --log-prefix "DU_null: "' }) -}}
-    #   {{ final_result.append({ 'tag': 'syn-flood', 'rule': 'ipv4 filter DOCKER-USER 6 -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -m limit --limit 5/min -j LOG --log-prefix "DU_syn-fld: "' }) -}}
-    #   {{ final_result.append({ 'tag': 'XMAS', 'rule': 'ipv4 filter DOCKER-USER 8 -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,PSH,ACK,URG -m limit --limit 5/min -j LOG --log-prefix "DU_XMAS: "' }) -}}
+    #   {{ final_result.append({ 'tag': 'Check null (DOCKER)', 'rule': "ipv4 filter DOCKER-USER 4 -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m limit --limit 5/min -j LOG --log-prefix 'DU_null: '" }) -}}
+    #   {{ final_result.append({ 'tag': 'Check syn-flood (DOCKER)', 'rule': "ipv4 filter DOCKER-USER 6 -p tcp -m tcp '!' --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -m limit --limit 5/min -j LOG --log-prefix 'DU_syn-fld: '" }) -}}
+    #   {{ final_result.append({ 'tag': 'Check XMAS (DOCKER)', 'rule': "ipv4 filter DOCKER-USER 8 -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,PSH,ACK,URG -m limit --limit 5/min -j LOG --log-prefix 'DU_XMAS: '" }) -}}
     #   {{ final_result.append({ 'tag': 'multi-cast address', 'rule': 'ipv4 filter DOCKER-USER 10 -d 224.0.0.0/4 -j RETURN' }) -}}
     #   {{ final_result.append({ 'tag': 'bridge-br1 address', 'rule': 'ipv4 filter DOCKER-USER 11 -d ' + br1 + ' -j RETURN' }) -}}
     #   {{ final_result.append({ 'tag': 'bridge-br2 address', 'rule': 'ipv4 filter DOCKER-USER 12 -s 192.168.0.0/16 -d ' +  br2 + ' -j RETURN' }) -}}
@@ -992,15 +860,15 @@ host_group:
     #   {% for address in firewall_cooperation_zone_sources -%}
     #   {{   final_result.append({ 'tag': 'cooperation address ' + '%02d'|format(loop.index), 'rule': 'ipv4 filter DOCKER-USER ' + (200+loop.index)|string + ' -s ' + address + ' -j RETURN' }) -}}
     #   {% endfor -%}
-    #   {{ final_result.append({ 'tag': 'drop log no bridge-br2 address', 'rule': 'ipv4 filter DOCKER-USER 996 -s 192.168.0.0/16 ! -d ' + br2 + ' -j LOG --log-prefix "DU_DROP: "' }) -}}
-    #   {{ final_result.append({ 'tag': 'drop no bridge-br2 address',     'rule': 'ipv4 filter DOCKER-USER 997 -s 192.168.0.0/16 ! -d ' + br2 + ' -j DROP' }) -}}
-    #   {{ final_result.append({ 'tag': 'drop log no bridge-br1 address', 'rule': 'ipv4 filter DOCKER-USER 998 ! -d ' + br1 + ' -j LOG --log-prefix "DU_DROP: "' }) -}}
-    #   {{ final_result.append({ 'tag': 'drop no bridge-br1 address',     'rule': 'ipv4 filter DOCKER-USER 999 ! -d ' + br1 + ' -j DROP' }) -}}
-    #   {% for node in consul_client_nodes -%}
-    #   {{   final_result.append({ 'tag': 'consul DNS UDP port redirection on PREROUTING '+'%02d'|format(loop.index), 'rule': 'ipv4 nat PREROUTING '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p udp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns }) -}}
-    #   {{   final_result.append({ 'tag': 'consul DNS TCP port redirection on PREROUTING '+'%02d'|format(loop.index), 'rule': 'ipv4 nat PREROUTING '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p tcp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns }) -}}
-    #   {{   final_result.append({ 'tag': 'consul DNS UDP port redirection on OUTPUT '+'%02d'|format(loop.index),     'rule': 'ipv4 nat OUTPUT '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p udp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns }) -}}
-    #   {{   final_result.append({ 'tag': 'consul DNS TCP port redirection on OUTPUT '+'%02d'|format(loop.index),     'rule': 'ipv4 nat OUTPUT '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p tcp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns }) -}}
+    #   {{ final_result.append({ 'tag': 'drop log no bridge-br2 address', 'rule': "ipv4 filter DOCKER-USER 996 -s 192.168.0.0/16 '!' -d " + br2 + " -j LOG --log-prefix 'DU_DROP: '" }) -}}
+    #   {{ final_result.append({ 'tag': 'drop no bridge-br2 address',     'rule': "ipv4 filter DOCKER-USER 997 -s 192.168.0.0/16 '!' -d " + br2 + " -j DROP" }) -}}
+    #   {{ final_result.append({ 'tag': 'drop log no bridge-br1 address', 'rule': "ipv4 filter DOCKER-USER 998 '!' -d " + br1 + " -j LOG --log-prefix 'DU_DROP: '" }) -}}
+    #   {{ final_result.append({ 'tag': 'drop no bridge-br1 address',     'rule': "ipv4 filter DOCKER-USER 999 '!' -d " + br1 + " -j DROP" }) -}}
+    #   {% for node in consul_server_nodes + consul_client_nodes -%}
+    #   {{   final_result.append({ 'tag': 'consul DNS UDP port redirection on PREROUTING '+'%02d'|format(loop.index), 'rule': 'ipv4 nat PREROUTING '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p udp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns|string }) -}}
+    #   {{   final_result.append({ 'tag': 'consul DNS TCP port redirection on PREROUTING '+'%02d'|format(loop.index), 'rule': 'ipv4 nat PREROUTING '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p tcp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns|string }) -}}
+    #   {{   final_result.append({ 'tag': 'consul DNS UDP port redirection on OUTPUT '+'%02d'|format(loop.index),     'rule': 'ipv4 nat OUTPUT '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p udp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns|string }) -}}
+    #   {{   final_result.append({ 'tag': 'consul DNS TCP port redirection on OUTPUT '+'%02d'|format(loop.index),     'rule': 'ipv4 nat OUTPUT '+(500+loop.index)|string+' -d '+container_etc_hosts.all[node]+' -p tcp --dport 53 -j DNAT --to-destination '+container_etc_hosts.all[node]+':'+consul_port_dns|string }) -}}
     #   {% endfor -%}
     #   {{ final_result }}
     #   {%- endraw -%}

@@ -41,6 +41,7 @@
     register: get_consul_acl_token_result
     changed_when: get_consul_acl_token_result.stdout_lines|length > 0 and get_consul_acl_token_result.stdout_lines[-1] == 'changed'
     when: consul_acl_token_state == 'present'
+    delegate_to: "{{ consul_server_docker_host_name|default(omit) }}"
 
   - set_fact:
       consul_acl_tokens: "{{ consul_acl_tokens|default({})|combine({ consul_acl_token_name: get_consul_acl_token_result.stdout_lines[0] }) }}"

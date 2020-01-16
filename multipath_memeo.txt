@@ -244,6 +244,35 @@ done
 __EOF__
 chmod +x mount_jbod.sh
 
+cat  > umount_jbod.sh << '__EOF__'
+#!/bin/bash
+
+set -e
+
+declare -A box_id_map=( 
+  ["jbod-mgmt-01"]="01 02"
+  ["jbod-mgmt-02"]="03 04"
+  ["jbod-mgmt-03"]="05 06"
+  ["jbod-mgmt-04"]="07 08"
+  ["jbod-mgmt-05"]="09 10"
+  ["jbod-mgmt-06"]="11 12"
+  ["jbod-mgmt-07"]="13 14"
+  ["jbod-mgmt-08"]="15 16"
+  ["jbod-mgmt-09"]="17 18"
+  )
+
+box_id=( ${box_id_map[$(hostname -s)]} )
+mpath_id=( a b )
+
+for id in 0 1; do
+  for disk in {000..083} ; do
+    umount "/jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}"
+  done
+done
+
+__EOF__
+chmod +x umount_jbod.sh
+
 
 cat > scsi_list_adapters.sh << '__EOF__'
 #!/bin/bash
