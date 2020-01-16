@@ -68,27 +68,19 @@ group_vars_all:
   eos_realm: !unsafe "{{ eos_prime_cluster_domain_name|upper }}"
   eos_nodes: !unsafe "{{ eos_krb_nodes + eos_manager_nodes + eos_proxy_nodes + eos_mgm_nodes + eos_qdb_nodes + eos_fst_nodes }}"
   eos_node_names: !unsafe "{{ eos_krb_names + eos_manager_names + eos_proxy_names + eos_mgm_names + eos_qdb_names + eos_fst_names }}"
-  # eos_krb_master: !unsafe "eos-krb-01.{{ eos_prime_cluster_domain_name }}"
-  eos_krb_master: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   # eos_krb_alias: !unsafe "eos-krb.{{ eos_prime_cluster_domain_name }}"
-  eos_krb_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   # eos_manager_alias: !unsafe "eos-manager.{{ eos_prime_cluster_domain_name }}"
-  eos_manager_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
+  # eos_manager_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
   # eos_proxy_alias: !unsafe "eos-proxy.{{ eos_prime_cluster_domain_name }}"
-  eos_proxy_alias: !unsafe "jbod-mgmt-09.{{ eos_prime_cluster_domain_name }}"
+  eos_proxy_alias: !unsafe "{{ eos_proxy_nodes[0] }}"
   # eos_mgm_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
-  eos_mgm_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
-  # eos_qdb_alias: !unsafe "eos-qdb.{{ eos_prime_cluster_domain_name }}"
-  eos_qdb_alias: !unsafe "jbod-mgmt-02.{{ eos_prime_cluster_domain_name }}"
-  # eos_mgm_prime_master: !unsafe "eos-mgm-01.{{ eos_prime_cluster_domain_name }}"
-  eos_mgm_prime_master: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
-  eos_mgm_masters:
-  - !unsafe "{{ eos_mgm_prime_master }}"
-  - !unsafe "{{ eos_mgm_prime_master }}"
+  eos_mgm_alias: !unsafe "{{ eos_mgm_master_node }}"
+  eos_mgm_prime_master: !unsafe "{{ eos_mgm_master_node }}"
+  eos_mgm_other_masters: !unsafe "{{ eos_mgm_nodes|difference([eos_mgm_master_node]) }}"
+  eos_mgm_masters: !unsafe "{{ eos_mgm_prime_master|union(eos_mgm_other_masters) }}"
   eos_mgm_url_regular: !unsafe "root://{{ eos_mgm_alias }}:1094"
   eos_mgm_url_proxied: !unsafe "root://{{ eos_proxy_alias }}:1094//root://{{ eos_mgm_alias }}:1094"
-  # eos_mq_alias: !unsafe "eos-mgm.{{ eos_prime_cluster_domain_name }}"
-  eos_mq_alias: !unsafe "jbod-mgmt-01.{{ eos_prime_cluster_domain_name }}"
+  eos_mq_alias: !unsafe "{{ eos_mgm_master_node }}"
   eos_broker_url: !unsafe "root://{{ eos_mq_alias }}:1097//eos/"
   eos_fuse_mgm_alias: !unsafe "{{ eos_mgm_alias }}"
   # eos_default_fs_space_name: default
@@ -108,9 +100,9 @@ group_vars_all:
     realms:
     - name: EOSCLUSTER.SDFARM.KR
       config:
-        kdc: !unsafe "{{ eos_krb_master }}"
-        admin_server: !unsafe "{{ eos_krb_master }}"
-        master_kdc: !unsafe "{{ eos_krb_master }}"
+        kdc: !unsafe "{{ eos_krb_master_node }}"
+        admin_server: !unsafe "{{ eos_krb_master_node }}"
+        master_kdc: !unsafe "{{ eos_krb_master_node }}"
         default_domain: eoscluster.sdfarm.kr
     - name: SDFARM.KR
       config:
@@ -194,7 +186,7 @@ host_group:
     eos_geotag: kisti::gsdc::g01
     eos_mgm_masters:
     - !unsafe "{{ eos_mgm_prime_master }}"
-    - !unsafe "jbod-mgmt-04.{{ container_domain }}"
+    - !unsafe "{{ eos_mgm_other_masters[0] }}"
   hosts:
   - name: jbod-mgmt-01.sdfarm.kr
     <<: *host_default
@@ -258,6 +250,7 @@ host_group:
           <<: *eos_container_default
           network_mode: host
           krb_realm: !unsafe "{{ eos_realm }}"
+          is_master: yes
         eos_mgm:
         - name: eos-mgm-01
           <<: *eos_container_default
@@ -267,6 +260,7 @@ host_group:
           - mgm
           mgm_host: !unsafe "{{ eos_mgm_masters[0] }}"
           mgm_host_target: !unsafe "{{ eos_mgm_masters[1] }}"
+          is_master: yes
         eos_fst:
         - name: eos-fst-0001
           <<: *eos_container_default
@@ -885,7 +879,7 @@ host_group:
 group_vars_all_auto: >-
   {% set final_result = {} -%}
   {% set eos_cluster_domain_names = [] -%}
-  {# generate: <container_type>_nodes, <container_type>_names -#}
+  {# generate: <container_type>_nodes, <container_type>_names , <container_type>_master_node, <container_type>_master_name, <container_type>_master_host -#}
   {% for container_type in ['consul_server', 'consul_client', 'grafana_server', 'eos_krb', 'eos_manager', 'eos_proxy', 'eos_mgm', 'eos_qdb', 'eos_fst'] -%}
   {%   set result_nodes = [] -%}
   {%   set result_names = [] -%}
@@ -893,12 +887,24 @@ group_vars_all_auto: >-
   {%     for host in group.hosts|default([]) -%}
   {%       for container in host.host_vars.containers[container_type]|default([]) -%}
   {%         set container_domain = host.host_vars.container_domain|default(group.group_vars.container_domain|default(group_vars_all.container_domain|default(''))) -%}
+  {%         set host_node = host.name.split('.')[0]+'.'+container_domain -%}
+  {%         set cont_name = container.name+'.'+container_domain -%}
   {%         if container.network_mode is defined and container.network_mode == 'host' -%}
-  {{           result_nodes.append(host.name.split('.')[0]+'.'+container_domain) -}}
+  {{           result_nodes.append(host_node) -}}
+  {%           if container.is_master is defined and container.is_master -%}
+  {{             final_result.update({ container_type+'_master_node': host_node }) -}}
+  {%           endif -%}
   {%         else -%}
-  {{           result_nodes.append(container.name+'.'+container_domain) -}}
+  {{           result_nodes.append(cont_name) -}}
+  {%           if container.is_master is defined and container.is_master -%}
+  {{             final_result.update({ container_type+'_master_node': cont_name }) -}}
+  {%           endif -%}
   {%         endif -%}
-  {{         result_names.append(container.name+'.'+container_domain) -}}
+  {{         result_names.append(cont_name) -}}
+  {%         if container.is_master is defined and container.is_master -%}
+  {{           final_result.update({ container_type+'_master_name': cont_name }) -}}
+  {{           final_result.update({ container_type+'_master_host': host.name }) -}}
+  {%         endif -%}
   {%         if container_type is match('eos_') -%}
   {{           eos_cluster_domain_names.append(container_domain) -}}
   {%         endif -%}

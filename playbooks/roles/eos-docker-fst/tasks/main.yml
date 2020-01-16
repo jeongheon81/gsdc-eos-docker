@@ -48,14 +48,9 @@
     shell: docker restart {{ item }}
     loop: "{{ restart_notifies|default([]) }}"
 
-  # TODO:
-  - set_fact:
-      eos_mgm_prime_master_container_host: "jbod-mgmt-01.sdfarm.kr"
-      eos_mgm_prime_master_container_name: "eos-mgm-01"
-
   - name: Init default fst setup
     shell: |
-      docker exec -it {{ eos_mgm_prime_master_container_name }} bash -c '
+      docker exec -it {{ eos_mgm_master_name.split('.')[0] }} bash -c '
         set -o errexit;
         set -o pipefail;
         if [ ! -e /root/INITIALIZED_{{ item.name }} ] ; then
@@ -72,6 +67,6 @@
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
-    delegate_to: "{{ eos_mgm_prime_master_container_host }}"
+    delegate_to: "{{ eos_mgm_master_host }}"
 
   when: containers is defined and containers.eos_fst is defined
