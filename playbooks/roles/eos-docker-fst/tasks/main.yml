@@ -33,6 +33,11 @@
         NODE_FQDN: "{{ ansible_hostname+'.'+container_domain if item.network_mode is defined and item.network_mode == 'host' else omit }}"
       command:
       - fst
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/eos -b node status {{ ansible_hostname+'.'+container_domain if item.network_mode is defined and item.network_mode == 'host' else '$(hostname -f)' }}:{{ item.fst_xrd_port }} || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
 
   - set_fact:
       restart_notifies: >-

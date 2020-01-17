@@ -40,6 +40,15 @@ rm -rf /etc/eos-docker/*
 
 
 
+rm -rf /jbod-*/*/*
+rm -rf /jbod-*/*/.eos*
+
+ls -al /jbod-*/*/ | awk '{print $9}' | sort | uniq
+
+
+
+
+"root://jbod-mgmt-09.eoscluster.sdfarm.kr:1094//root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
 export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
 
 # mgm only
