@@ -141,3 +141,7 @@
 
   run_once: true
   when: containers is defined and containers.consul_server is defined
+
+# https://github.com/AcalephStorage/consul-alerts
+# https://github.com/hashicorp/consul-template
+# https://www.techdrabble.com/hashicorp/37-use-a-consul-watch-to-monitor-vault-seal-status

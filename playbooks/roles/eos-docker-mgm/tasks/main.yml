@@ -132,7 +132,7 @@
           'enable_tag_override': true,
           'checks': [
             {
-              'args': ['/bin/sh', '-c', 'echo ''00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67'' | hexdump -R | curl --raw -X POST --http2 -H ''Content-Type: application/grpc'' -H ''TE: trailers'' --data-binary @- http://'+item.ipv4_address+':50051/eos.rpc.Eos/Ping 2> /dev/null | xxd -p' ],
+              'args': ['/bin/sh', '-c', 'echo \"00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67\" | hexdump -R | curl --raw -X POST --http2-prior-knowledge -H \"Content-Type: application/grpc+proto\" -H \"TE: trailers\" --data-binary @- http://'+item.ipv4_address+':50051/eos.rpc.Eos/Ping 2> /dev/null | xxd' ],
               'interval': '10s',
               'timeout': '20s'
             }

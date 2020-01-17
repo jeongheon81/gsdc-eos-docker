@@ -50,6 +50,8 @@
             echo "kvno host/{{ eos_mgm_node }}" >> /root/.bashrc ;
           {% endfor %}
           fi
+          echo "export EOS_MGM_URL={{ eos_mgm_url_regular }}" >> /root/eos_env
+          echo "export XrdSecPROTOCOL=sss" >> /root/eos_env
           touch /root/INITIALIZED_manager ;
           echo changed;
         else

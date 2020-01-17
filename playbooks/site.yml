@@ -10,6 +10,7 @@
   - chrony
   - docker
   - cockpit
+  # - os-setting
   tags:
   - base
 
@@ -40,8 +41,8 @@
   # - eos-docker-qdb
   # - eos-docker-proxy
   - eos-docker-mgm
-  - eos-docker-fst
-  - eos-docker-manager
+  # - eos-docker-fst
+  # - eos-docker-manager
   - consul-docker-service-registration
   tags:
   - install

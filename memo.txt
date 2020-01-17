@@ -32,7 +32,7 @@ docker rm -f eos-krb-01
 docker rm -f eos-proxy-01
 docker rm -f eos-qdb-{01..03}
 docker rm -f eos-mgm-{01..03}
-docker rm -f eos-manager-{01..03}
+docker rm -f eos-manager-{01..09}
 docker rm -f eos-fst-{0001..0018}
 yes | docker container prune
 yes | docker volume prune
@@ -42,8 +42,39 @@ rm -rf /etc/eos-docker/*
 
 export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
 
-chown -R daemon:daemon /jbod/*
-eosfstregister /jbod/ default:84
+# mgm only
+eos debug notice
+# to fst
+eos debug /eos/*/fst
+
+
+
+
+docker exec -it eos-manager-	 sh
+export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
+dd if=/dev/urandom of=file1g bs=1048576 count=1024
+
+eos mkdir /eos/gsdc/testarea/
+eos chmod 777 /eos/gsdc/testarea/
+
+eos cp file1g /eos/gsdc/testarea/file1g-$(hostname -s)
+eos ls -al /eos/gsdc/testarea/
+
+eos cp /eos/gsdc/testarea/file1g-$(hostname -s) file1g-cp
+
+diff file1g file1g-cp
+
+eos file info /eos/gsdc/testarea/file1g-$(hostname -s)
+
+
+xrdcp -f file1g root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094//eos/gsdc/testarea/file1g-$(hostname -s)
+
+
+
+eos fuse mount /mnt/eos
+
+
+
 
 
     if [ -e /etc/eos.keytab ]; then

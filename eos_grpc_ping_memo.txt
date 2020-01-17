@@ -53,10 +53,10 @@ echo '00000000080a00120470696e67' | hexdump -R | curl -v --raw -X POST --http2 -
 echo '00000000080a00120470696e67' | hexdump -R | curl -v --raw -X POST -H "Content-Type: application/grpc" -H "TE: trailers"  --data-binary @- http://134.75.125.59:50051/eos.rpc.Eos/Ping
 
 echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R | hexdump -Cv
-echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R | curl --raw -X POST --http2 -H "Content-Type: application/grpc" -H "TE: trailers"  --data-binary @- http://134.75.125.59:50051/eos.rpc.Eos/Ping 2> /dev/null | xxd -p
+echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R | curl --raw -X POST --http2-prior-knowledge -H "Content-Type: application/grpc" -H "TE: trailers"  --data-binary @- http://134.75.125.59:50051/eos.rpc.Eos/Ping 2> /dev/null | xxd
 
 echo '00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67' | hexdump -R > frame.bin
-curl -v --raw -X POST --http2 -H "Content-Type: application/grpc" -H "TE: trailers" --data-binary @frame.bin http://134.75.125.59:50051/eos.rpc.Eos/Ping
+
 
 pip install grpcio
 pip install grpcio-tools

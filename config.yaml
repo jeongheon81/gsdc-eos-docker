@@ -280,6 +280,14 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-01
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
+          # logs:
+          # - fuse/fuse.main.log
 
   - name: jbod-mgmt-02.sdfarm.kr
     <<: *host_default
@@ -339,6 +347,12 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-02
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
 
   - name: jbod-mgmt-03.sdfarm.kr
     <<: *host_default
@@ -394,13 +408,11 @@ host_group:
           fst_xrd_port: 1096
           fst_http_port: 8002
         eos_manager:
-        - name: eos-manager-01
+        - name: eos-manager-03
           <<: *eos_container_default
           network_mode: host
           xrd_roles:
           - eosxd
-          logs:
-          - fuse/fuse.main.log
 
 - name: eos_infra_dc01_rack02
   group_vars:
@@ -471,6 +483,12 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-04
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
 
   - name: jbod-mgmt-05.sdfarm.kr
     <<: *host_default
@@ -530,6 +548,12 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-05
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
 
   - name: jbod-mgmt-06.sdfarm.kr
     <<: *host_default
@@ -584,6 +608,12 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-06
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
 
 - name: eos_infra_dc01_rack03
   group_vars:
@@ -654,6 +684,12 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-07
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
 
   - name: jbod-mgmt-08.sdfarm.kr
     <<: *host_default
@@ -713,6 +749,12 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-08
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
 
   - name: jbod-mgmt-09.sdfarm.kr
     <<: *host_default
@@ -773,6 +815,13 @@ host_group:
           - { name: "/jbod-b", dest: "/jbod" }
           fst_xrd_port: 1096
           fst_http_port: 8002
+        eos_manager:
+        - name: eos-manager-09
+          <<: *eos_container_default
+          network_mode: host
+          xrd_roles:
+          - eosxd
+
 - name: eos_infra_dc01
   group_vars:
     firewall_internal_zone_sources:
