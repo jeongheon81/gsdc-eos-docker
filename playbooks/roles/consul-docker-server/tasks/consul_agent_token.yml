@@ -1,0 +1,248 @@
+---
+# - name: Create consul-server write privileges policy
+#   shell: docker exec -it {{ container_infos[0].name }} sh -c
+#     'if ! consul acl policy list | grep "^consul-server:" ; then
+#       echo -ne
+#       "\n{% for node in consul_server_nodes + consul_ui_nodes -%}
+#         node \"{{ node.split(".")[0] }}\" {\n  policy = \"write\"\n}\n
+#       {%- endfor %}" |
+#       consul acl policy create
+#         -name consul-server
+#         -description "Write privileges for node related actions "
+#         -rules -
+#       && echo changed;
+#     else
+#       if [
+#         "$(consul acl policy read -name consul-server | awk "/Rules:/,0")"
+#         !=
+#         "$(echo -ne "Rules:\n\n
+#           {%- for node in consul_server_nodes + consul_ui_nodes -%}
+#             node \"{{ node.split(".")[0] }}\" {\n  policy = \"write\"\n}\n
+#           {%- endfor %}\n"
+#         )"
+#       ] ; then
+#         echo -ne
+#         "\n{% for node in consul_server_nodes + consul_ui_nodes -%}
+#           node \"{{ node.split(".")[0] }}\" {\n  policy = \"write\"\n}\n
+#         {%- endfor %}" |
+#         consul acl policy update
+#           -name consul-server
+#           -description "Write privileges for node related actions "
+#           -rules -
+#         && echo changed;
+#       else
+#         echo skipped;
+#       fi
+#     fi'
+#   register: command_result
+#   changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+#   run_once: true
+#   when: consul_bootstrap_token is defined
+
+# - block:
+#   - name: Get agent token
+#     shell: docker exec -it {{ consul_server.name }} sh -c
+#       'if ! consul acl token list | grep "Agent Token, {{ consul_server.name }}" > /dev/null ; then
+#         consul acl token create
+#           -description "Agent Token, {{ consul_server.name }}"
+#           -policy-name consul-server
+#         | grep "^SecretID:" | awk "{print \$2}"
+#         && echo changed;
+#       else
+#         consul acl token read 
+#           -id $(consul acl token list | grep -B 1 "^Description:[[:space:]]\+Agent Token, {{ consul_server.name }}$"| grep "^AccessorID:" | awk "{print \$2}")
+#         | grep "^SecretID:" | awk "{print \$2}"
+#         && echo skipped;
+#       fi'
+#     register: get_agent_token_results
+#     changed_when: get_agent_token_results.stdout_lines|length > 0 and get_agent_token_results.stdout_lines[-1] == 'changed'
+#     loop: "{{ container_infos }}"
+#     loop_control:
+#       loop_var: consul_server
+
+#   - name: Create ACL tokens config
+#     template:
+#       src: "acl-tokens.json.j2"
+#       dest: "{{ consul_server_config_base_directory }}/{{ item.consul_server.name }}/config/01_acl-tokens.json"
+#       owner: "{{ consul_uid }}"
+#       group: "{{ consul_gid }}"
+#       mode: "0640"
+#     register: create_acl_tokens_config_results
+#     loop: "{{ get_agent_token_results.results }}"
+
+#   when: consul_bootstrap_token is defined
+
+- block:
+  - set_fact:
+      consul_server_node_names: "{{ consul_server_names|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
+
+  - name: Create all node read privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: node-read-all
+      consul_acl_policy_rule: |
+        node_prefix "" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Access to all nodes"
+
+  - name: Create service consul read privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: service-read-consul
+      consul_acl_policy_rule: |
+        service "consul" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Access to the consul service."
+
+  - name: Update anonymous token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: anonymous
+      consul_acl_token_description: "Anonymous Token"
+      consul_acl_token_policy_names:
+      - node-read-all
+      - service-read-consul
+
+  - name: Create dns request privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: dns-request
+      consul_acl_policy_rule: |
+        node_prefix "" {
+          policy = "read"
+        }
+        service_prefix "" {
+          policy = "read"
+        }
+        query_prefix "" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Used for serving DNS request"
+
+  - name: Create cluster read privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: cluster-read
+      consul_acl_policy_rule: |
+        agent_prefix "" {
+          policy = "read"
+        }
+        event_prefix "" {
+          policy = "read"
+        }
+        node_prefix "" {
+          policy = "read"
+        }
+        operator = "read"
+        query_prefix "" {
+          policy = "read"
+        }
+        service_prefix "" {
+          policy = "read"
+        }
+        session_prefix "" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Used for monitoring metrics"
+
+  - name: Get default token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: default-{{ item }}
+      consul_acl_token_description: "Default Token"
+      consul_acl_token_policy_names:
+      - dns-request
+      - cluster-read
+    loop: "{{ consul_server_node_names }}"
+
+  - name: Create agent privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: agent-{{ item }}
+      consul_acl_policy_rule: |
+        node "{{ item }}" {
+          policy = "write"
+        }
+        service_prefix "" {
+          policy = "read"
+        }
+        key_prefix "_rexec" {
+          policy = "write"
+        }
+      consul_acl_policy_description: "Used for an agent internal operations"
+    loop: "{{ consul_server_node_names }}"
+
+  - name: Get agent token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: agent-{{ item }}
+      consul_acl_token_description: "Agent Token"
+      consul_acl_token_policy_names:
+      - agent-{{ item }}
+    loop: "{{ consul_server_node_names }}"
+
+  - name: Create agent master privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: agent-master-{{ item }}
+      consul_acl_policy_rule: |
+        agent "{{ item }}" {
+          policy = "write"
+        }
+        node_prefix "" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Used when the Consul servers are not available"
+    loop: "{{ consul_server_node_names }}"
+
+  - name: Get agent master token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: agent-master-{{ item }}
+      consul_acl_token_description: "Agent Master Token"
+      consul_acl_token_policy_names:
+      - agent-master-{{ item }}
+    loop: "{{ consul_server_node_names }}"
+
+  - name: Create ACL tokens config
+    template:
+      src: "acl-tokens.json.j2"
+      dest: "{{ consul_server_config_base_directory }}/{{ item }}/config/01_acl-tokens.json"
+      owner: "{{ consul_uid }}"
+      group: "{{ consul_gid }}"
+      mode: "0640"
+    register: create_acl_tokens_config_results
+    loop: "{{ container_infos|to_json|from_json|json_query('[].[ name ]|[]') }}"
+
+  - name: Create default token files
+    copy:
+      content: "{{ consul_acl_tokens['default-'+item.item.name] }}"
+      dest: "{{ item.volume.Mountpoint }}/.consul_http_token"
+      owner: root
+      group: root
+      mode: "0600"
+    loop: "{{ consul_roothome_volume_info_results.results }}"
+
+  when: consul_bootstrap_token is defined

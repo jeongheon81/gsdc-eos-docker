@@ -1,0 +1,49 @@
+---
+- block:
+  # - set_fact:
+  #     consul_server_container_name: "{{ containers.consul_server[0].name }}"
+  #     consul_acl_token_state: present
+  #     consul_acl_token_name: agent-{{ item.split('.')[0] }}
+  #     consul_acl_token_description: "Agent Token"
+  #     consul_acl_token_policy_names:
+  #     - consul-agent-{{ item.split('.')[0] }}
+
+  - set_fact:
+      consul_acl_token_description_with_acl_token_name: "{{ consul_acl_token_description }}{{ ', '+consul_acl_token_name if consul_acl_token_name != 'anonymous' else '' }}"
+
+  - name: Get consul acl token
+    shell: docker exec -it {{ consul_server_container_name }} sh -c
+      'TOKEN_INFO="$(consul acl token list | grep -B 1 "^Description:[[:space:]]\+{{ consul_acl_token_description_with_acl_token_name }}$")";
+      if [ -z "$TOKEN_INFO" ] ; then
+        consul acl token create
+          -description "{{ consul_acl_token_description_with_acl_token_name }}"
+          {{ ["-policy-name"]|product(consul_acl_token_policy_names)|map("join", " ")|list|join(" ") }}
+        | grep "^SecretID:" | awk "{print \$2}"
+        && echo changed;
+      else
+        TOKEN_ID="$(echo "$TOKEN_INFO" | grep "^AccessorID:" | awk "{print \$2}")";
+        if [
+          "$(consul acl token read -id "$TOKEN_ID" | awk "/Policies:/,0" | grep -v "^Policies:" | awk "{print \$3}" | xargs)"
+          !=
+          "{{ consul_acl_token_policy_names|join(" ") }}"
+        ] ; then
+          consul acl token update
+            -id "$TOKEN_ID"
+            -description "{{ consul_acl_token_description_with_acl_token_name }}"
+            {{ ["-policy-name"]|product(consul_acl_token_policy_names)|map("join", " ")|list|join(" ") }}
+          | grep "^SecretID:" | awk "{print \$2}"
+          && echo changed;
+        else
+          consul acl token read -id "$TOKEN_ID" | grep "^SecretID:" | awk "{print \$2}"
+          && echo skipped;
+        fi
+      fi'
+    register: get_consul_acl_token_result
+    changed_when: get_consul_acl_token_result.stdout_lines|length > 0 and get_consul_acl_token_result.stdout_lines[-1] == 'changed'
+    when: consul_acl_token_state == 'present'
+    delegate_to: "{{ consul_server_docker_host_name|default(inventory_hostname) }}"
+
+  - set_fact:
+      consul_acl_tokens: "{{ consul_acl_tokens|default({})|combine({ consul_acl_token_name: get_consul_acl_token_result.stdout_lines[0] }) }}"
+
+  when: containers is defined and containers.consul_server is defined and consul_bootstrap_token is defined

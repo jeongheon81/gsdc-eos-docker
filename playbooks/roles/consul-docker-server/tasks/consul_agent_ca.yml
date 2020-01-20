@@ -1,0 +1,30 @@
+---
+
+- block:
+  - name: Get consul_agent_ca
+    shell: >-
+      docker run --rm --name {{ containers.consul_server[0].name }}_temp -it {{ containers.consul_server[0].image }}
+      sh -c 'cd /root && consul tls ca create -days={{ consul_ca_days }} -domain {{ consul_domain }} > /dev/null &&
+      cat {{ consul_domain }}-agent-ca.pem && cat {{ consul_domain }}-agent-ca-key.pem'
+    register: get_consul_agent_ca_result
+
+  - set_fact:
+      _consul_agent_ca: "{{ get_consul_agent_ca_result.stdout|regex_search('(?s)-----BEGIN CERTIFICATE-----.*----END CERTIFICATE-----') }}"
+      _consul_agent_ca_key: "{{ get_consul_agent_ca_result.stdout|regex_search('(?s)-----BEGIN EC PRIVATE KEY-----.*-----END EC PRIVATE KEY-----') }}"
+
+  - name: Create vars_consul_agent_ca.yml
+    become: no
+    delegate_to: localhost
+    copy:
+      content: |
+        ---
+        {{ { "consul_agent_ca": _consul_agent_ca, "consul_agent_ca_key": _consul_agent_ca_key }|to_nice_yaml(indent=2) }}
+      dest: "{{ setup_root }}/tmp/playbooks-group_vars/all/vars_consul_agent_ca.yml"
+      mode: "0644"
+
+  - set_fact:
+      consul_agent_ca: "{{ _consul_agent_ca }}"
+      consul_agent_ca_key: "{{ _consul_agent_ca_key }}"
+
+  run_once: true
+  when: consul_agent_ca is not defined or consul_agent_ca_key is not defined

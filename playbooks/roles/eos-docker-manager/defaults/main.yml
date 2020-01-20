@@ -8,10 +8,10 @@ eos_manager_generated_files:
 - { name: "{{ eos_admin_user }}.keytab", dest: "/root/{{ eos_admin_user }}.keytab", src: "tmp/keytab/{{ eos_realm }}/{{ eos_admin_user }}.keytab", owner: "root", group: "root", mode: "0400", force: true, is_volume: true }
 eos_manager_template_files:
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
-- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "eos/fuse.conf", dest: "/etc/eos/fuse.conf", src: "fuse.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: false }
-- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "eos_manager_setup.sh", dest: "/eos_manager_setup.sh", src: "eos_manager_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "eos/fuse.conf", dest: "/etc/eos/fuse.conf", src: "fuse.conf.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: false }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+# - { name: "eos_manager_setup.sh", dest: "/eos_manager_setup.sh", src: "eos_manager_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
 eos_manager_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 eos_manager_config_directories:

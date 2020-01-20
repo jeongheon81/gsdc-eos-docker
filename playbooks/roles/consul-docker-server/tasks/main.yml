@@ -1,0 +1,228 @@
+---
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 8300-8302/tcp
+  - 8300-8302/udp
+  - 8500-8502/tcp
+  - 8600/tcp
+  - 8600/udp
+  - 9107/tcp
+  when: containers.consul_server[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
+
+- block:
+  - name: Check consul_server count
+    when: consul_server_nodes|length > 5
+    fail:
+      msg: |
+        We should no more than 5 consul in server mode.
+
+  - name: Get consul encrypt key
+    include_tasks: consul_encrypt_key.yml
+
+  - name: Get consul agent ca
+    include_tasks: consul_agent_ca.yml
+
+  - name: Get consul agent server certs
+    include_tasks: server_cert.yml
+    loop: "{{ containers.consul_server }}"
+    loop_control:
+      loop_var: consul_server
+
+  - name: Setup container
+    include_tasks: tasks/container_setup.yml
+    vars:
+      components: "{{ containers.consul_server }}"
+      config_base_directory: "{{ consul_server_config_base_directory }}"
+      shipped_files: "{{ consul_server_shipped_files }}"
+      generated_files: "{{ consul_server_generated_files }}"
+      template_files: "{{ consul_server_template_files }}"
+      config_files: "{{ consul_server_config_files }}"
+      config_directories: "{{ consul_server_config_directories }}"
+      persistent_volumes: "{{ consul_server_persistent_volumes }}"
+
+  - name: Start container
+    docker_container:
+      name: "{{ item.name }}"
+      image: "{{ item.image }}"
+      state: started
+      purge_networks: yes
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      hostname: >-
+        {% if item.network_mode is not defined -%}
+          {{ item.name }}.{{ item.domain -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      networks: >-
+        {% if item.network_mode is not defined -%}
+          {{ [ {
+            'name': item.network,
+            'ipv4_address': item.ipv4_address,
+            'aliases': [ item.name ] + item.network_aliases|default([])
+          } ] -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      command:
+      - agent
+      - -bind='{{ "{{" }} GetAllInterfaces | include "name" "{{ item.consul_bind_interface_name_pattern }}" | include "flags" "forwardable|up" | attr "address" {{ "}}" }}'
+      - -node={{ item.name }}
+      # - -domain={{ consul_domain }}.
+      # - -datacenter={{ consul_datacenter }}
+      # - -ui
+      - -server
+      # - -server-port=8300
+      # - -serf-lan-port=8301
+      # - -serf-wan-port=8302
+      # - -client=0.0.0.0
+      # - -http-port=8500
+      # - -grpc-port=8502
+      # - -dns-port=8600
+      # - -recursor=127.0.0.11
+      - -config-dir=/consul/config
+      - -enable-local-script-checks=true
+      # - -bootstrap-expect={{ consul_server_nodes|length }}
+      # - "{{ ['-retry-join']|product(consul_server_nodes)|map('join','=')|list|product(['8301'])|map('join',':')|list|join(' ') }}"
+      env:
+        CONSUL_HTTP_TOKEN_FILE: /root/.consul_bootstrap_token
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "export CONSUL_HTTP_TOKEN_FILE=/root/.consul_http_token ; /usr/bin/curl -f http://localhost:8500/v1/health/node/{{ item.name }} > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+    loop: "{{ container_infos }}"
+
+  - name: Get consul bootstrap token
+    include_tasks: consul_bootstrap_token.yml
+
+  - name: Get consul agent token for server
+    include_tasks: consul_agent_token.yml
+
+  - name: Start consul-exporter sidecar container
+    docker_container:
+      name: "{{ item.name }}-consul-exporter-sidecar"
+      image: "{{ item.consul_exporter_image }}"
+      state: started
+      purge_networks: yes
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ "container:"+item.name -}}
+        {% endif %}
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      command:
+      - --log.level=info
+      - --web.listen-address=:9107
+      - --consul.server=localhost:8500
+      - --consul.timeout=1s
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/bin/wget -q -O - http://localhost:9107/-/ready > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+    when: item.consul_exporter_image is defined
+    loop: "{{ container_infos }}"
+
+  - name: Start nginx proxy sidecar container
+    docker_container:
+      name: "{{ item.name }}-nginx-proxy-sidecar"
+      image: "{{ item.nginx_proxy_image }}"
+      state: started
+      purge_networks: yes
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ "container:"+item.name -}}
+        {% endif %}
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/wget -q -O - http://{{ item.ipv4_address }}:8500/v1/agent/metrics?format=prometheus > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+    when: item.nginx_proxy_image is defined
+    loop: "{{ container_infos }}"
+
+  - set_fact:
+      reload_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('config.*') and not item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {% for item in create_acl_tokens_config_results.results -%}
+        {%   if item.changed -%}
+        {{     result.append( item.item ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('config.*') and item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Send config reload signal for general
+    shell: docker kill --signal=HUP {{ item }}
+    loop: "{{ reload_notifies|default([]) }}"
+
+  - name: Restart by bind config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - set_fact:
+      reload_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('nginx.*') and not item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('nginx.*') and item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Send config reload signal for general
+    shell: docker exec -it {{ item }}-nginx-proxy-sidecar nginx -s reload
+    loop: "{{ reload_notifies|default([]) }}"
+
+  - name: Restart by bind config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  when: containers is defined and containers.consul_server is defined
+
+# dig @134.75.125.55 -p 8600 consul.service.gsdc-01.consul.eoscluster.sdfarm.kr
+# dig @134.75.125.55 -p 8600 _consul._tcp.service.gsdc-01.consul.eoscluster.sdfarm.kr SRV
+# dig @134.75.125.55 -p 8600 _cassandra._tag.service.gsdc-01.consul.eoscluster.sdfarm.kr SRV
+# dig @134.75.125.55 -p 8600 -x 134.75.125.53

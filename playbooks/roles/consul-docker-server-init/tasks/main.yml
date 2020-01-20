@@ -1,0 +1,147 @@
+---
+- set_fact:
+    consul_ui_node_names: "{{ consul_client_names|default([])|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
+    consul_client_node_names: "{{ consul_client_names|default([])|map('regex_replace', '^([A-Za-z0-9_-]+).*$', '\\1')|list }}"
+
+- block:
+  - name: Create agent read privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: agent-read-{{ item }}
+      consul_acl_policy_rule: |
+        agent "{{ item }}" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Used for monitoring metrics"
+    loop: "{{ consul_ui_node_names|union(consul_client_node_names) }}"
+
+  - name: Create operator-ui privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: operator-ui
+      consul_acl_policy_rule: |
+        service_prefix "" {
+          policy = "read"
+        }
+        key_prefix "" {
+          policy = "read"
+        }
+        node_prefix "" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Necessary permissions for UI functionality"
+
+  - name: Get default token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: default-{{ item }}
+      consul_acl_token_description: "Default Token - UI"
+      consul_acl_token_policy_names:
+      - dns-request
+      - operator-ui
+      - agent-read-{{ item }}
+    loop: "{{ consul_ui_node_names }}"
+
+  - name: Get default token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: default-{{ item }}
+      consul_acl_token_description: "Default Token - Client"
+      consul_acl_token_policy_names:
+      - dns-request
+      - agent-read-{{ item }}
+    loop: "{{ consul_client_node_names }}"
+
+  - name: Create agent privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: agent-{{ item }}
+      consul_acl_policy_rule: |
+        node "{{ item }}" {
+          policy = "write"
+        }
+        service_prefix "" {
+          policy = "read"
+        }
+        key_prefix "_rexec" {
+          policy = "write"
+        }
+      consul_acl_policy_description: "Used for an agent internal operations"
+    loop: "{{ consul_ui_node_names|union(consul_client_node_names) }}"
+
+  - name: Get agent token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: agent-{{ item }}
+      consul_acl_token_description: "Agent Token"
+      consul_acl_token_policy_names:
+      - agent-{{ item }}
+    loop: "{{ consul_ui_node_names|union(consul_client_node_names) }}"
+
+  - name: Create agent master privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: agent-master-{{ item }}
+      consul_acl_policy_rule: |
+        agent "{{ item }}" {
+          policy = "write"
+        }
+        node_prefix "" {
+          policy = "read"
+        }
+      consul_acl_policy_description: "Used when the Consul servers are not available"
+    loop: "{{ consul_ui_node_names|union(consul_client_node_names) }}"
+
+  - name: Get agent master token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: agent-master-{{ item }}
+      consul_acl_token_description: "Agent Master Token"
+      consul_acl_token_policy_names:
+      - agent-master-{{ item }}
+    loop: "{{ consul_ui_node_names|union(consul_client_node_names) }}"
+
+  - name: Create kv-store loki-collectors write privileges policy
+    include_tasks: tasks/consul_acl_policy.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_policy_state: present
+      consul_acl_policy_name: key-write-loki-collectors
+      consul_acl_policy_rule: |
+        key_prefix "loki-collectors/" {
+          policy = "write"
+        }
+      consul_acl_policy_description: "Used for monitoring metrics"
+
+  - name: Get kv-store loki-collectors token
+    include_tasks: tasks/consul_acl_token.yml
+    vars:
+      consul_server_container_name: "{{ containers.consul_server[0].name }}"
+      consul_acl_token_state: present
+      consul_acl_token_name: kv-store-loki-collectors
+      consul_acl_token_description: "KV-Store Token"
+      consul_acl_token_policy_names:
+      - key-write-loki-collectors
+
+  run_once: true
+  when: containers is defined and containers.consul_server is defined
+
+# https://github.com/AcalephStorage/consul-alerts
+# https://github.com/hashicorp/consul-template
+# https://www.techdrabble.com/hashicorp/37-use-a-consul-watch-to-monitor-vault-seal-status

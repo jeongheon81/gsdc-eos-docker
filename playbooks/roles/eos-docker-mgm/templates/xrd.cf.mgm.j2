@@ -39,7 +39,8 @@ sec.protbind *.{{ eos_cluster_domain_name }} sss unix
 sec.protbind * only krb5 sss unix
 ###########################################################
 mgmofs.fs /
-mgmofs.targetport 1095
+#mgmofs.targetport 1095
+mgmofs.targetport 1094
 #mgmofs.authlib libXrdAliceTokenAcc.so
 #mgmofs.authorize 1
 ###########################################################

@@ -1,0 +1,15 @@
+{% set combined_loki_configs = loki_promtail_configs_default|combine(item[0].loki_promtail_configs|default({}), recursive=True) %}
+{% for key in [] %}
+{%   if combined_loki_configs[key] is defined %}
+{%     set vars_in_config = combined_loki_configs[key]|regex_findall('\$\((.*)\)') %}
+{%     for var in vars_in_config %}
+{%       set _dummy = combined_loki_configs.update({ key: combined_loki_configs[key]|replace('$('+var+')', item[0][var]) }) %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+{% for key in [] %}
+{%   if combined_loki_configs[key] is defined %}
+{%     set _dummy = combined_loki_configs.update({ key: combined_loki_configs[key]|int }) %}
+{%   endif %}
+{% endfor %}
+{{ combined_loki_configs|to_nice_yaml(indent=2) }}

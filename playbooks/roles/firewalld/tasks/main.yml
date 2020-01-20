@@ -98,4 +98,11 @@
   register: command_result
   changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
 
+- name: Setup firewall chrony for security
+  import_tasks: tasks/firewall_by_direct.yml
+  vars:
+    firewall_direct_rule_permanent: yes
+    firewall_direct_rule_state: present
+    firewall_direct_rule_list: "{{ firewall_basic_direct_rules }}"
+
 - meta: flush_handlers

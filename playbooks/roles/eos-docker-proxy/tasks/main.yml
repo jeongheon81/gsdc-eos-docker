@@ -1,8 +1,19 @@
 ---
-- block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_proxy }}"
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 1094/tcp
+  when: containers.eos_proxy|json_query('[?network_mode]|[].network_mode|[0]') == 'host'
+  notify:
+  - reload firewalld
+- meta: flush_handlers
 
+- block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,12 +26,21 @@
       config_directories: "{{ eos_proxy_config_directories }}"
       persistent_volumes: "{{ eos_proxy_persistent_volumes }}"
       privileged_container: yes
-      entrypoint: "/eos_proxy_setup.sh"
-      command: ""
+      command:
+      - proxy
 
-  # - name: Start service
-  #   shell: docker exec -i {{ item.item.name }} /eos_proxy_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results + create_generated_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
 
   when: containers is defined and containers.eos_proxy is defined

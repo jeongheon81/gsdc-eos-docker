@@ -10,21 +10,29 @@
   - chrony
   - docker
   - cockpit
+  # - os-setting
   tags:
   - base
 
 - name: Setup prepare eos_infra
-  hosts: eos_infra
+  hosts: eos_infra_all
   become: yes
   any_errors_fatal: true
   roles:
   - baseshare
   - eos-docker-builder
+  - consul-docker-server
+  - consul-docker-server-init
+  - consul-docker-client
+  # - eos-docker-housekeeping
+  - grafana-docker-server
+  - loki-docker-server-local
+  - loki-docker-promtail
   tags:
   - prepare
 
 - name: Install eos_infra
-  hosts: eos_infra
+  hosts: eos_infra_all
   become: yes
   any_errors_fatal: true
   roles:
@@ -35,19 +43,33 @@
   - eos-docker-mgm
   - eos-docker-fst
   - eos-docker-manager
+  - consul-docker-service-registration
   tags:
   - install
 
+- name: Register data disk
+  hosts: eos_infra_all
+  become: yes
+  # serial: 1
+  any_errors_fatal: true
+  roles:
+  - baseshare
+  - eos-docker-fst-disk-registration
+  tags:
+  - registration
+
 - name: Setup post eos_infra
-  hosts: eos_infra
+  hosts: eos_infra_all
   become: yes
   any_errors_fatal: true
   roles:
   - baseshare
-  - eos-docker-config
-  - eos-docker-housekeeping
-  - grafana-docker-server
-  - grafana-docker-loki
-  - grafana-docker-promtail
+  # - eos-docker-start
+  # - eos-docker-config
+  # - eos-docker-housekeeping
+  # - grafana-docker-server
+  # - grafana-docker-loki
+  # - grafana-docker-promtail
+  # - loki-docker-promtail
   tags:
   - post

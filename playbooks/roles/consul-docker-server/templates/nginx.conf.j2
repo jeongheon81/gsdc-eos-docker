@@ -1,0 +1,51 @@
+
+user  nginx;
+worker_processes  1;
+error_log  /dev/stderr warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /dev/stdout  main;
+
+    sendfile        on;
+    tcp_nopush      on;
+
+    keepalive_timeout  65;
+
+    resolver 127.0.0.1:8600;
+
+    server {
+        listen            {{ item[0].ipv4_address }}:8500;
+
+        location / {
+            proxy_pass      http://127.0.0.1:8500;
+            allow {{ item[0].ipv4_address }}/32;
+            allow {{ ansible_default_ipv4.address }}/32;
+            {% for node in consul_allow_nodes|default([]) -%}
+              allow {{ container_etc_hosts.all[node] }}/32;
+            {% endfor -%}
+            deny all;
+        }
+
+        location = /v1/agent/metrics {
+            proxy_pass      http://127.0.0.1:8500/v1/agent/metrics$is_args$args;
+            allow {{ item[0].ipv4_address }}/32;
+            allow {{ ansible_default_ipv4.address }}/32;
+            {% for node in prometheus_server_nodes|default([]) -%}
+              allow {{ container_etc_hosts.all[node] }}/32;
+            {% endfor -%}
+            deny all;
+        }
+    }
+}

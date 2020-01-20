@@ -4,18 +4,17 @@
 # define constants
 # -----------------------------------------------------------------------------
 
-export ANSIBLE_FORKS="1"
+export ANSIBLE_FORKS="9"
 export ANSIBLE_FORCE_COLOR=true
 
-STEP_NAMES=( bootstrap ssh-key-scan requirements-check packages-upgrade base prepare install post )
-INCLUDE_CSV='0,1,2,3,4,5,6,7'
+STEP_NAMES=( bootstrap ssh-key-scan requirements-check packages-upgrade base prepare install registration post )
+INCLUDE_CSV='0,1,2,3,4,5,6,7,8'
 VERBOSITY=''
 RETRY=false
 
 # -----------------------------------------------------------------------------
 # define helper
 # -----------------------------------------------------------------------------
- 
 function gen_password() {
   local length=$1
   local count=$2
@@ -218,7 +217,7 @@ __main() {
     password1=''
     password2=''
     done
-    ansible-vault encrypt --vault-password-file="${VAULT_PASSWORD_FILE}" "${VAULT_BASE}/${VAULT_FILE}"
+    ansible-vault encrypt --vault-id="setup@${VAULT_PASSWORD_FILE}" "${VAULT_BASE}/${VAULT_FILE}"
     echo ' - ... Set up secrets'
   fi
   # generate random password
@@ -234,7 +233,7 @@ __main() {
     done
     echo >> "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
     password=''
-    ansible-vault encrypt --vault-password-file="${VAULT_PASSWORD_FILE}" "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
+    ansible-vault encrypt --vault-id="setup@${VAULT_PASSWORD_FILE}" "${VAULT_BASE}/${VAULT_RANDOM_PASSWORDS_FILE}"
     echo ' - ... Generated random password'
   fi
   VAULT_FILES=( "${VAULT_FILE}" "${VAULT_RANDOM_PASSWORDS_FILE}" )
@@ -246,7 +245,7 @@ __main() {
     echo '# Bootstrapping ansible ...'
     extra_vars=$(echo "{ \"setup_root\": \"${SETUP_ROOT}\", \"vault_base\": \"${VAULT_BASE}\", \"vault_files\": $(printf '%s\n' "${VAULT_FILES[@]}" | jq -R . | jq -cs . ) }" | jq -c .)
     # shellcheck disable=SC2086
-    ansible-playbook ${VERBOSITY} -f 1 -i localhost, -c local -e "${extra_vars}" "${SETUP_ROOT}/bootstrap-playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
+    ansible-playbook ${VERBOSITY} -f 1 -i localhost, -c local -e "${extra_vars}" "${SETUP_ROOT}/bootstrap-playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}"
     if [ -e "${SETUP_ROOT}/bootstrap-playbooks/site.retry" ]; then /bin/rm "${SETUP_ROOT}/bootstrap-playbooks/site.retry"; fi
     echo '* ... done'
     echo -e '\n\n\n'
@@ -258,13 +257,13 @@ __main() {
   # scan SSH public key
   if [[ ${included["1"]} -eq 1 ]] ; then
     echo '# Scanning SSH public key ...'
-    bash -c "ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i '${SETUP_ROOT}/inventory/hosts' '${SETUP_ROOT}/playbooks/ssh-key-scan.yml' --vault-password-file='${VAULT_PASSWORD_FILE}'"
+    bash -c "ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i '${SETUP_ROOT}/inventory/hosts' -e 'setup_root=${SETUP_ROOT}' '${SETUP_ROOT}/playbooks/ssh-key-scan.yml' --vault-id='setup@${VAULT_PASSWORD_FILE}'"
     # shellcheck disable=SC2086
     if ! ansible all ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -m ping ; then
       echo
       echo " - Try copy ssh public key"
       # shellcheck disable=SC2086
-      ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -k "${SETUP_ROOT}/playbooks/ssh-copy-id.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
+      ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -k -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/ssh-copy-id.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}"
     fi
     echo '* ... done'
     echo -e '\n\n\n'
@@ -274,7 +273,7 @@ __main() {
   if [[ ${included["2"]} -eq 1 ]] ; then
     echo '# Checking requirements ...'
     # shellcheck disable=SC2086
-    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/requirements-check.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
+    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/requirements-check.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}"
     echo '* ... done'
     echo -e '\n\n\n'
   fi
@@ -285,7 +284,7 @@ __main() {
     running_holder="${SETUP_ROOT}/tmp/UPGRADED"
     if [ ! -e "${running_holder}" ]; then
       # shellcheck disable=SC2086
-      ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/paralleling-upgrade.yml" --vault-password-file="${VAULT_PASSWORD_FILE}"
+      ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/paralleling-upgrade.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}"
       touch "${running_holder}"
     else
       echo ''
@@ -304,7 +303,7 @@ __main() {
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
     # shellcheck disable=SC2086
-    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=base ${limit[@]+"limit[@]"}
+    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}" --tags=base ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
   fi
@@ -317,7 +316,7 @@ __main() {
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
     # shellcheck disable=SC2086
-    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=prepare ${limit[@]+"limit[@]"}
+    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}" --tags=prepare ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
   fi
@@ -330,7 +329,7 @@ __main() {
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
     # shellcheck disable=SC2086
-    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=install ${limit[@]+"limit[@]"}
+    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}" --tags=install ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
   fi
@@ -343,7 +342,20 @@ __main() {
       limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
     fi
     # shellcheck disable=SC2086
-    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" "${SETUP_ROOT}/playbooks/site.yml" --vault-password-file="${VAULT_PASSWORD_FILE}" --tags=post ${limit[@]+"limit[@]"}
+    ansible-playbook ${VERBOSITY} -f 1 -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}" --tags=registration ${limit[@]+"limit[@]"}
+    echo '* ... done'
+    echo -e '\n\n\n'
+  fi
+
+  # run post
+  if [[ ${included["8"]} -eq 1 ]] ; then
+    echo '# Running post ...'
+    limit=(  )
+    if [ -e "${SETUP_ROOT}/playbooks/site.retry" ]; then
+      limit=( --limit "@${SETUP_ROOT}/playbooks/site.retry" )
+    fi
+    # shellcheck disable=SC2086
+    ansible-playbook ${VERBOSITY} -f ${ANSIBLE_FORKS} -i "${SETUP_ROOT}/inventory/hosts" -e "setup_root=${SETUP_ROOT}" "${SETUP_ROOT}/playbooks/site.yml" --vault-id="setup@${VAULT_PASSWORD_FILE}" --tags=post ${limit[@]+"limit[@]"}
     echo '* ... done'
     echo -e '\n\n\n'
   fi

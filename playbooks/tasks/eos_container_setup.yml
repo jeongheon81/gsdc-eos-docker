@@ -10,15 +10,37 @@
     interactive: yes
     tty: yes
     privileged: "{{ privileged_container }}"
-    hostname: "{{ item.name }}.{{ item.domain }}"
     purge_networks: yes
-    networks:
-    - name: "{{ item.network }}"
-      ipv4_address: "{{ item.ipv4_address }}"
-      aliases: "{{ [ item.name ] + item.network_aliases|default([]) }}"
+    network_mode: >-
+      {% if item.network_mode is defined -%}
+        {{ item.network_mode -}}
+      {% else -%}
+        {{ omit -}}
+      {% endif %}
+    hostname: >-
+      {% if item.network_mode is not defined -%}
+        {{ item.name }}.{{ item.domain -}}
+      {% else -%}
+        {{ omit -}}
+      {% endif %}
+    networks: >-
+      {% if item.network_mode is not defined -%}
+        {{ [ {
+          'name': item.network,
+          'ipv4_address': item.ipv4_address,
+          'aliases': [ item.name ] + item.network_aliases|default([])
+        } ] -}}
+      {% else -%}
+        {{ omit -}}
+      {% endif %}
     volumes: "{{ container_volumes[item.name] }}"
     etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+    env: "{{ env|default(omit) }}"
     entrypoint: "{{ entrypoint|default(omit) }}"
     command: "{{ command|default(omit) }}"
+    healthcheck: "{{ healthcheck|default(omit) }}"
+    stop_timeout: 30
   register: container_start_results
   loop: "{{ container_infos }}"
+  notify:
+  - renew container log scrap targets file

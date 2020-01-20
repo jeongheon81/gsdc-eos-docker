@@ -1,0 +1,12 @@
+---
+# - name: renew container log scrap targets file
+#   shell: |
+#     TARGETS="$(docker ls --format '- targets: ["{{ "{{" }}.ID{{ "}}" }}"]\n  labels:\n    job: containers\n    container_name: "{{ "{{" }}.Names{{ "}}" }}"' )"
+#     if ! echo "$TARGETS" | cmp -s {{ loki_promtail_config_base_directory }}/loki-promtail-{{ ansible_hostname }}/container-targets.yaml ; then
+#       echo "$TARGETS" > {{ loki_promtail_config_base_directory }}/loki-promtail-{{ ansible_hostname }}/container-targets.yaml &&
+#       echo changed;
+#     else
+#       echo skipped;
+#     fi
+#   register: command_result
+#   changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'

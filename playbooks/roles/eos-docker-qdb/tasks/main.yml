@@ -1,8 +1,19 @@
 ---
-- block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_qdb }}"
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 7777/tcp
+  when: containers.eos_qdb|json_query('[?network_mode]|[].network_mode|[0]') == 'host'
+  notify:
+  - reload firewalld
+- meta: flush_handlers
 
+- block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,12 +26,32 @@
       config_directories: "{{ eos_qdb_config_directories }}"
       persistent_volumes: "{{ eos_qdb_persistent_volumes }}"
       privileged_container: yes
-      entrypoint: "/eos_qdb_setup.sh"
-      command: ""
+      command:
+      - qdb
+      - -i
+      - "{{ qdb_cluster_uuid }}"
+      - -n
+      - "{{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(',') }}"
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/redis-cli -p 7777 raft-info || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
 
-  # - name: Start service
-  #   shell: docker exec -i {{ item.item.name }} /eos_qdb_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results + create_generated_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
 
   when: containers is defined and containers.eos_qdb is defined
+
+- meta: flush_handlers

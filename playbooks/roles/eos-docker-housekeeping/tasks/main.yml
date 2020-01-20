@@ -39,12 +39,12 @@
     loop_control:
       loop_var: eos_container
 
-  - name: Set logrotate config
-    template: src=logrotate-eos-logs.j2 dest=/etc/logrotate.d/{{ log_volume_info.volume.Name }}s owner=root group=root mode=0644
-    when: log_volume_info.exists
-    loop: "{{ log_volume_info_results.results }}"
-    loop_control:
-      loop_var: log_volume_info
+  # - name: Set logrotate config
+  #   template: src=logrotate-eos-logs.j2 dest=/etc/logrotate.d/{{ log_volume_info.volume.Name }}s owner=root group=root mode=0644
+  #   when: log_volume_info.exists
+  #   loop: "{{ log_volume_info_results.results }}"
+  #   loop_control:
+  #     loop_var: log_volume_info
 
   - name: Set cron log housekeeping
     template: src=cron-eos-logs.j2 dest=/etc/cron.d/{{ log_volume_info.volume.Name }}s owner=root group=root mode=0644

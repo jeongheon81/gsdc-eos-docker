@@ -1,0 +1,159 @@
+---
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 8301/tcp
+  - 8301/udp
+  - 8500-8502/tcp
+  - 8600/tcp
+  - 8600/udp
+  when: containers.consul_client[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
+
+- block:
+  - name: Setup container
+    include_tasks: tasks/container_setup.yml
+    vars:
+      components: "{{ containers.consul_client }}"
+      config_base_directory: "{{ consul_client_config_base_directory }}"
+      shipped_files: "{{ consul_client_shipped_files }}"
+      generated_files: "{{ consul_client_generated_files }}"
+      template_files: "{{ consul_client_template_files }}"
+      config_files: "{{ consul_client_config_files }}"
+      config_directories: "{{ consul_client_config_directories }}"
+      persistent_volumes: "{{ consul_client_persistent_volumes }}"
+
+  - name: Get consul agent token
+    include_tasks: consul_agent_token.yml
+
+  - name: Start container
+    docker_container:
+      name: "{{ item.name }}"
+      image: "{{ item.image }}"
+      state: started
+      purge_networks: yes
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      hostname: >-
+        {% if item.network_mode is not defined -%}
+          {{ item.name }}.{{ item.domain -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      networks: >-
+        {% if item.network_mode is not defined -%}
+          {{ [ {
+            'name': item.network,
+            'ipv4_address': item.ipv4_address,
+            'aliases': [ item.name ] + item.network_aliases|default([])
+          } ] -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      command:
+      - agent
+      - -bind='{{ "{{" }} GetAllInterfaces | include "name" "{{ item.consul_bind_interface_name_pattern }}" | include "flags" "forwardable|up" | attr "address" {{ "}}" }}'
+      - -node={{ item.name }}
+      - -config-dir=/consul/config
+      env:
+        CONSUL_HTTP_TOKEN_FILE: /root/.consul_http_token
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "export CONSUL_HTTP_TOKEN_FILE=/root/.consul_http_token ;/usr/bin/curl -f http://localhost:8500/v1/health/node/{{ item.name }} > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+    loop: "{{ container_infos }}"
+
+  - name: Start nginx proxy sidecar container
+    docker_container:
+      name: "{{ item.name }}-nginx-proxy-sidecar"
+      image: "{{ item.nginx_proxy_image }}"
+      state: started
+      purge_networks: yes
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ "container:"+item.name -}}
+        {% endif %}
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/wget -q -O - http://{{ item.ipv4_address }}:8500/v1/agent/metrics?format=prometheus > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+    when: item.nginx_proxy_image is defined
+    loop: "{{ container_infos }}"
+
+  - set_fact:
+      reload_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('config.*') and not item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {% for item in create_acl_tokens_config_results.results -%}
+        {%   if item.changed -%}
+        {{     result.append( item.item ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('config.*') and item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Send config reload signal for general
+    shell: docker kill --signal=HUP {{ item }}
+    loop: "{{ reload_notifies|default([]) }}"
+
+  - name: Restart by bind config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - set_fact:
+      reload_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('nginx.*') and not item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized and item.item[1].name is match('nginx.*') and item.item[1].is_volume|bool -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Send config reload signal for general
+    shell: docker exec -it {{ item }}-nginx-proxy-sidecar nginx -s reload
+    loop: "{{ reload_notifies|default([]) }}"
+
+  - name: Restart by bind config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  when: containers is defined and containers.consul_client is defined

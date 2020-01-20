@@ -1,0 +1,82 @@
+---
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 3100/tcp
+  when: containers.loki_server_local[0].network_mode is defined
+  notify:
+  - reload firewalld
+- meta: flush_handlers
+
+- block:
+  - name: Setup container
+    include_tasks: tasks/container_setup.yml
+    vars:
+      components: "{{ containers.loki_server_local }}"
+      config_base_directory: "{{ loki_server_local_config_base_directory }}"
+      shipped_files: "{{ loki_server_local_shipped_files }}"
+      generated_files: "{{ loki_server_local_generated_files }}"
+      template_files: "{{ loki_server_local_template_files }}"
+      config_files: "{{ loki_server_local_config_files }}"
+      config_directories: "{{ loki_server_local_config_directories }}"
+      persistent_volumes: "{{ loki_server_local_persistent_volumes }}"
+
+  - name: Start container
+    docker_container:
+      name: "{{ item.name }}"
+      image: "{{ item.image }}"
+      state: started
+      purge_networks: yes
+      network_mode: >-
+        {% if item.network_mode is defined -%}
+          {{ item.network_mode -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      hostname: >-
+        {% if item.network_mode is not defined -%}
+          {{ item.name }}.{{ item.domain -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      networks: >-
+        {% if item.network_mode is not defined -%}
+          {{ [ {
+            'name': item.network,
+            'ipv4_address': item.ipv4_address,
+            'aliases': [ item.name ] + item.network_aliases|default([])
+          } ] -}}
+        {% else -%}
+          {{ omit -}}
+        {% endif %}
+      volumes: "{{ container_volumes[item.name] }}"
+      etc_hosts: "{{ item.etc_hosts|default(omit) }}"
+      command: -config.file=/etc/loki/local-config.yaml
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/wget -q -O - http://localhost:3100/ready > /dev/null 2>&1 || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+    register: container_start_results
+    loop: "{{ container_infos }}"
+
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  when: containers is defined and containers.loki_server_local is defined

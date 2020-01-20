@@ -1,2 +1,7 @@
 ---
 iptables_syslog_file: /var/log/syslog.iptables
+
+firewall_basic_direct_rules:
+- { tag: "Check null (INPUT)"       , rule: "ipv4 filter INPUT 4 -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m limit --limit 5/min -j LOG --log-prefix 'ID_null: '" }
+- { tag: "Check syn-flood (INPUT)"  , rule: "ipv4 filter INPUT 6 -p tcp -m tcp '!' --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -m limit --limit 5/min -j LOG --log-prefix 'ID_syn-fld: '" }
+- { tag: "Check XMAS (INPUT)"       , rule: "ipv4 filter INPUT 8 -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,PSH,ACK,URG -m limit --limit 5/min -j LOG --log-prefix 'ID_XMAS: '" }

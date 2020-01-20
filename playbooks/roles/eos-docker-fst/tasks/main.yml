@@ -1,8 +1,22 @@
 ---
-- block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_fst }}"
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 1095/tcp
+  - 8001/tcp
+  - 1096/tcp
+  - 8002/tcp
+  when: containers.eos_fst|json_query('[?network_mode]|[].network_mode|[0]') == 'host'
+  notify:
+  - reload firewalld
+- meta: flush_handlers
 
+- block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,12 +29,49 @@
       config_directories: "{{ eos_fst_config_directories }}"
       persistent_volumes: "{{ eos_fst_persistent_volumes }}"
       privileged_container: yes
-      entrypoint: "/eos_fst_setup.sh"
-      command: ""
+      env:
+        NODE_FQDN: "{{ ansible_hostname+'.'+container_domain if item.network_mode is defined and item.network_mode == 'host' else omit }}"
+      command:
+      - fst
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/eos -b node status {{ ansible_hostname+'.'+container_domain if item.network_mode is defined and item.network_mode == 'host' else '$(hostname -f)' }}:{{ item.fst_xrd_port }} || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
 
-  # - name: Start service
-  #   shell: docker exec -i {{ item.item.name }} /eos_fst_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results + create_generated_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
+
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - name: Init default fst setup
+    shell: |
+      docker exec -it {{ eos_mgm_master_name.split('.')[0] }} bash -c '
+        set -o errexit;
+        set -o pipefail;
+        if [ ! -e /root/INITIALIZED_{{ item.name }} ] ; then
+          export XrdSecPROTOCOL=sss ;
+          eos -b node set {{ ansible_hostname+"."+container_domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}:{{ item.fst_xrd_port }} on | /usr/bin/tee -a /root/INITIALIZED_{{ item.name }}.log ;
+          touch /root/INITIALIZED_{{ item.name }} ;
+          echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ container_infos }}"
+    delegate_to: "{{ eos_mgm_master_host }}"
 
   when: containers is defined and containers.eos_fst is defined

@@ -15,3 +15,4 @@ enabled=0
 protect=0
 priority=2
 gpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt
+exclude=xrootd-*5.0.0*,python*-xrootd-5.0.0*

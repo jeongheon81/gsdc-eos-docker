@@ -8,7 +8,9 @@ redis.database {{ item[0].redis_database }}
 # $EOS_QUARKDB_HOSTPORT environment variable must be set
 # with the same value used for redis.myself
 #----------------------------------------------------------
-redis.myself {{ item[0].name }}.{{ item[0].domain }}:{{ qdb_port }}
+#redis.myself {{ item[0].name }}.{{ item[0].domain }}:{{ qdb_port }}
+#redis.myself {{ container_etc_hosts.all|dict2items|to_json|from_json|json_query('[?value == `'+container_etc_hosts.all_name[ item[0].name+'.'+item[0].domain ]+'`]|[0].key' ) }}:{{ qdb_port }}
+redis.myself {% if item[0].network_mode is defined and item[0].network_mode == 'host' %}{{ ansible_hostname }}.{{ item[0].domain }}:{{ qdb_port }}{% else %}{{ item[0].name }}.{{ item[0].domain }}:{{ qdb_port }}{% endif %}
 
 #----------------------------------------------------------
 # $EOS_QUARKDB_PASSWD environment variable must be set

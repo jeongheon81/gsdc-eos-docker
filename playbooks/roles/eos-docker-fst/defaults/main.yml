@@ -7,10 +7,11 @@ eos_fst_generated_files:
 - { name: "eos.keytab", dest: "/etc/eos.keytab", src: "tmp/keytab/{{ eos_realm }}/eos.keytab", owner: "daemon", group: "daemon", mode: "0400", force: true, is_volume: true }
 eos_fst_template_files:
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
-- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "xrd.cf.fst", dest: "/etc/xrd.cf.fst", src: "xrd.cf.fst.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "eos_fst_setup.sh", dest: "/eos_fst_setup.sh", src: "eos_fst_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "xrd.cf.fst", dest: "/etc/xrd.cf.fst", src: "xrd.cf.fst.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "eosfstregister", dest: "/usr/sbin/eosfstregister", src: "eosfstregister.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+# - { name: "eos_fst_setup.sh", dest: "/eos_fst_setup.sh", src: "eos_fst_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
 eos_fst_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 eos_fst_config_directories:

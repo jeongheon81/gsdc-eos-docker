@@ -8,16 +8,16 @@ eos_mgm_generated_files:
 - { name: "eos.krb5.keytab", dest: "/etc/eos.krb5.keytab", src: "tmp/keytab/{{ eos_realm }}/eos.krb5.keytab", owner: "daemon", group: "daemon", mode: "0600", force: true, is_volume: true }
 eos_mgm_template_files:
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
-- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "xrd.cf.mgm", dest: "/etc/xrd.cf.mgm", src: "xrd.cf.mgm.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "xrd.cf.mq", dest: "/etc/xrd.cf.mq", src: "xrd.cf.mq.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "xrd.cf.sync", dest: "/etc/xrd.cf.sync", src: "xrd.cf.sync.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: false, is_volume: true }
-- { name: "eos_mgm_fs_setup.sh", dest: "/eos_mgm_fs_setup.sh", src: "eos_mgm_fs_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
-- { name: "eos_mgm_setup.sh", dest: "/eos_mgm_setup.sh", src: "eos_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true , is_volume: true}
-- { name: "eos_mq_setup.sh", dest: "/eos_mq_setup.sh", src: "eos_mq_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
-- { name: "eos_sync_setup.sh", dest: "/eos_sync_setup.sh", src: "eos_sync_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
-- { name: "eos_mq_mgm_setup.sh", dest: "/eos_mq_mgm_setup.sh", src: "eos_mq_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+- { name: "sysconfig/eos", dest: "/etc/sysconfig/eos", src: "eos.sysconfig.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "xrd.cf.mgm", dest: "/etc/xrd.cf.mgm", src: "xrd.cf.mgm.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "xrd.cf.mq", dest: "/etc/xrd.cf.mq", src: "xrd.cf.mq.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "xrd.cf.sync", dest: "/etc/xrd.cf.sync", src: "xrd.cf.sync.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+- { name: "krb5.conf", dest: "/etc/krb5.conf", src: "krb5.conf.j2", owner: "root", group: "root", mode: "0644", force: true, is_volume: true }
+# - { name: "eos_mgm_fs_setup.sh", dest: "/eos_mgm_fs_setup.sh", src: "eos_mgm_fs_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+# - { name: "eos_mgm_setup.sh", dest: "/eos_mgm_setup.sh", src: "eos_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true , is_volume: true}
+# - { name: "eos_mq_setup.sh", dest: "/eos_mq_setup.sh", src: "eos_mq_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+# - { name: "eos_sync_setup.sh", dest: "/eos_sync_setup.sh", src: "eos_sync_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
+# - { name: "eos_mq_mgm_setup.sh", dest: "/eos_mq_mgm_setup.sh", src: "eos_mq_mgm_setup.sh.j2", owner: "root", group: "root", mode: "0755", force: true, is_volume: true }
 eos_mgm_config_files: []
 # - { name: "", dest: "", src: "", owner: "root", group: "root", mode: "0600", force: false, is_volume: true }
 eos_mgm_config_directories:

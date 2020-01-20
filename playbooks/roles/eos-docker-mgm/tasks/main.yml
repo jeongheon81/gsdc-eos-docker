@@ -1,8 +1,23 @@
 ---
-- block:
-  # - set_fact:
-  #     eos_components: "{{ containers.eos_mgm }}"
+- name: Setup firewall
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: internal
+  loop: 
+  - 50051/tcp
+  - 1094/tcp
+  - 1097/tcp
+  - 8000/tcp
+  - 1100/tcp
+  when: containers.eos_mgm|json_query('[?network_mode]|[].network_mode|[0]') == 'host'
+  notify:
+  - reload firewalld
+- meta: flush_handlers
 
+- block:
   - name: Setup container
     include_tasks: tasks/eos_container_setup.yml
     vars:
@@ -15,17 +30,114 @@
       config_directories: "{{ eos_mgm_config_directories }}"
       persistent_volumes: "{{ eos_mgm_persistent_volumes }}"
       privileged_container: yes
-      entrypoint: "/eos_mq_mgm_setup.sh"
-      command: ""
+      env:
+        NODE_FQDN: "{{ ansible_hostname+'.'+container_domain if item.network_mode is defined and item.network_mode == 'host' else omit }}"
+      command:
+      - mgm
+      healthcheck:
+        test: ["CMD", "/bin/sh", "-c", "/usr/bin/eos -b ns || exit 1"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
 
-  # - name: Start service mq
-  #   shell: docker exec -i {{ item.item.name }} /eos_mq_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - set_fact:
+      restart_notifies: >-
+        {% set result = [] -%}
+        {% for item in create_template_file_results.results + create_generated_file_results.results -%}
+        {%   if item.changed and item.item[0].is_initialized -%}
+        {{     result.append( item.item[0].name ) -}}
+        {%   endif -%}
+        {% endfor -%}
+        {{ result|unique }}
 
-  # - name: Start service mgm
-  #   shell: docker exec -i {{ item.item.name }} /eos_mgm_setup.sh
-  #   when: item.changed
-  #   loop: "{{ container_start_results.results }}"
+  - name: Restart by config files
+    shell: docker restart {{ item }}
+    loop: "{{ restart_notifies|default([]) }}"
+
+  - name: Create eos admin user
+    shell: |
+      docker exec -it {{ item.name }} bash -c '
+        set -o errexit;
+        set -o pipefail;
+        if ! grep {{ eos_admin_user }} /etc/passwd &>/dev/null ; then
+          if ! grep {{ eos_admin_user }} /etc/group &>/dev/null ; then
+            groupadd -g {{ eos_admin_user_gid }} {{ eos_admin_user }} ;
+          fi &&
+          useradd -u {{ eos_admin_user_uid }} -g {{ eos_admin_user_gid }} {{ eos_admin_user }} &&
+          echo changed;
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ container_infos }}"
+
+  - name: Init default mgm setup
+    shell: |
+      docker exec -it {{ item.name }} bash -c '
+        set -o errexit;
+        set -o pipefail;
+        if [ ! -e /root/INITIALIZED_mgm ] ; then
+          if [ "{{ eos_mgm_masters[0] }}" == "{{ ansible_hostname+"."+item.domain if item.network_mode is defined and item.network_mode == "host" else "$(hostname -f)" }}" ] ; then
+            eos -b vid enable sss | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            eos -b vid enable krb5 | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            eos -b chmod 2777 "/eos/{{ eos_instance_name }}/" | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            eos -b vid set membership {{ eos_admin_user }} +sudo | /usr/bin/tee -a /root/INITIALIZED_mgm.log ;
+            touch /root/INITIALIZED_mgm ;
+            echo changed;
+          else
+            echo skipped;
+          fi
+        else
+          echo skipped;
+        fi
+      '
+    args:
+      executable: /bin/bash
+    register: command_result
+    changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
+    loop: "{{ container_infos }}"
+
+  - set_fact:
+      eos_mgm_infos: []
+
+  - set_fact:
+      eos_mgm_infos: >-
+        {% set replication_mode = 'slave' -%}
+        {% set node_fqdn = item.name+"."+item.domain -%}
+        {% if item.network_mode is defined and item.network_mode == "host" -%}
+          {% set node_fqdn = ansible_hostname+"."+item.domain -%}
+        {% endif -%}
+        {% if eos_mgm_masters[0] == node_fqdn -%}
+          {% set replication_mode = 'master' -%}
+        {% endif -%}
+        {{ eos_mgm_infos + [ item|combine({ 'replication_mode': replication_mode }) ] }}
+    loop: "{{ containers.eos_mgm }}"
+
+  - set_fact:
+      consul_services: "{{ consul_services|default([]) +
+        [{
+          'id': item.name,
+          'name': 'eos-mgm',
+          'tags': [
+            item.name,
+            item.replication_mode
+          ],
+          'meta': {},
+          'address': item.ipv4_address,
+          'port': 1094,
+          'enable_tag_override': true,
+          'checks': [
+            {
+              'args': ['/bin/sh', '-c', 'echo \"00000000 00 00 00 00 08 0a 00 12 04 70 69 6e 67\" | hexdump -R | curl --raw -X POST --http2-prior-knowledge -H \"Content-Type: application/grpc+proto\" -H \"TE: trailers\" --data-binary @- http://'+item.ipv4_address+':50051/eos.rpc.Eos/Ping 2> /dev/null | xxd' ],
+              'interval': '10s',
+              'timeout': '20s'
+            }
+          ]
+        }] }}"
+    loop: "{{ eos_mgm_infos }}"
 
   when: containers is defined and containers.eos_mgm is defined
