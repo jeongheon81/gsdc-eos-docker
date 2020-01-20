@@ -1,0 +1,69 @@
+---
+- name: Set TCP keepalive
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }} "
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+  - item: net.ipv4.tcp_keepalive_time
+    value: 60
+  - item: net.ipv4.tcp_keepalive_probes
+    value: 3
+  - item: net.ipv4.tcp_keepalive_intvl
+    value: 10
+
+- name: Set network buffer
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }} "
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+  - item: net.core.rmem_max
+    value: 16777216
+  - item: net.core.wmem_max
+    value: 16777216
+  - item: net.core.rmem_default
+    value: 16777216
+  - item: net.core.wmem_default
+    value: 16777216
+  - item: net.core.optmem_max
+    value: 40960
+  - item: net.ipv4.tcp_rmem
+    value: 4096 87380 16777216
+  - item: net.ipv4.tcp_wmem
+    value: 4096 65536 16777216
+
+- name: Set swappiness
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }} "
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+  - item: vm.swappiness
+    value: 1
+
+- name: Set SSD settings
+  lineinfile:
+    path: /etc/rc.local
+    mode: '0755'
+    regexp: '{{ item.regexp }}'
+    line: '{{ item.line }}'
+  loop:
+  - regexp: touch /var/lock/subsys/local
+    line: touch /var/lock/subsys/local
+  - regexp: '.* /sys/class/block/sda/queue/rotational$'
+    line: echo 0 > /sys/class/block/sda/queue/rotational
+  - regexp: '.* /sys/class/block/sda/queue/read_ahead_kb$'
+    line: echo 8 > /sys/class/block/sda/queue/read_ahead_kb
+  - regexp: '.* /sys/block/sda/queue/scheduler$'
+    line: echo noop > /sys/block/sda/queue/scheduler
+
+# set limits
+# tuned-adm list
+
