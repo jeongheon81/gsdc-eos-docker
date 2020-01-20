@@ -112,7 +112,7 @@
     copy:
       content: |
         action(type="omfwd" Target="localhost" Port="20514" Protocol="tcp" Template="RSYSLOG_SyslogProtocol23Format" TCP_Framing="octet-counted")
-      dest:  /etc/rsyslog.d/99_promtail.conf
+      dest:  /etc/rsyslog.d/00_promtail.conf
       owner: root
       group: root
       mode: 0644

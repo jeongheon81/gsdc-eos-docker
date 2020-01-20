@@ -47,19 +47,25 @@ rm -rf /jbod-*/*/.eos*
 ls -al /jbod-*/*/ | awk '{print $9}' | sort | uniq
 
 
+http://134.75.125.53:3000
+{container_name=~"eos-.*"} |~ "file1g-jbod-mgmt-09"
+
+
+http://134.75.125.53:9080
+https://134.75.125.55:8501
 
 
 "root://jbod-mgmt-09.eoscluster.sdfarm.kr:1094//root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
 export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
 
+
+docker exec -i eos-mgm-01 sh
+eos space set default on
+
 # mgm only
 eos debug notice
 # to fst
 eos debug /eos/*/fst
-
-
-docker exec -i eos-mgm-01 sh
-eos space set default on
 
 
 docker exec -it eos-manager-	 sh
