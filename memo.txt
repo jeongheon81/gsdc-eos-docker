@@ -6,8 +6,8 @@ systemctl disable iptables.service
 systemctl mask iptables.service
 systemctl start firewalld.service
 systemctl enable firewalld.service
-lvextend -L 20G /dev/vg_centos_jbod_mgmt_01/lv_var
-xfs_growfs /dev/vg_centos_jbod_mgmt_01/lv_var
+lvextend -L 50G /dev/vg_centos_jbod_mgmt_	var
+xfs_growfs /dev/vg_centos_jbod_mgmt_	lv_var
 sed 's/^-f 2/-f 1/' -i /etc/audit/rules.d/audit.rules
 sed 's/^-e 2/-e 1/' -i /etc/audit/rules.d/immutable.rules
 systemctl reboot
@@ -26,6 +26,7 @@ yes | docker volume prune
 rm -rf /etc/consul/*
 rm -rf /etc/loki/*
 rm -rf /etc/grafana/*
+# Delete var_consul
 
 
 docker rm -f eos-krb-01
@@ -38,7 +39,7 @@ yes | docker container prune
 yes | docker volume prune
 rm -rf /etc/eos-docker/*
 
-
+# Delete KeyTab
 
 rm -rf /jbod-*/*/*
 rm -rf /jbod-*/*/.eos*
@@ -57,6 +58,8 @@ eos debug notice
 eos debug /eos/*/fst
 
 
+docker exec -i eos-mgm-01 sh
+eos space set default on
 
 
 docker exec -it eos-manager-	 sh
@@ -78,6 +81,7 @@ eos file info /eos/gsdc/testarea/file1g-$(hostname -s)
 
 xrdcp -f file1g root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094//eos/gsdc/testarea/file1g-$(hostname -s)
 
+eos rm /eos/gsdc/testarea/file1g-$(hostname -s)
 
 
 eos fuse mount /mnt/eos

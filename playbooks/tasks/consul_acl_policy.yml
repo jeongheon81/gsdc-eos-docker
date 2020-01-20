@@ -38,7 +38,7 @@
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     when: consul_acl_policy_state == 'present'
-    delegate_to: "{{ consul_server_docker_host_name|default(omit) }}"
+    delegate_to: "{{ consul_server_docker_host_name|default(inventory_hostname) }}"
 
   when: containers is defined and containers.consul_server is defined and consul_bootstrap_token is defined
 

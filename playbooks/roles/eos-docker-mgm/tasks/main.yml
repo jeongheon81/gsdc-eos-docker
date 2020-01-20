@@ -12,7 +12,7 @@
   - 1097/tcp
   - 8000/tcp
   - 1100/tcp
-  when: containers.eos_mgm[0].network_mode is defined
+  when: containers.eos_mgm|json_query('[?network_mode]|[].network_mode|[0]') == 'host'
   notify:
   - reload firewalld
 - meta: flush_handlers

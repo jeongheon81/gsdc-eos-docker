@@ -145,7 +145,7 @@ host_default: &host_default
 container_default: &container_default
   network: !unsafe "{{ container_domain }}"
   domain: !unsafe "{{ container_domain }}"
-  etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|combine(container_etc_hosts_hostserver.all) }}"
+  etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default({})|combine(container_etc_hosts_hostserver.all|default({})) }}"
 
 eos_container_default: &eos_container_default
   <<: *container_default

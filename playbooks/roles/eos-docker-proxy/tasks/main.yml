@@ -8,7 +8,7 @@
     zone: internal
   loop: 
   - 1094/tcp
-  when: containers.eos_proxy[0].network_mode is defined
+  when: containers.eos_proxy|json_query('[?network_mode]|[].network_mode|[0]') == 'host'
   notify:
   - reload firewalld
 - meta: flush_handlers
