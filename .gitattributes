@@ -1,3 +1,5 @@
 config.yaml merge=ours
 memo.txt merge=ours
+eos_grpc_ping_memo.txt merge=ours
+multipath_memeo.txt merge=ours
 *.dict binary
