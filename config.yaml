@@ -963,7 +963,7 @@ group_vars_all_auto: >-
   {{   final_result.update({ container_type+'_nodes': result_nodes }) -}}
   {{   final_result.update({ container_type+'_names': result_names }) -}}
   {% endfor -%}
-  {{ final_result.update({ 'eos_cluster_domain_names': eos_cluster_domain_names }) -}}
+  {{ final_result.update({ 'eos_cluster_domain_names': eos_cluster_domain_names|unique }) -}}
   {# generate: container_etc_hosts -#}
   {%   set result = {} -%}
   {%   set pre_result_all = [] -%}
