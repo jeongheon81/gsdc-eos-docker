@@ -1,0 +1,463 @@
+cat > /etc/multipath.conf << '__EOF__'
+# This is a basic configuration file with some examples, for device mapper
+# multipath.
+#
+# For a complete list of the default configuration values, run either
+# multipath -t
+# or
+# multipathd show config
+#
+# For a list of configuration options with descriptions, see the multipath.conf
+# man page
+
+## By default, devices with vendor = "IBM" and product = "S/390.*" are
+## blacklisted. To enable mulitpathing on these devies, uncomment the
+## following lines.
+#blacklist_exceptions {
+#       device {
+#               vendor  "IBM"
+#               product "S/390.*"
+#       }
+#}
+
+## Use user friendly names, instead of using WWIDs as names.
+#defaults {
+#       user_friendly_names yes
+#       find_multipaths yes
+#       prio                    alua
+#       failback                immediate
+#}
+##
+## Here is an example of how to configure some standard options.
+##
+#
+defaults {
+#       polling_interval        10
+        polling_interval        5
+#       path_selector           "round-robin 0"
+        path_selector           "service-time 0"
+#       path_grouping_policy    failover
+        path_grouping_policy    multibus
+        uid_attribute           ID_SERIAL
+        prio                    const
+        path_checker            readsector0
+        rr_min_io               100
+#       rr_min_io_rq            1
+        rr_min_io_rq            10
+        max_fds                 8192
+        rr_weight               priorities
+        failback                immediate
+        no_path_retry           fail
+        user_friendly_names     yes
+}
+##
+## The wwid line in the following blacklist section is shown as an example
+## of how to blacklist devices by wwid.  The 2 devnode lines are the
+## compiled in default blacklist. If you want to blacklist entire types
+## of devices, such as all scsi devices, you should use a devnode line.
+## However, if you want to blacklist specific devices, you should use
+## a wwid line.  Since there is no guarantee that a specific device will
+## not change names on reboot (from /dev/sda to /dev/sdb for example)
+## devnode lines are not recommended for blacklisting specific devices.
+##
+#blacklist {
+#       wwid 26353900f02796769
+#       devnode "^(ram|raw|loop|fd|md|dm-|sr|scd|st)[0-9]*"
+#       devnode "^hd[a-z]"
+#}
+#multipaths {
+#       multipath {
+#               wwid                    3600508b4000156d700012000000b0000
+#               alias                   yellow
+#               path_grouping_policy    multibus
+#               path_selector           "round-robin 0"
+#               failback                manual
+#               rr_weight               priorities
+#               no_path_retry           5
+#       }
+#       multipath {
+#               wwid                    1DEC_____321816758474
+#               alias                   red
+#       }
+#}
+#devices {
+#       device {
+#               vendor                  "COMPAQ  "
+#               product                 "HSV110 (C)COMPAQ"
+#               path_grouping_policy    multibus
+#               path_checker            readsector0
+#               path_selector           "round-robin 0"
+#               hardware_handler        "0"
+#               failback                15
+#               rr_weight               priorities
+#               no_path_retry           queue
+#       }
+#       device {
+#               vendor                  "COMPAQ  "
+#               product                 "MSA1000         "
+#               path_grouping_policy    multibus
+#       }
+#}
+
+blacklist {
+  device {
+    vendor  "DELL"
+    product "PERC *"
+  }
+}
+
+__EOF__
+
+
+cat > scsi_gen_multipath_bindings.sh << '__EOF__'
+#!/bin/bash
+
+declare -A enclosures
+declare -a enclosure_scsi_addresses
+
+for scsi_address in $(lsscsi | grep 'enclosu' | cut -d ']' -f 1 | cut -d '[' -f 2 | xargs); do
+
+  scsi_info="$(lsscsi --generic --verbose ${scsi_address})"
+  scsi_device="$(echo "${scsi_info}" | grep -o '/dev/sg.*' 2>/dev/null)"
+
+  ses_cf_info="$(sg_ses ${scsi_device} -p cf)"
+  enc_wwn="$(echo "${ses_cf_info}" | grep 'enclosure logical identifier' | cut -d ':' -f 2 | tr -d '[:blank:]')"
+
+  if [ ! ${enclosures[${enc_wwn}]+_} ]; then
+    enclosures[${enc_wwn}]="${scsi_address}"
+  fi
+
+done
+enclosure_scsi_addresses=( $(IFS=$'\n'; sort <<< "${enclosures[*]}") )
+
+
+echo "# Multipath bindings, Version : 1.0
+# NOTE: this file is automatically maintained by the multipath program.
+# You should not need to edit this file in normal circumstances.
+#
+# Format:
+# alias wwid
+#"
+
+
+prefix="a"
+for scsi_address in "${enclosure_scsi_addresses[@]}"; do
+  scsi_info="$(lsscsi -git $(echo "${scsi_address}" | cut -d ':' -f 1) )"
+  scsi_device="$(echo "${scsi_info}" | grep "\[${scsi_address}\]" | grep -o '/dev/sg.*' 2>/dev/null)"
+
+  num_slot="$(sg_ses ${scsi_device} -p cf | grep 'Array device slot' -A 1 | grep 'number of possible elements' | cut -d ':' -f 2 | tr -d '[:blank:]')"
+  ses_aes_info="$(sg_ses ${scsi_device} -p aes)"
+
+  for i in $(seq 0 $((${num_slot} - 1))); do
+    slot_info="$(echo "${ses_aes_info}" | grep "Element index: ${i} " -A 9)"
+    if [ -z "$(echo "${slot_info}" | grep 'flagged as invalid')" ]; then
+      printf "mpath${prefix}%03d " ${i}
+      printf "%s\n" "$(echo "${scsi_info}" | grep $(echo "${slot_info}" | grep '  SAS address:' | cut -d ':' -f 2 | tr -d '[:blank:]') | awk '{ print $5 }' )"
+    fi
+  done
+
+  prefix=$(echo "${prefix}" | tr "0-9a-z" "1-9a-z_")
+done
+
+__EOF__
+chmod +x scsi_gen_multipath_bindings.sh
+
+
+
+./scsi_gen_multipath_bindings.sh > bindings
+multipath -F
+systemctl stop multipathd.service
+cat bindings > /etc/multipath/bindings
+systemctl start multipathd.service
+
+
+
+cat  > gen_mount.sh << '__EOF__'
+#!/bin/bash
+
+set -e
+
+declare -A box_id_map=( 
+  ["jbod-mgmt-01"]="01 02"
+  ["jbod-mgmt-02"]="03 04"
+  ["jbod-mgmt-03"]="05 06"
+  ["jbod-mgmt-04"]="07 08"
+  ["jbod-mgmt-05"]="09 10"
+  ["jbod-mgmt-06"]="11 12"
+  ["jbod-mgmt-07"]="13 14"
+  ["jbod-mgmt-08"]="15 16"
+  ["jbod-mgmt-09"]="17 18"
+  )
+
+box_id=( ${box_id_map[$(hostname -s)]} )
+mpath_id=( a b )
+
+for id in 0 1; do 
+  for disk in {000..083} ; do
+    mkdir -p "/jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}"
+  done
+done
+
+echo > fstab_append.txt
+for id in 0 1; do 
+  for disk in {000..083} ; do
+    echo "/dev/mapper/mpath${mpath_id[id]}${disk}    /jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}  xfs     defaults,inode64,noauto        0       0" >> fstab_append.txt
+  done
+done
+
+cat fstab_append.txt
+__EOF__
+chmod +x gen_mount.sh
+
+./gen_mount.sh
+cat fstab_append.txt >> /etc/fstab
+
+
+cat  > mount_jbod.sh << '__EOF__'
+#!/bin/bash
+
+set -e
+
+declare -A box_id_map=( 
+  ["jbod-mgmt-01"]="01 02"
+  ["jbod-mgmt-02"]="03 04"
+  ["jbod-mgmt-03"]="05 06"
+  ["jbod-mgmt-04"]="07 08"
+  ["jbod-mgmt-05"]="09 10"
+  ["jbod-mgmt-06"]="11 12"
+  ["jbod-mgmt-07"]="13 14"
+  ["jbod-mgmt-08"]="15 16"
+  ["jbod-mgmt-09"]="17 18"
+  )
+
+box_id=( ${box_id_map[$(hostname -s)]} )
+mpath_id=( a b )
+
+for id in 0 1; do
+  for disk in {000..083} ; do
+    mount "/jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}"
+  done
+done
+
+__EOF__
+chmod +x mount_jbod.sh
+
+cat  > umount_jbod.sh << '__EOF__'
+#!/bin/bash
+
+set -e
+
+declare -A box_id_map=( 
+  ["jbod-mgmt-01"]="01 02"
+  ["jbod-mgmt-02"]="03 04"
+  ["jbod-mgmt-03"]="05 06"
+  ["jbod-mgmt-04"]="07 08"
+  ["jbod-mgmt-05"]="09 10"
+  ["jbod-mgmt-06"]="11 12"
+  ["jbod-mgmt-07"]="13 14"
+  ["jbod-mgmt-08"]="15 16"
+  ["jbod-mgmt-09"]="17 18"
+  )
+
+box_id=( ${box_id_map[$(hostname -s)]} )
+mpath_id=( a b )
+
+for id in 0 1; do
+  for disk in {000..083} ; do
+    umount "/jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}"
+  done
+done
+
+__EOF__
+chmod +x umount_jbod.sh
+
+
+cat > scsi_list_adapters.sh << '__EOF__'
+#!/bin/bash
+
+for i in $(lsscsi --hosts | grep 'sas' | cut -d ']' -f 1 | cut -d '[' -f 2 | xargs); do
+  scsi_info="$(lsscsi --hosts --transport --verbose ${i})"
+  sysfs_dir=$(echo "${scsi_info}" | grep '  dir: ' | cut -d ' ' -f 4-)
+  sysfs_device_dir=$(echo "${scsi_info}" | grep '  device dir: ' | cut -d ' ' -f 5-)
+  pci_device=$(basename ${sysfs_device_dir%/*})
+  pci_info="$(lspci -v -s ${pci_device} | expand -4)"
+
+  echo "SCSI adapter(host) number[H]: ${i}"
+  echo -n '  Name: '; echo $(echo "${pci_info}" | grep 'Subsystem: ' | cut -d ':' -f 2- 2>/dev/null)
+  echo -n '  SAS WWID: '; echo $(echo "${scsi_info}" | grep -o 'sas:.*' | cut -d 'x' -f 2- 2>/dev/null)
+  echo -n '  FW. Rev: '; echo $(cat ${sysfs_dir}/version_fw 2>/dev/null)
+  echo -n '  Sysfs dir: '; echo "${sysfs_dir}"
+  echo -n '  Sysfs device dir: '; echo "${sysfs_device_dir}"
+  echo -n '  Device info: '; echo "${pci_info}"
+  echo
+done
+
+__EOF__
+chmod +x scsi_list_adapters.sh
+
+
+cat > scsi_list_enclosure.sh << '__EOF__'
+#!/bin/bash
+
+# -----------------------------------------------------------------------------
+# define information
+# -----------------------------------------------------------------------------
+
+function define_DellEMC_Array584EMM {
+  ENC_INDEXS=( '7,0' )
+  ENC_LABELS=(   '0' )
+
+  EMM_ESC_INDEXS=( '6,0' '6,1' )
+  EMM_ESC_LABELS=(   'A'   'B' )
+  EMM_SAS_EXPANDER_INDEXS=( '10,8' '10,9' )
+  EMM_SAS_EXPANDER_OFFSETS=(   -1     -1  )
+
+  EMM_SAS_CONNECTOR_INDEXS=( '11,0' '11,1' '11,2' '11,3' '11,4' '11,5' )
+  EMM_SAS_CONNECTOR_LABLES=(    'A'    'B'    'C'    'A'    'B'    'C' )
+
+  EMM_SAS_CONNECTOR_COUNT_PER_EMM=$(( ${#EMM_SAS_CONNECTOR_INDEXS[@]} / ${#EMM_SAS_EXPANDER_INDEXS[@]} ))
+
+  OVERALL_INDEXS=( 7 6 0 1 2 3 4 5 8 9 10 11 12 13 14 15 16 17 )
+}
+
+declare -A enclosures
+declare -A enclosures_name
+declare -A enclosures_scsi_device
+declare -A enclosures_sysfs_dir
+declare -A enclosures_num_disk_and_slot
+declare -A enclosures_status
+declare -A enclosures_emm
+declare -A enclosures_overall
+
+
+# -----------------------------------------------------------------------------
+# define helper
+# -----------------------------------------------------------------------------
+
+# full directory name of the script no matter where it is being called from
+get_setup_root() {
+  if [[ -z "${SETUP_ROOT}" ]]; then
+    # for non-symlink location
+    #SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+    # for any location
+    source_path="${BASH_SOURCE[0]}"
+    while [ -L "${source_path}" ]; do
+      physical_directory="$(cd -P "$(dirname "${source_path}")" >/dev/null 2>&1 && pwd)"
+      source_path="$(readlink "${source_path}")"
+      [[ ${source_path} != /* ]] && source_path="${physical_directory}/${source_path}"
+    done
+    SETUP_ROOT="$(cd -P "$(dirname "${source_path}")" >/dev/null 2>&1 && pwd)"
+  fi
+  echo "${SETUP_ROOT}"
+}
+SETUP_ROOT="$(get_setup_root)"
+
+
+# -----------------------------------------------------------------------------
+# main
+# -----------------------------------------------------------------------------
+
+for scsi_address in $(lsscsi | grep 'enclosu' | cut -d ']' -f 1 | cut -d '[' -f 2 | xargs); do
+
+  scsi_info="$(lsscsi --transport --generic --verbose ${scsi_address})"
+  scsi_device="$(echo "${scsi_info}" | grep -o '/dev/sg.*' 2>/dev/null)"
+  sysfs_dir="$(echo "${scsi_info}" | grep '  dir: ' | cut -d ' ' -f 4-)"
+
+  ses_cf_info="$(sg_ses ${scsi_device} -p cf)"
+  enc_name="$(echo $(echo "${ses_cf_info}" | head -n 1 | cut -d ' ' -f 3- 2>/dev/null))"
+  enc_wwn="$(echo "${ses_cf_info}" | grep 'enclosure logical identifier' | cut -d ':' -f 2 | tr -d '[:blank:]')"
+
+  define_$(echo "${ses_cf_info}" | grep 'enclosure vendor' | cut -d ':' -f 2 | sed 's/product$//' | tr -d '[:blank:]' 2>/dev/null)_$(echo "${ses_cf_info}" | grep 'enclosure vendor' | cut -d ':' -f 3 | sed 's/rev$//' | tr -d '[:blank:]' 2>/dev/null)
+
+  ses_join_info="$(sg_ses ${scsi_device} -jj)"
+
+  if [ ! ${enclosures[${enc_wwn}]+_} ]; then
+    enclosures[${enc_wwn}]="[${scsi_address}]"
+    enclosures_name[${enc_wwn}]="${enc_name}"
+    enclosures_scsi_device[${enc_wwn}]="\n    ${scsi_device}"
+    enclosures_sysfs_dir[${enc_wwn}]="\n    ${sysfs_dir}"
+
+    num_slot="$(echo "${ses_cf_info}" | grep 'Array device slot' -A 1 | grep 'number of possible elements' | cut -d ':' -f 2 | tr -d '[:blank:]')"
+    num_disk="$(lsscsi -w $(echo "${scsi_address}" | cut -d ':' -f 1) | grep 'disk    0x' | wc -l)"
+    enclosures_num_disk_and_slot[${enc_wwn}]="${num_disk}/${num_slot}"
+
+    scsi_info_sub_item="$(lsscsi -gitv $(echo "${scsi_address}" | cut -d ':' -f 1))"
+
+    enc_info="\n"
+    for enc_index in "${!ENC_INDEXS[@]}"; do
+      enc_ses_join_info="$(echo "${ses_join_info}" | grep "\[${ENC_INDEXS[${enc_index}]}\]"  -A 5)"
+
+      enc_info+="    Enclosure ${ENC_LABELS[${enc_index}]}:\n"
+
+      enc_status_all="$(echo "${enc_ses_join_info}" | tail -4 | paste /dev/null - | expand -2)"
+      enc_info+="${enc_status_all}"
+    done
+    enclosures_status[${enc_wwn}]="${enc_info}"
+
+    emm_info="\n"
+    for emm_index in "${!EMM_ESC_INDEXS[@]}"; do
+      emm_ses_join_info="$(echo "${ses_join_info}" | grep "\[${EMM_SAS_EXPANDER_INDEXS[${emm_index}]}\]"  -A 7)"
+
+      emm_wwid="$(printf "%x\n" $(($(echo "${emm_ses_join_info}" | grep '  SAS address:' | cut -d ':' -f 2 | tr -d '[:blank:]') + ${EMM_SAS_EXPANDER_OFFSETS[${emm_index}]})))"
+      emm_info+="    EMM Slot ${EMM_ESC_LABELS[${emm_index}]}: ${emm_wwid}"
+
+      emm_status="$(echo "${emm_ses_join_info}" | grep -o ', status:.*' | cut -d ':' -f 2 | tr -d '[:blank:]')"
+      emm_info+="      Status: ${emm_status}\n"
+
+      for con_index in $(seq $((EMM_SAS_CONNECTOR_COUNT_PER_EMM * emm_index)) $((EMM_SAS_CONNECTOR_COUNT_PER_EMM * emm_index + EMM_SAS_CONNECTOR_COUNT_PER_EMM - 1))); do
+        ada_wwid="$(echo "${ses_join_info}" | grep "\[${EMM_SAS_CONNECTOR_INDEXS[${con_index}]}\]" | grep 'WN=' | cut -d ';' -f 1 | cut -d '=' -f 2 | tr -d '[:blank:]' | tr '[:upper:]' '[:lower:]')"
+        if [ -n "${ada_wwid}" ]; then
+          ada_info="$("${SETUP_ROOT}"/scsi_list_adapters.sh | grep "${ada_wwid: : -1}" -B 2)"
+          ada_name="$(echo $(echo "${ada_info}" | grep '  Name:' | cut -d ':' -f 2 ))"
+          ada_port=$(( 0x${ada_wwid} - 0x$(echo "${ada_info}" | grep '  SAS WWID:' | cut -d ':' -f 2 | tr -d '[:blank:]') ))
+          ada_port="$(echo "${scsi_info_sub_item}" | grep "${emm_wwid}" -A 1 | grep -o '/host[[:digit:]]*/port-[[:digit:]:]*' | cut -d ':' -f 2)"
+          emm_info+="      Connector ${EMM_SAS_CONNECTOR_LABLES[${con_index}]} Connected Adapter: ${ada_name} : Port ${ada_port} : ${ada_wwid}\n"
+        fi
+      done
+    done
+    enclosures_emm[${enc_wwn}]="${emm_info}"
+
+    overall_info="\n"
+    for overall_index in "${!OVERALL_INDEXS[@]}"; do
+      element_ses_join_info="$(echo "${ses_join_info}" | grep "\[${OVERALL_INDEXS[${overall_index}]},"  -A 2)"
+      overall_ses_join_info="$(echo "${element_ses_join_info}" | grep "\[${OVERALL_INDEXS[${overall_index}]},-1\]"  -A 2)"
+
+      overall_type="$(echo $(echo "${overall_ses_join_info}" | grep '  Element type:' | cut -d ':' -f 2-))"
+      if echo "${overall_type}" | grep 'vendor specific' > /dev/null ; then
+        overall_type="$(echo $(echo "${ses_cf_info}" | grep "${overall_type/[/\[}"  -A 2 | grep '  text:' | cut -d ':' -f 2-))"
+      fi
+
+      overall_status="$(echo "${overall_ses_join_info}" | grep "\[${OVERALL_INDEXS[${overall_index}]},-1\]"  -A 2 | grep -o ', status:.*' | cut -d ':' -f 2 | tr -d '[:blank:]')"
+      if [ 'Unsupported' = "${overall_status}" ]; then
+        element_status="$(echo "${element_ses_join_info}" | grep "\[${OVERALL_INDEXS[${overall_index}]},[[:digit:]]" -A 2 | grep -o ', status:.*' | grep -v 'OK' | cut -d ':' -f 2- | uniq | tr '\n' ',' | sed 's/,$//' | sed 's/^ //')"
+        if [ -n "${element_status}" -a "Not installed" != "${element_status}" ]; then
+          overall_status="${element_status}"
+        else
+          overall_status='OK'
+        fi
+      fi
+      overall_info+="    Overall ${overall_type} status: ${overall_status}\n"
+    done
+    enclosures_overall[${enc_wwn}]="${overall_info}"
+
+  else
+    enclosures[${enc_wwn}]="${enclosures[${enc_wwn}]} [${scsi_address}]"
+    enclosures_scsi_device[${enc_wwn}]="${enclosures_scsi_device[${enc_wwn}]}\n    ${scsi_device}"
+    enclosures_sysfs_dir[${enc_wwn}]="${enclosures_sysfs_dir[${enc_wwn}]}\n    ${sysfs_dir}"
+  fi
+done
+
+for key in "${!enclosures[@]}"; do
+  echo "SCSI address[H:C:T:L]: ${enclosures[${key}]}"
+  echo "  Name: ${enclosures_name[${key}]}"
+  echo -n '  WWN: '; echo ${key}
+  echo -e "  SCSI device: ${enclosures_scsi_device[${key}]}"
+  echo -e "  Sysfs dir: ${enclosures_sysfs_dir[${key}]}"
+  echo -e "  Number of disk/slot: ${enclosures_num_disk_and_slot[${key}]}"
+  echo -e "  Enclosure Status: ${enclosures_status[${key}]}"
+  echo -en "  EMM Information: ${enclosures_emm[${key}]}"
+  echo -en "  Overall Status: ${enclosures_overall[${key}]}"
+done
+
+__EOF__
+chmod +x scsi_list_enclosure.sh
