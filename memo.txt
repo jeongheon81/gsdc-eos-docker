@@ -52,7 +52,17 @@ http://134.75.125.53:3000
 
 
 http://134.75.125.53:9080
+
 https://134.75.125.55:8501
+dig @134.75.125.55 -p 8600 _eos-mgm._tcp.service.gsdc-01.consul.eoscluster.sdfarm.kr SRV
+dig @134.75.125.55 -p 8600 eos-mgm.service.gsdc-01.consul.eoscluster.sdfarm.kr
+
+https://jbod-mgmt-01.sdfarm.kr:9090
+
+
+iftop
+nethogs
+nmon
 
 
 "root://jbod-mgmt-09.eoscluster.sdfarm.kr:1094//root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
