@@ -108,6 +108,10 @@
         retries: 3
     loop: "{{ container_infos }}"
 
+  - name: Wait for container start completed
+    pause:
+      seconds: 60
+
   - name: Get consul bootstrap token
     include_tasks: consul_bootstrap_token.yml
 
