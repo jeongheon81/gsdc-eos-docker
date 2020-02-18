@@ -12,6 +12,9 @@ INCLUDE_CSV='0,1,2,3,4,5,6,7,8'
 VERBOSITY=''
 RETRY=false
 
+NMCLI_PATCH=1
+NMCLI_PATH="/usr/lib/python2.7/site-packages/ansible/modules/net_tools/nmcli.py"
+
 # -----------------------------------------------------------------------------
 # define helper
 # -----------------------------------------------------------------------------
@@ -135,6 +138,9 @@ __main() {
     fi
     sudo yum install -y --enablerepo=epel ansible
     echo ' - ... Installed ansible'
+  fi
+  if [ "$NMCLI_PATCH" = 1 ];then
+    cp -f ./nmcli.py $NMCLI_PATH
   fi
   packages=( "libselinux-python" "bind-utils" "jq" )
   for package in "${packages[@]}"; do
