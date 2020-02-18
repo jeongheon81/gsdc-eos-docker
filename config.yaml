@@ -196,7 +196,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.11/24
         gw4: xxx.xxx.xxx.1
@@ -210,7 +210,7 @@ host_group:
       #   stp: no
       #   slave_conn_name: uplink-br2
       #   slave_ifname: eno2
-      #   conflict_conn_name: System eno2
+      #   conflict_conn_name: eno2
       #   conflict_type: ethernet
       #   ip4: yyy.yyy.yyy.11/24
       #   gw4: ''
@@ -297,7 +297,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.12/24
         gw4: xxx.xxx.xxx.1
@@ -362,7 +362,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.13/24
         gw4: xxx.xxx.xxx.1
@@ -429,7 +429,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.14/24
         gw4: xxx.xxx.xxx.1
@@ -498,7 +498,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.15/24
         gw4: xxx.xxx.xxx.1
@@ -563,7 +563,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.16/24
         gw4: xxx.xxx.xxx.1
@@ -630,7 +630,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.17/24
         gw4: xxx.xxx.xxx.1
@@ -699,7 +699,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.18/24
         gw4: xxx.xxx.xxx.1
@@ -764,7 +764,7 @@ host_group:
         stp: no
         slave_conn_name: uplink-br1
         slave_ifname: eno1
-        conflict_conn_name: System eno1
+        conflict_conn_name: eno1
         conflict_type: ethernet
         ip4: xxx.xxx.xxx.19/24
         gw4: xxx.xxx.xxx.1
