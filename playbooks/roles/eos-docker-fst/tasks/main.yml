@@ -6,7 +6,7 @@
     immediate: yes
     state: enabled
     zone: internal
-  loop: 
+  loop:
   - 1095/tcp
   - 8001/tcp
   - 1096/tcp

@@ -6,7 +6,7 @@
     immediate: yes
     state: enabled
     zone: internal
-  loop: 
+  loop:
   - 88/tcp
   - 88/udp
   - 750/udp
@@ -90,13 +90,20 @@
 
   - name: Generate eos_mgm_nodes keytab files
     shell: |
+      {% set krb_filename = item[0] -%}
+      {% set krb_hostname = "" -%}
+      {% if item[0] == item[1] -%}
+      {%   set krb_hostname = item[0] -%}
+      {% else -%}
+      {%   set krb_hostname = container_name_host_map[item[0]] -%}
+      {% endif -%}
       docker exec -it {{ containers.eos_krb[0].name }} bash -c '
-        if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get host/{{ eos_mgm_node }} &>/dev/null ; then
-          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/host.{{ eos_mgm_node }}.log &&
-          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }} &&
+        if ! /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} get host/{{ krb_hostname }} &>/dev/null ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} add --random-password --use-defaults host/{{ krb_hostname }} | /usr/bin/tee -a /root/host.{{ krb_filename }}.log &&
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ krb_filename }}.keytab host/{{ krb_hostname }} &&
           echo changed;
-        elif [ ! -e /root/host.{{ eos_mgm_node }}.keytab ] ; then
-          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ eos_mgm_node }}.keytab host/{{ eos_mgm_node }} &&
+        elif [ ! -e /root/host.{{ krb_filename }}.keytab ] ; then
+          /usr/lib/heimdal/bin/kadmin -l -r {{ eos_realm }} ext_keytab --keytab=/root/host.{{ krb_filename }}.keytab host/{{ krb_hostname }} &&
           echo changed;
         else
           echo skipped;
@@ -107,9 +114,7 @@
       # creates:
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
-    loop: "{{ eos_mgm_nodes }}"
-    loop_control:
-      loop_var: eos_mgm_node
+    loop: "{{ eos_mgm_names|zip(eos_mgm_nodes)|list }}"
     run_once: true
 
   - name: Generate eos keytab files
@@ -165,7 +170,7 @@
       executable: /bin/bash
     register: command_result
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
-    loop: "{{ container_infos|product( ['host']|product(eos_mgm_nodes)|map('join', '.')|list + [ 'user.'+eos_admin_user, 'eos' ] )|list }}"
+    loop: "{{ container_infos|product( ['host']|product(eos_mgm_names)|map('join', '.')|list + [ 'user.'+eos_admin_user, 'eos' ] )|list }}"
 
   - name: Create keytab files directory
     become: no
@@ -182,10 +187,10 @@
 
   - name: Fetch mgm server keytab files
     fetch:
-      src: "/etc/eos-docker/{{ item[0].name }}/host.{{ item[1].node }}.keytab"
-      dest: "tmp/keytab/{{ item[0].krb_realm }}/{{ item[1].name }}/eos.krb5.keytab"
+      src: "/etc/eos-docker/{{ item[0].name }}/host.{{ item[1] }}.keytab"
+      dest: "tmp/keytab/{{ item[0].krb_realm }}/{{ item[1] }}/eos.krb5.keytab"
       flat: yes
-    loop: "{{ container_infos|product(eos_mgm_nodes_and_names)|list }}"
+    loop: "{{ container_infos|product(eos_mgm_names)|list }}"
 
   - name: Fetch user keytab files
     fetch:

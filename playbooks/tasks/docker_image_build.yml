@@ -10,7 +10,7 @@
     until: install_packages is success
     retries: 5
     delay: 3
-  
+
   - name: Create build home directory if it does not exist
     file:
       path: "{{ item }}"

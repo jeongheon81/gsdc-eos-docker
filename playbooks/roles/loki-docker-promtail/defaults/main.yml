@@ -37,7 +37,7 @@ loki_promtail_configs_default:
   - url: http://{{ loki_address }}/loki/api/v1/push
     # tenant_id: "{{ loki_organization_id }}"
     external_labels:
-      nodename: "{{ ansible_fqdn }}"
+      nodename: "{{ inventory_hostname }}"
   positions:
     # filename: /tmp/promtail/positions.yaml
     # filename: /var/log/positions.yaml
@@ -268,7 +268,7 @@ loki_promtail_configs_default:
   #     labels:
   #       service: syslog
   #       job: messages
-  #       host: "{{ ansible_fqdn }}"
+  #       host: "{{ inventory_hostname }}"
   #       __path__: /var/log/messages
   #   pipeline_stages:
   #   - match:

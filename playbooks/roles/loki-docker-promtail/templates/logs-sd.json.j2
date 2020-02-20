@@ -5,7 +5,7 @@
         "labels": {
           "service": log_volume.service,
           "job": log_volume.job_prefix+"-"+log,
-          "host": ansible_fqdn,
+          "host": inventory_hostname,
           "__path__": "/run/log/"+log_volume.name+"/"+log
         }
       }) %}

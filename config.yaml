@@ -64,7 +64,7 @@ group_vars_all:
   eos_admin_user_uid: 1001
   eos_admin_user_gid: 1001
   eos_use_proxy: yes
-  eos_xrootd_internet_address_protocol: v4
+  # eos_xrootd_internet_address_protocol: v4
   eos_realm: !unsafe "{{ eos_prime_cluster_domain_name|upper }}"
   eos_nodes: !unsafe "{{ eos_krb_nodes + eos_manager_nodes + eos_proxy_nodes + eos_mgm_nodes + eos_qdb_nodes + eos_fst_nodes }}"
   eos_node_names: !unsafe "{{ eos_krb_names + eos_manager_names + eos_proxy_names + eos_mgm_names + eos_qdb_names + eos_fst_names }}"
@@ -86,6 +86,20 @@ group_vars_all:
   # eos_default_fs_space_name: default
   # eos_default_fs_insertion_status: rw
   # eos_default_number_of_fst: !unsafe "{{ eos_fst_nodes|length }}"
+  eos_default_space_groupsize: 18
+  eos_default_space_groupmod: 84
+  eos_default_space_setup_script: |
+    {% raw %}
+    eos space define default {{ eos_default_space_groupsize }} {{ eos_default_space_groupmod }}
+    eos space set spare on
+    for box in {0..{{ eos_default_space_groupsize|int - 1 }}}; do
+      for fsid in {1..{{ eos_default_space_groupmod }}}; do
+        eos fs mv --force $(($fsid + $box * {{ eos_default_space_groupmod }} )) default.$(($fsid - 1)) ;
+      done
+    done
+    eos space set default on
+    eos recycle config --size 1T
+    {% endraw %}
   eos_use_qdb: yes
   qdb_clusters: !unsafe "{{ eos_qdb_nodes }}"
   qdb_port: 7777
@@ -120,7 +134,7 @@ group_vars_all:
       realm: SDFARM.KR
     - domain: sdfarm.kr
       realm: SDFARM.KR
-    - domain: !unsafe "{{ ansible_fqdn }}"
+    - domain: !unsafe "{{ inventory_hostname }}"
       realm: EOSCLUSTER.SDFARM.KR
     capaths:
     - realm: EOSCLUSTER.SDFARM.KR
@@ -145,7 +159,7 @@ host_default: &host_default
 container_default: &container_default
   network: !unsafe "{{ container_domain }}"
   domain: !unsafe "{{ container_domain }}"
-  etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default({})|combine(container_etc_hosts_hostserver.all|default({})) }}"
+  etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default({})|combine(container_etc_hosts_hostserver.all|default({})) }}"
 
 eos_container_default: &eos_container_default
   <<: *container_default
@@ -244,7 +258,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_krb:
         - name: eos-krb-01
           <<: *eos_container_default
@@ -258,8 +272,8 @@ host_group:
           xrd_roles:
           - mq
           - mgm
-          mgm_host: !unsafe "{{ eos_mgm_masters[0] }}"
-          mgm_host_target: !unsafe "{{ eos_mgm_masters[1] }}"
+          #mgm_host: !unsafe "{{ eos_mgm_masters[0] }}"
+          #mgm_host_target: !unsafe "{{ eos_mgm_masters[1] }}"
           is_master: yes
         eos_fst:
         - name: eos-fst-0001
@@ -322,7 +336,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_qdb:
         - name: eos-qdb-01
           <<: *eos_container_default
@@ -387,7 +401,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_fst:
         - name: eos-fst-0005
           <<: *eos_container_default
@@ -454,7 +468,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_mgm:
         - name: eos-mgm-02
           <<: *eos_container_default
@@ -462,8 +476,8 @@ host_group:
           xrd_roles:
           - mq
           - mgm
-          mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
-          mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
+          #mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
+          #mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
         eos_fst:
         - name: eos-fst-0007
           <<: *eos_container_default
@@ -523,7 +537,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_qdb:
         - name: eos-qdb-02
           <<: *eos_container_default
@@ -588,7 +602,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_fst:
         - name: eos-fst-0011
           <<: *eos_container_default
@@ -655,7 +669,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_mgm:
         - name: eos-mgm-03
           <<: *eos_container_default
@@ -663,8 +677,8 @@ host_group:
           xrd_roles:
           - mq
           - mgm
-          mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
-          mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
+          #mgm_host: !unsafe "{{ eos_mgm_masters[1] }}"
+          #mgm_host_target: !unsafe "{{ eos_mgm_masters[0] }}"
         eos_fst:
         - name: eos-fst-0013
           <<: *eos_container_default
@@ -724,7 +738,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_qdb:
         - name: eos-qdb-03
           <<: *eos_container_default
@@ -789,7 +803,7 @@ host_group:
         loki_promtail:
         - name: !unsafe "loki-promtail-{{ ansible_hostname }}"
           image: !unsafe "{{ container_images.promtail }}"
-          etc_hosts: !unsafe "{{ container_etc_hosts[ansible_fqdn]|default(omit) }}"
+          etc_hosts: !unsafe "{{ container_etc_hosts[inventory_hostname]|default(omit) }}"
         eos_proxy:
         - name: eos-proxy-01
           <<: *eos_container_default
@@ -855,6 +869,8 @@ host_group:
     #     nh: 192.168.125.1
     #   - ip: 192.168.2.0/24
     #     nh: 192.168.125.1
+    ssd_devices:
+    - sda
     docker_users:
     - localadmin
     container_network_user_firewall_rules: >-
@@ -927,11 +943,13 @@ host_group:
 
 group_vars_all_auto: >-
   {% set final_result = {} -%}
+  {% set container_name_host_map = {} -%}
   {% set eos_cluster_domain_names = [] -%}
-  {# generate: <container_type>_nodes, <container_type>_names , <container_type>_master_node, <container_type>_master_name, <container_type>_master_host -#}
+  {# generate: <container_type>_nodes, <container_type>_names, <container_type>_hosts , <container_type>_master_node, <container_type>_master_name, <container_type>_master_host -#}
   {% for container_type in ['consul_server', 'consul_client', 'grafana_server', 'eos_krb', 'eos_manager', 'eos_proxy', 'eos_mgm', 'eos_qdb', 'eos_fst'] -%}
   {%   set result_nodes = [] -%}
   {%   set result_names = [] -%}
+  {%   set result_hosts = [] -%}
   {%   for group in host_group|default([]) -%}
   {%     for host in group.hosts|default([]) -%}
   {%       for container in host.host_vars.containers[container_type]|default([]) -%}
@@ -950,6 +968,7 @@ group_vars_all_auto: >-
   {%           endif -%}
   {%         endif -%}
   {{         result_names.append(cont_name) -}}
+  {{         result_hosts.append(host.name) -}}
   {%         if container.is_master is defined and container.is_master -%}
   {{           final_result.update({ container_type+'_master_name': cont_name }) -}}
   {{           final_result.update({ container_type+'_master_host': host.name }) -}}
@@ -960,10 +979,25 @@ group_vars_all_auto: >-
   {%       endfor -%}
   {%     endfor -%}
   {%   endfor -%}
+  {{   container_name_host_map.update( container_name_host_map|combine(dict(result_names|zip(result_hosts))) ) -}}
   {{   final_result.update({ container_type+'_nodes': result_nodes }) -}}
   {{   final_result.update({ container_type+'_names': result_names }) -}}
+  {{   final_result.update({ container_type+'_hosts': result_hosts }) -}}
   {% endfor -%}
+  {{ final_result.update({ 'container_name_host_map': container_name_host_map }) -}}
   {{ final_result.update({ 'eos_cluster_domain_names': eos_cluster_domain_names|unique }) -}}
+  {# generate: eos_mgm_krb_hostnames -#}
+  {% set result = [] -%}
+  {% for item in  final_result.eos_mgm_names|zip(final_result.eos_mgm_nodes)|list -%}
+    {% set krb_hostname = "" -%}
+    {% if item[0] == item[1] -%}
+      {% set krb_hostname = item[0] -%}
+    {% else -%}
+      {% set krb_hostname = final_result.container_name_host_map[item[0]] -%}
+    {% endif -%}
+    {{ result.append(krb_hostname) -}}
+  {% endfor -%}
+  {{ final_result.update({ 'eos_mgm_krb_hostnames': result }) -}}
   {# generate: container_etc_hosts -#}
   {%   set result = {} -%}
   {%   set pre_result_all = [] -%}

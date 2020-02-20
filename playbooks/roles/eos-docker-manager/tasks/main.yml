@@ -39,15 +39,15 @@
         if [ ! -e /root/INITIALIZED_manager ] ; then
           export EOS_MGM_URL={{ eos_mgm_url_regular }} ;
           kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
-          {% for eos_mgm_node in eos_mgm_nodes %}
-          kvno host/{{ eos_mgm_node }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
+          {% for eos_mgm_krb_hostname in eos_mgm_krb_hostnames %}
+          kvno host/{{ eos_mgm_krb_hostname }} | /usr/bin/tee -a /root/INITIALIZED_manager.log ;
           {% endfor %}
           if ! grep "EOS_MGM_URL=" /root/.bashrc &>/dev/null ; then
             echo "export EOS_MGM_URL={{ eos_mgm_url_regular }}" >> /root/.bashrc ;
             echo "export XrdSecPROTOCOL=sss" >> /root/.bashrc ;
             echo "kinit -kt /root/{{ eos_admin_user }}.keytab {{ eos_admin_user }}@{{ eos_realm }}" >> /root/.bashrc ;
-          {% for eos_mgm_node in eos_mgm_nodes %}
-            echo "kvno host/{{ eos_mgm_node }}" >> /root/.bashrc ;
+          {% for eos_mgm_krb_hostname in eos_mgm_krb_hostnames %}
+            echo "kvno host/{{ eos_mgm_krb_hostname }}" >> /root/.bashrc ;
           {% endfor %}
           fi
           echo "export EOS_MGM_URL={{ eos_mgm_url_regular }}" >> /root/eos_env
