@@ -4,6 +4,7 @@ set MGM=$EOS_MGM_ALIAS
 
 xrootd.fslib -2 libXrdEosFst.so
 xrootd.async off nosf
+xrd.timeout idle 86400
 xrd.network keepalive
 xrootd.redirect $(MGM):1094 chksum
 
@@ -20,6 +21,7 @@ all.manager localhost 2131
 ###########################################################
 xrd.port {{ item[0].fst_xrd_port }}
 ofs.persist off
+#ofs.persist false
 ofs.osslib libEosFstOss.so
 ofs.tpc pgm /usr/bin/xrdcp
 ###########################################################
@@ -32,6 +34,13 @@ fstofs.fmddict /var/eos/md/fstfmd.dict
 #fstofs.authdir /var/eos/auth/
 #fstofs.trace client
 ###########################################################
+
+{% if eos_use_qdb|bool %}
+#############################################################
+# Quarkdb custer configuration used for the namespace
+fstofs.qdbcluster {{ qdb_clusters|product([ qdb_port ])|map('join', ':')|join(' ') }}
+fstofs.qdbpassword_file /etc/eos.keytab
+{% endif %}
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000

@@ -49,7 +49,7 @@ export EOS_INSTANCE_NAME={{ eos_instance_name }}
 # The EOS configuration to load after daemon start
 export EOS_AUTOLOAD_CONFIG=default
 
-# The EOS broker URL 
+# The EOS broker URL
 export EOS_BROKER_URL={{ eos_broker_url }}
 
 # The EOS host geo location tag used to sort hosts into geographical (rack) locations 
@@ -66,10 +66,10 @@ export EOS_MGM_ALIAS={{ eos_mgm_alias }}
 
 {% if item[0].mgm_host is defined and item[0].mgm_host_target is defined %}
 # The fully qualified hostname of current MGM
-export EOS_MGM_HOST={{ item[0].mgm_host }}
+#export EOS_MGM_HOST={{ item[0].mgm_host }}
 
 # The fully qualified hostname of target MGM
-export EOS_MGM_HOST_TARGET={{ item[0].mgm_host_target }}
+#export EOS_MGM_HOST_TARGET={{ item[0].mgm_host_target }}
 {% endif %}
 
 # The URL address of MGM
@@ -87,7 +87,7 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export KINETIC_DRIVE_SECURITY=
 #export KINETIC_CLUSTER_DEFINITION=
 
-# Enable core dumps initiated internally 
+# Enable core dumps initiated internally
 #export EOS_CORE_DUMP
 
 # Disable shutdown/signal handlers for debugging
@@ -103,10 +103,11 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export EOS_SECONDARY_GROUPS=0
 
 # Do subtree accounting on directories (set to 1 to enable)
-#export EOS_NS_ACCOUNTING=0
+export EOS_NS_ACCOUNTING=1
 
 # Do sync time propagation (set to 1 to enable)
 #export EOS_SYNCTIME_ACCOUNTING=0
+EOS_SYNCTIME_ACCOUNTING=1
 
 # Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
 # export EOS_ALLOW_RAIN_RWM
@@ -132,12 +133,12 @@ export EOS_USE_SHARED_MUTEX=1
 # this is disabled.
 # This applies both in context of the MGM server when it comes to TPC jobs and
 # also on the FST server for FST to FST transfers.
-# export EOS_XRD_USE_CONNECTION_POOL=1
+export EOS_XRD_USE_CONNECTION_POOL=1
 
 # When xrootd connection pool is enabled, one can control the maximum number
 # of physical connection that can be established with the destination server.
 # The min value is 1 and the max 1024. By default this 1024.
-# export EOS_XRD_CONNECTION_POOL_SIZE=1024
+export EOS_XRD_CONNECTION_POOL_SIZE=1024
 
 # Enable QoS support
 export EOS_ENABLE_QOS=""
@@ -153,6 +154,12 @@ export EOS_START_SYNC_SEPARATELY=1
 {% if not eos_use_qdb|bool %}# {% endif -%}
 export EOS_USE_QDB_MASTER=1
 
+# TODO: modify by CERN
+EOS_DISABLE_BACKWARD_STACKTRACE="1"
+EOS_HEALTH="1"
+EOS_MGM_FAILOVERTIME="300"
+EOS_NS_QDB_SKIP_UNLINKED_FILELIST="1"
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------
@@ -165,6 +172,7 @@ export EOS_FST_TRANSFER_THREAD_POOL=20
 
 # Network interface to monitor (default eth0)
 #export EOS_FST_NETWORK_INTERFACE="eth0"
+export EOS_FST_NETWORK_INTERFACE="br1"
 
 # Network interface speed (automatic detection works only on SLC6)
 # specify in MBit/s
@@ -189,7 +197,7 @@ export EOS_FST_CONNECTION_RETRY=1
 #export EOS_FST_S3_ACCESS_KEY=""
 #export EOS_FST_S3_SECRET_KEY=""
 
-# Set S3 theoretical storage size 
+# Set S3 theoretical storage size
 #export EOS_FST_S3_STORAGE_SIZE=1000000000000000
 
 # Set HTTPS X509 certificate path
@@ -280,20 +288,20 @@ export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
 # Mount all files with 'x' bit to be able to run as an executable (default off)
 # export EOS_FUSE_EXEC=1
 
-# Enable protection against recursive deletion (rm -r command) 
+# Enable protection against recursive deletion (rm -r command)
 #    starting from the root of the mount (if 1)
 #    or from any of its sub directories at a maximum depth (if >1) (default 1)
 # export EOS_FUSE_RMLVL_PROTECT=1
-   
-# Enable Kerberos authentication. This avoid need to set gateways on the mgm. 
+
+# Enable Kerberos authentication. This avoid need to set gateways on the mgm.
 #    file cache credential should be used. (default 0)
 # export EOS_FUSE_USER_KRB5CC=0
 
-# Enable X509 GSI authentication. This avoid need to set gateways on the mgm. 
+# Enable X509 GSI authentication. This avoid need to set gateways on the mgm.
 #    file user proxy should be used. (default 0)
 # export EOS_FUSE_USER_GSIPROXY=0
 
-# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
+# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first.
 #    (default 0)
 # export EOS_FUSE_USER_KRB5FIRST=0
 
@@ -408,7 +416,7 @@ export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
 #    By default the maximum size is 256M
 # export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
 
-# Set FUSE kernel cache time for directory entries (readdir cache) - default 10 seconds	
+# Set FUSE kernel cache time for directory entries (readdir cache) - default 10 seconds
 # export EOS_FUSE_ENTRY_CACHE_TIME=10
 
 # Set FUSE kernel attribute cache time (stat cache) - default 10 seconds
@@ -418,7 +426,7 @@ export EOS_FUSE_MGM_ALIAS={{ eos_fuse_mgm_alias }}
 # export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
 
 # an XRootD client bug makes that sometimes when a stat is issued it can come back with a null response
-# when this happens, it gets retried a few times sleeping between attempts 
+# when this happens, it gets retried a few times sleeping between attempts
 # export EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT=3
 # export EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS=1
 
@@ -498,7 +506,7 @@ export EOS_FST_HTTP_PORT={{ item[0].fst_http_port|default('8001') }}
 
 # we use EPOLL and 16 threads 
 export EOS_HTTP_THREADPOOL="epoll"
-export EOS_HTTP_THREADPOOL_SIZE=16
+export EOS_HTTP_THREADPOOL_SIZE=64
 
 # memory buffer size per connection 
 #export EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
