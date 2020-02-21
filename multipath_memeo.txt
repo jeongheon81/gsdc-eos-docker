@@ -203,7 +203,7 @@ done
 echo > fstab_append.txt
 for id in 0 1; do 
   for disk in {000..083} ; do
-    echo "/dev/mapper/mpath${mpath_id[id]}${disk}    /jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}  xfs     defaults,inode64,noauto        0       0" >> fstab_append.txt
+    echo "/dev/mapper/mpath${mpath_id[id]}${disk}    /jbod-${mpath_id[id]}/box_${box_id[id]}_disk_${disk}  xfs     defaults,inode64,nofail        0       0" >> fstab_append.txt
   done
 done
 
@@ -296,6 +296,13 @@ done
 
 __EOF__
 chmod +x scsi_list_adapters.sh
+
+
+cat > scsi_list_adapters.py << '__EOF__'
+
+
+__EOF__
+chmod +x scsi_list_adapters.py
 
 
 cat > scsi_list_enclosure.sh << '__EOF__'

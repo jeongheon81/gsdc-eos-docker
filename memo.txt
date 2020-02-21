@@ -15,6 +15,9 @@ systemctl reboot
 
 https://github.com/cern-eos/eos/blob/master/fst/tools/eosfstregister
 
+
+# clean utils
+# on each host
 docker rm -f consul-{01..09}-nginx-proxy-sidecar
 docker rm -f consul-{01..09}-consul-exporter-sidecar
 docker rm -f consul-{01..09}
@@ -26,9 +29,11 @@ yes | docker volume prune
 rm -rf /etc/consul/*
 rm -rf /etc/loki/*
 rm -rf /etc/grafana/*
-# Delete var_consul
+# on playbook directory: Delete tmp/playbooks-group_vars/all/var_consul_*
 
 
+# clean EOS
+# on each host
 docker rm -f eos-krb-01
 docker rm -f eos-proxy-01
 docker rm -f eos-qdb-{01..03}
@@ -38,13 +43,10 @@ docker rm -f eos-fst-{0001..0018}
 yes | docker container prune
 yes | docker volume prune
 rm -rf /etc/eos-docker/*
-
-# Delete KeyTab
-
 rm -rf /jbod-*/*/*
 rm -rf /jbod-*/*/.eos*
-
 ls -al /jbod-*/*/ | awk '{print $9}' | sort | uniq
+# on playbook directory: Delete tmp/keytab
 
 
 http://134.75.125.53:3000
@@ -251,4 +253,172 @@ git remote show github
 git config --global merge.ours.driver true
 git config merge.ours.driver true
 
+
+for fsid in {85..1512}; do
+  eos fs config $fsid configstatus=drain
+done
+
+for fsid in {85..1512}; do
+  eos fs mv $fsid spare
+done
+
+eos space define default 84
+
+for box in {16..16}; do
+  for fsid in {1..84}; do
+      eos fs mv $(($fsid + $box * 84 )) spare
+  done
+done
+
+for box in {0..0}; do
+  for fsid in {1..84}; do
+      eos fs mv $(($fsid + $box * 84 )) default.$(($fsid - 1))
+  done
+done
+
+for fsid in {85..1512}; do
+  eos fs config $fsid configstatus=rw
+done
+
+eos space config default space.policy.layout=qrain
+eos space config default space.policy.nstripes=16
+eos space config default space.policy.checksum=adler
+eos space config default space.policy.blockchecksum=crc32c
+eos space config default space.policy.blocksize=1M
+
+
+
+
+
+
+eos space define default 18 84
+
+for fsid in {1..1512}; do
+  eos fs config $fsid configstatus=drain
+done
+
+eos space set spare on
+
+for box in {0..17}; do
+  for fsid in {1..84}; do
+      eos fs mv $(($fsid + $box * 84 )) default.$(($fsid - 1))
+  done
+done
+
+for fsid in {1..1512}; do
+  eos fs config $fsid configstatus=rw
+done
+
+eos space set default on
+
+
+
+
+
+
+eos space set default on
+#eos space set spare on
+
+eos space config default space.policy.layout=qrain
+eos space config default space.policy.nstripes=16
+#eos space config default space.policy.checksum=adler
+#eos space config default space.policy.blockchecksum=crc32c
+#eos space config default space.policy.blocksize=1M
+#eos space config default space.policy.recycle=on
+#eos recycle config --size 1T
+
+
+for group in {0..83}; do
+  eos group set default.$group on
+done
+
+for fsid in {1..1512}; do
+  eos fs config $fsid configstatus=drain
+done
+
+for box in {0..17}; do
+  for fsid in {1..84}; do
+      eos fs mv $(($fsid + $box * 84 )) default.$(($fsid - 1))
+  done
+done
+
+for fsid in {1..1512}; do
+  eos fs config $fsid configstatus=rw
+done
+
+
+
+docker exec -it eos-manager-	 sh
+export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
+dd if=/dev/urandom of=file1g bs=1048576 count=1024
+
+eos mkdir /eos/gsdc/testarea/
+eos chmod 777 /eos/gsdc/testarea/
+
+eos cp --streams=8 file1g /eos/gsdc/testarea/file1g-$(hostname -s)
+eos ls -al /eos/gsdc/testarea/
+
+eos cp /eos/gsdc/testarea/file1g-$(hostname -s) file1g-cp
+
+diff file1g file1g-cp
+
+eos file info /eos/gsdc/testarea/file1g-$(hostname -s)
+
+
+eos mkdir /eos/gsdc/testrain/
+eos chmod 777 /eos/gsdc/testrain/
+
+# on mgm
+eos recycle config --add-bin /eos/gsdc/testrain/
+eos attr -r set default=qrain /eos/gsdc/testrain/
+#eos attr -r set sys.forced.nstripes=16 /eos/gsdc/testrain/
+eos attr ls /eos/gsdc/testrain/
+
+# test
+eos cp file1g /eos/gsdc/testrain/file1g-$(hostname -s)
+eos ls -alh /eos/gsdc/testrain/
+
+eos cp /eos/gsdc/testrain/file1g-$(hostname -s) file1g-cp
+
+diff file1g file1g-cp
+
+eos file info /eos/gsdc/testrain/file1g-$(hostname -s)
+
+eos rm /eos/gsdc/testrain/file1g-$(hostname -s)
+eos recycle ls
+
+134.75.125.53   jbod-mgmt-01.eoscluster
+134.75.125.55   jbod-mgmt-02.eoscluster
+134.75.125.57   jbod-mgmt-03.eoscluster
+134.75.125.59   jbod-mgmt-04.eoscluster
+134.75.125.73   jbod-mgmt-05.eoscluster
+134.75.125.75   jbod-mgmt-06.eoscluster
+134.75.125.244  jbod-mgmt-07.eoscluster
+134.75.125.246  jbod-mgmt-08.eoscluster
+134.75.125.251  jbod-mgmt-09.eoscluster
+
+firewall-cmd --zone=trusted --add-source=134.75.125.53
+firewall-cmd --zone=trusted --add-source=134.75.125.55
+firewall-cmd --zone=trusted --add-source=134.75.125.57
+firewall-cmd --zone=trusted --add-source=134.75.125.59
+firewall-cmd --zone=trusted --add-source=134.75.125.73
+firewall-cmd --zone=trusted --add-source=134.75.125.75
+firewall-cmd --zone=trusted --add-source=134.75.125.244
+firewall-cmd --zone=trusted --add-source=134.75.125.246
+firewall-cmd --zone=trusted --add-source=134.75.125.251
+
+
+
+export EOS_MGM_URL="root://jbod-mgmt-01.eoscluster.sdfarm.kr:1094"
+dd if=/dev/urandom of=file2-1g bs=1048576 count=1024
+eoscp file2-1g /eos/gsdc/testrain/file2-1g-$(hostname -s)
+
+xrdcp test.txt root://jbod-mgmt-01.eoscluster.sdfarm.kr/eos/gsdc/testrain/test.txt\?eos.app=TagName
+
+env XRD_APPNAME=TagName xrdcp test.txt root://jbod-mgmt-01.eoscluster.sdfarm.kr/eos/gsdc/testrain/test.txt
+
+eos io stat -x
+
+XRD_APPNAME=eoscptest
+eoscp file1g root://jbod-mgmt-01.eoscluster.sdfarm.kr//eos/gsdc/testrain/file1g-$(hostname -s)
 
