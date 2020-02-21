@@ -55,6 +55,7 @@
   roles:
   - baseshare
   - eos-docker-fst-disk-registration
+  - eos-docker-default-space-setup
   tags:
   - registration
 

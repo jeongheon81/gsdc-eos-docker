@@ -4,6 +4,6 @@ eos_container_build_home: "{{ install_info_home }}/eos-docker-build"
 
 eos_container_image_repo: ""
 eos_container_image_name: eos-local
-eos_container_image_tag: v4.6.5-20200117095407-014
+eos_container_image_tag: v4.5.9-1-017
 
 eos_container_image_archive: "{{ eos_container_image_name }}-{{ eos_container_image_tag }}.tar.gz"

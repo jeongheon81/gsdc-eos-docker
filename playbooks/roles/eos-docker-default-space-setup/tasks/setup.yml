@@ -1,0 +1,26 @@
+---
+- name: Setup default space
+  shell: |
+    docker exec -t {{ eos_mgm_master_container_name }} bash -c '
+      (
+        set -o errexit ;
+        set -o pipefail ;
+        {{ eos_default_space_setup_script }}
+      ) 2>&1 | /usr/bin/tee -a /root/MGM_DEFAULT_SPACE_INITIALIZED.log ;
+    '
+  async: 2592000
+  poll: 0
+  register: eos_space_setup_job
+
+- name: 'eos-docker-default-space-setup : Watch eos-space-setup job until finishes'
+  include_role:
+    name: async_job_watcher
+  vars:
+    watch_title: eos space setup task
+    watch_become: yes
+    watch_command: "docker exec -it {{ eos_mgm_master_container_name }} bash -c 'cat /root/MGM_DEFAULT_SPACE_INITIALIZED.log'"
+    watch_file: stdout
+    watch_lines_reset: no
+    watch_job: eos_space_setup_job
+    watch_timeout: 259200
+    watch_poll: 10
