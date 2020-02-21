@@ -13,7 +13,7 @@
         export EOS_MGM_URL={{ eos_mgm_url_regular }} ;
         {% for data_directory in item.fst.data_directories %}
         chown -R daemon:daemon {{ data_directory.dest }}/*
-        eosfstregister --port {{ item.fst.fst_xrd_port }} {{ data_directory.dest }}/ default:$(ls -al {{ data_directory.dest }}/ | grep daemon  | wc -l) | /usr/bin/tee -a /root/FST_FS_INITIALIZED.log ;
+        eosfstregister --port {{ item.fst.fst_xrd_port }} {{ data_directory.dest }}/ spare:$(ls -al {{ data_directory.dest }}/ | grep daemon  | wc -l) | /usr/bin/tee -a /root/FST_FS_INITIALIZED.log ;
         {% endfor %}
       '
     args:

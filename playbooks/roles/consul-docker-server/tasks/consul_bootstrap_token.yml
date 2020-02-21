@@ -2,8 +2,16 @@
 
 - block:
   - name: Get consul_bootstrap_token
-    shell: docker exec -it {{ container_infos[0].name }} sh -c 'CONSUL_HTTP_TOKEN_FILE= consul acl bootstrap | grep SecretID | awk "{print \$2}"'
+    shell: |
+      docker exec -it {{ container_infos[0].name }} sh -c '
+        set -o errexit;
+        set -o pipefail;
+        CONSUL_HTTP_TOKEN_FILE= consul acl bootstrap | grep SecretID | awk "{print \$2}"
+      '
+    retries: 30
+    delay: 10
     register: get_consul_bootstrap_token_result
+    until: get_consul_bootstrap_token_result.rc == 0
 
   - set_fact:
       _consul_bootstrap_token: "{{ get_consul_bootstrap_token_result.stdout_lines[-1] }}"

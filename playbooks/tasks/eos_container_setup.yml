@@ -40,6 +40,13 @@
     command: "{{ command|default(omit) }}"
     healthcheck: "{{ healthcheck|default(omit) }}"
     stop_timeout: 30
+    memory_swappiness: 0
+    capabilities:
+    - ipc_lock
+    ulimits:
+    - nofile:100000:100000
+    - nproc:32768
+    - memlock:-1:-1
   register: container_start_results
   loop: "{{ container_infos }}"
   notify:

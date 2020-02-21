@@ -9,6 +9,25 @@
 #   loop: "{{ eos_mgm_nodes|zip(eos_mgm_names)|list }}"
 # - debug: var=eos_mgm_nodes_and_names
 
+# - set_fact:
+#     container_name_host_map: "{{ dict(eos_mgm_names|zip(eos_mgm_hosts)) }}"
+# - debug: var=container_name_host_map
+
+# - set_fact:
+#     eos_mgm_krb_hostnames: >-
+#       {% set result = [] -%}
+#       {% for item in  eos_mgm_names|zip(eos_mgm_nodes)|list -%}
+#         {% set krb_hostname = "" -%}
+#         {% if item[0] == item[1] -%}
+#           {% set krb_hostname = item[0] -%}
+#         {% else -%}
+#           {% set krb_hostname = container_name_host_map[item[0]] -%}
+#         {% endif -%}
+#         {{ result.append(krb_hostname) -}}
+#       {% endfor -%}
+#       {{ result }}
+# - debug: var=eos_mgm_krb_hostnames
+
 - name: Check container network gateway address
   assert:
     that:

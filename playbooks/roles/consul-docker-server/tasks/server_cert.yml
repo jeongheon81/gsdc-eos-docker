@@ -6,7 +6,7 @@
       sh -c "cd /root &&
       echo -e {{ consul_agent_ca|quote }} > {{ consul_domain }}-agent-ca.pem && echo -e {{ consul_agent_ca_key|quote }} > {{ consul_domain }}-agent-ca-key.pem &&
       consul tls cert create -server -days={{ consul_ca_days }} -domain {{ consul_domain }} -dc {{ consul_datacenter }}
-      {{ '-additional-dnsname='+ansible_fqdn if consul_server.network_mode is defined else '' }}
+      {{ '-additional-dnsname='+inventory_hostname+' -additional-dnsname='+ansible_hostname+'.'+container_domain if consul_server.network_mode is defined else '' }}
       -additional-dnsname={{ consul_alias }}
       -additional-dnsname={{ consul_server.name }}.{{ consul_server.domain }}
       -additional-dnsname={{ consul_server.name }}.node.{{ consul_datacenter }}.{{ consul_domain }}

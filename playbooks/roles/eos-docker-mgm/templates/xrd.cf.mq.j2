@@ -8,6 +8,8 @@ xrootd.async off nosf
 xrootd.seclib libXrdSec.so
 sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
 sec.protbind * only sss
+# TODO: add by CERN
+sec.level all relaxed standard
 
 #############################################################
 #allow upto 1024 threads
@@ -18,9 +20,10 @@ xrd.port 1097
 #keepalive + idle timeout
 xrd.network keepalive
 xrd.timeout idle 120
-mq.maxmessagebacklog 100000
-mq.maxqueuebacklog 50000
-mq.rejectqueuebacklog 100000
+# TODO: NOT use by CERN
+#mq.maxmessagebacklog 100000
+#mq.maxqueuebacklog 50000
+#mq.rejectqueuebacklog 100000
 
 #############################################################
 # low|medium|high as trace levels

@@ -1,0 +1,32 @@
+---
+- block:
+  - name: Check initialized holder
+    stat: path=/etc/eos-docker/{{ mgm.name }}/MGM_DEFAULT_SPACE_INITIALIZED
+    register: initialized_holder_stats
+    loop: "{{ containers.eos_mgm }}"
+    loop_control:
+      loop_var: mgm
+
+  - name: Check master
+    shell: docker exec -it {{ init.mgm.name }} bash -c 'if eos ns | grep is_master=true ; then echo master ; else echo slave ; fi'
+    register: check_master_command_result
+    changed_when: false
+    loop: "{{ initialized_holder_stats.results }}"
+    loop_control:
+      loop_var: init
+
+  - name: Setup default space
+    include_tasks: setup.yml
+    vars:
+      eos_mgm_master_container_name: "{{ item.init.mgm.name }}"
+    when: not item.init.stat.exists and item.stdout_lines[-1] == 'master'
+    loop: "{{ check_master_command_result.results }}"
+
+  - name: Create initialized holder
+    file:
+      path: "/etc/eos-docker/{{ item.mgm.name }}/MGM_DEFAULT_SPACE_INITIALIZED"
+      state: touch
+    when: not item.stat.exists
+    loop: "{{ initialized_holder_stats.results }}"
+
+  when: containers is defined and containers.eos_mgm is defined and containers.eos_mgm|length > 0

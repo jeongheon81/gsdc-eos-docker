@@ -1,0 +1,16 @@
+---
+- name: Set SSD settings
+  lineinfile:
+    path: /etc/rc.local
+    mode: '0755'
+    regexp: '{{ item.regexp }}'
+    line: '{{ item.line }}'
+  loop:
+  - regexp: touch /var/lock/subsys/local
+    line: touch /var/lock/subsys/local
+  - regexp: '.* /sys/class/block/{{ ssd_device }}/queue/rotational$'
+    line: echo 0 > /sys/class/block/{{ ssd_device }}/queue/rotational
+  - regexp: '.* /sys/class/block/{{ ssd_device }}/queue/read_ahead_kb$'
+    line: echo 8 > /sys/class/block/{{ ssd_device }}/queue/read_ahead_kb
+  - regexp: '.* /sys/block/{{ ssd_device }}/queue/scheduler$'
+    line: echo noop > /sys/block/{{ ssd_device }}/queue/scheduler
