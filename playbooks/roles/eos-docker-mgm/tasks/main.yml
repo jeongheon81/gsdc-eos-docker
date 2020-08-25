@@ -75,6 +75,10 @@
     changed_when: command_result.stdout_lines|length > 0 and command_result.stdout_lines[-1] == 'changed'
     loop: "{{ container_infos }}"
 
+  - name: Wait before mgm setup
+    pause:
+      seconds: 60
+
   - name: Init default mgm setup
     shell: |
       docker exec -it {{ item.name }} bash -c '
